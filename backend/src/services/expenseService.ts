@@ -1,5 +1,6 @@
 import { PrismaClient, PettyCashTransferStatus, Prisma } from '@prisma/client';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../utils/errors';
+import { S3Service } from './s3Service';
 
 const prisma = new PrismaClient();
 
@@ -607,5 +608,107 @@ export class ExpenseService {
       },
       recentExpenses,
     };
+  }
+
+  /**
+   * Update expense attachment
+   */
+  static async updateAttachment(id: string, companyId: string, attachmentUrl: string) {
+    const expense = await prisma.expense.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!expense) {
+      throw new NotFoundError('Expense not found');
+    }
+
+    // Delete old attachment from S3 if exists
+    if (expense.attachmentUrl && S3Service.isS3Url(expense.attachmentUrl)) {
+      await S3Service.deleteFileByUrl(expense.attachmentUrl);
+    }
+
+    // Update with new attachment URL
+    const updatedExpense = await prisma.expense.update({
+      where: { id },
+      data: { attachmentUrl },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        recordedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return updatedExpense;
+  }
+
+  /**
+   * Delete expense attachment
+   */
+  static async deleteAttachment(id: string, companyId: string) {
+    const expense = await prisma.expense.findFirst({
+      where: { id, companyId },
+    });
+
+    if (!expense) {
+      throw new NotFoundError('Expense not found');
+    }
+
+    if (!expense.attachmentUrl) {
+      throw new BadRequestError('No attachment to delete');
+    }
+
+    // Delete from S3 if it's an S3 URL
+    if (S3Service.isS3Url(expense.attachmentUrl)) {
+      await S3Service.deleteFileByUrl(expense.attachmentUrl);
+    }
+
+    // Remove attachment URL from expense
+    const updatedExpense = await prisma.expense.update({
+      where: { id },
+      data: { attachmentUrl: null },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        recordedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return updatedExpense;
   }
 }

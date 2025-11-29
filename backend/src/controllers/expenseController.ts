@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { ExpenseService } from '../services/expenseService';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../types';
+import { ApiResponse } from '../utils/response';
 
 export class ExpenseController {
   static getAllExpenses = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -101,5 +102,36 @@ export class ExpenseController {
     const dashboard = await ExpenseService.getBranchDashboard(branchId, companyId);
 
     res.status(200).json({ success: true, data: dashboard });
+  });
+
+  /**
+   * POST /api/v1/expenses/:id/attachment
+   * Upload expense attachment
+   */
+  static uploadAttachment = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { companyId } = req.user!;
+    const attachmentUrl = req.body.attachmentUrl;
+
+    if (!attachmentUrl) {
+      return ApiResponse.error(res, 'No attachment provided', 400);
+    }
+
+    const expense = await ExpenseService.updateAttachment(id, companyId, attachmentUrl);
+
+    return ApiResponse.success(res, expense, 'Attachment uploaded successfully');
+  });
+
+  /**
+   * DELETE /api/v1/expenses/:id/attachment
+   * Delete expense attachment
+   */
+  static deleteAttachment = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { companyId } = req.user!;
+
+    const expense = await ExpenseService.deleteAttachment(id, companyId);
+
+    return ApiResponse.success(res, expense, 'Attachment deleted successfully');
   });
 }

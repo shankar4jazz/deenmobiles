@@ -273,6 +273,29 @@ export const expenseApi = {
     const response = await api.get(`/expenses/branch/${branchId}/dashboard`);
     return response.data.data;
   },
+
+  /**
+   * Upload expense attachment
+   */
+  uploadAttachment: async (expenseId: string, file: File): Promise<Expense> => {
+    const formData = new FormData();
+    formData.append('attachment', file);
+
+    const response = await api.post(`/expenses/${expenseId}/attachment`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.data;
+  },
+
+  /**
+   * Delete expense attachment
+   */
+  deleteAttachment: async (expenseId: string): Promise<Expense> => {
+    const response = await api.delete(`/expenses/${expenseId}/attachment`);
+    return response.data.data;
+  },
 };
 
 export default {

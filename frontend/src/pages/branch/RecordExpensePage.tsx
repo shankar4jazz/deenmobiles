@@ -17,6 +17,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Upload,
+  Paperclip,
+  Image,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 import { CreateExpenseDto, UpdateExpenseDto, Expense } from '../../types/expense';
 
@@ -95,6 +100,23 @@ export default function RecordExpensePage() {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       queryClient.invalidateQueries({ queryKey: ['branchBalance'] });
       queryClient.invalidateQueries({ queryKey: ['expenseDashboard'] });
+    },
+  });
+
+  // Upload attachment mutation
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: ({ expenseId, file }: { expenseId: string; file: File }) =>
+      expenseApi.uploadAttachment(expenseId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    },
+  });
+
+  // Delete attachment mutation
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: (expenseId: string) => expenseApi.deleteAttachment(expenseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
   });
 
@@ -363,14 +385,29 @@ export default function RecordExpensePage() {
             setIsModalOpen(false);
             setEditingExpense(null);
           }}
-          onSubmit={(data) => {
+          onSubmit={async (data, attachmentFile) => {
             if (editingExpense) {
-              updateMutation.mutate({ id: editingExpense.id, data });
+              updateMutation.mutate(
+                { id: editingExpense.id, data },
+                {
+                  onSuccess: (updatedExpense) => {
+                    if (attachmentFile) {
+                      uploadAttachmentMutation.mutate({ expenseId: updatedExpense.id, file: attachmentFile });
+                    }
+                  },
+                }
+              );
             } else {
-              createMutation.mutate(data);
+              createMutation.mutate(data as CreateExpenseDto, {
+                onSuccess: (createdExpense) => {
+                  if (attachmentFile) {
+                    uploadAttachmentMutation.mutate({ expenseId: createdExpense.id, file: attachmentFile });
+                  }
+                },
+              });
             }
           }}
-          isSubmitting={createMutation.isPending || updateMutation.isPending}
+          isSubmitting={createMutation.isPending || updateMutation.isPending || uploadAttachmentMutation.isPending}
         />
       )}
 
@@ -382,6 +419,16 @@ export default function RecordExpensePage() {
             setIsViewModalOpen(false);
             setViewingExpense(null);
           }}
+          onDeleteAttachment={(expenseId) => {
+            if (window.confirm('Are you sure you want to delete this attachment?')) {
+              deleteAttachmentMutation.mutate(expenseId, {
+                onSuccess: (updatedExpense) => {
+                  setViewingExpense(updatedExpense);
+                },
+              });
+            }
+          }}
+          isDeletingAttachment={deleteAttachmentMutation.isPending}
         />
       )}
     </div>
@@ -394,7 +441,7 @@ interface ExpenseFormModalProps {
   categories: any[];
   currentBalance: number;
   onClose: () => void;
-  onSubmit: (data: CreateExpenseDto | UpdateExpenseDto) => void;
+  onSubmit: (data: CreateExpenseDto | UpdateExpenseDto, attachmentFile?: File) => void;
   isSubmitting: boolean;
 }
 
@@ -413,9 +460,35 @@ function ExpenseFormModal({
     description: expense?.description || '',
     billNumber: expense?.billNumber || '',
     vendorName: expense?.vendorName || '',
-    attachmentUrl: expense?.attachmentUrl || '',
     remarks: expense?.remarks || '',
   });
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(expense?.attachmentUrl || null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachmentFile(file);
+      // Create preview for images
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => setAttachmentPreview(reader.result as string);
+        reader.readAsDataURL(file);
+      } else {
+        setAttachmentPreview(null);
+      }
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachmentFile(null);
+    setAttachmentPreview(expense?.attachmentUrl || null);
+  };
+
+  const getAttachmentUrl = (url: string) => {
+    if (url.startsWith('http')) return url;
+    return `${import.meta.env.VITE_API_BASE_URL}${url}`;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -445,9 +518,8 @@ function ExpenseFormModal({
       description: formData.description,
       billNumber: formData.billNumber || undefined,
       vendorName: formData.vendorName || undefined,
-      attachmentUrl: formData.attachmentUrl || undefined,
       remarks: formData.remarks || undefined,
-    });
+    }, attachmentFile || undefined);
   };
 
   return (
@@ -562,18 +634,99 @@ function ExpenseFormModal({
             </div>
           </div>
 
-          {/* Attachment URL */}
+          {/* Attachment Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Attachment URL
+              Attachment (Bill/Receipt)
             </label>
-            <input
-              type="url"
-              value={formData.attachmentUrl}
-              onChange={(e) => setFormData({ ...formData, attachmentUrl: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              placeholder="https://example.com/receipt.pdf"
-            />
+            {!attachmentFile && !attachmentPreview ? (
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">Click to upload bill/receipt</p>
+                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, PDF up to 10MB</p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*,.pdf"
+                  onChange={handleFileChange}
+                />
+              </label>
+            ) : (
+              <div className="relative border border-gray-300 rounded-lg p-3">
+                <div className="flex items-center gap-3">
+                  {attachmentFile ? (
+                    <>
+                      {attachmentFile.type.startsWith('image/') ? (
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                          <img
+                            src={attachmentPreview || ''}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
+                          <FileText className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">{attachmentFile.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {(attachmentFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </>
+                  ) : attachmentPreview ? (
+                    <>
+                      {attachmentPreview.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                          <img
+                            src={getAttachmentUrl(attachmentPreview)}
+                            alt="Current attachment"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
+                          <FileText className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">Current attachment</p>
+                        <a
+                          href={getAttachmentUrl(attachmentPreview)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-purple-600 hover:text-purple-700"
+                        >
+                          View attachment
+                        </a>
+                      </div>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={removeAttachment}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <label className="mt-2 block">
+                  <span className="text-xs text-purple-600 cursor-pointer hover:text-purple-700">
+                    Change attachment
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Remarks */}
@@ -617,12 +770,23 @@ function ExpenseFormModal({
 interface ViewExpenseModalProps {
   expense: Expense;
   onClose: () => void;
+  onDeleteAttachment?: (expenseId: string) => void;
+  isDeletingAttachment?: boolean;
 }
 
-function ViewExpenseModal({ expense, onClose }: ViewExpenseModalProps) {
+function ViewExpenseModal({ expense, onClose, onDeleteAttachment, isDeletingAttachment }: ViewExpenseModalProps) {
+  const getAttachmentUrl = (url: string) => {
+    if (url.startsWith('http')) return url;
+    return `${import.meta.env.VITE_API_BASE_URL}${url}`;
+  };
+
+  const isImageAttachment = (url: string) => {
+    return url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="border-b border-gray-200 px-4 py-3 flex justify-between items-center">
           <h2 className="text-lg font-bold text-gray-900">Expense Details</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -673,15 +837,52 @@ function ViewExpenseModal({ expense, onClose }: ViewExpenseModalProps) {
 
           {expense.attachmentUrl && (
             <div>
-              <p className="text-sm text-gray-600 mb-1">Attachment</p>
-              <a
-                href={expense.attachmentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-purple-600 hover:text-purple-700 underline"
-              >
-                View Attachment
-              </a>
+              <p className="text-sm text-gray-600 mb-2">Attachment</p>
+              <div className="border border-gray-200 rounded-lg p-3">
+                {isImageAttachment(expense.attachmentUrl) ? (
+                  <div className="relative">
+                    <img
+                      src={getAttachmentUrl(expense.attachmentUrl)}
+                      alt="Expense attachment"
+                      className="max-w-full max-h-64 rounded-lg mx-auto"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Document Attachment</p>
+                      <p className="text-xs text-gray-500">Click to view</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-between items-center mt-3">
+                  <a
+                    href={getAttachmentUrl(expense.attachmentUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    Open in new tab
+                  </a>
+                  {onDeleteAttachment && (
+                    <button
+                      onClick={() => onDeleteAttachment(expense.id)}
+                      disabled={isDeletingAttachment}
+                      className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                    >
+                      {isDeletingAttachment ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

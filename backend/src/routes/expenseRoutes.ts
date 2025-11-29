@@ -5,6 +5,7 @@ import { validate } from '../middleware/validate';
 import { authenticate, authorize } from '../middleware/auth';
 import { param } from 'express-validator';
 import { createExpenseValidator, updateExpenseValidator } from '../validators/expenseValidator';
+import { uploadExpenseAttachment, processExpenseAttachmentUpload } from '../middleware/s3Upload';
 
 const router = Router();
 
@@ -93,6 +94,32 @@ router.delete(
   authorize(...branchRoles),
   validate(idValidation),
   ExpenseController.deleteExpense
+);
+
+/**
+ * @route   POST /api/v1/expenses/:id/attachment
+ * @desc    Upload expense attachment
+ * @access  Private (Branch Admin, Manager)
+ */
+router.post(
+  '/:id/attachment',
+  authorize(...branchRoles),
+  validate(idValidation),
+  uploadExpenseAttachment,
+  processExpenseAttachmentUpload(),
+  ExpenseController.uploadAttachment
+);
+
+/**
+ * @route   DELETE /api/v1/expenses/:id/attachment
+ * @desc    Delete expense attachment
+ * @access  Private (Branch Admin, Manager)
+ */
+router.delete(
+  '/:id/attachment',
+  authorize(...branchRoles),
+  validate(idValidation),
+  ExpenseController.deleteAttachment
 );
 
 export default router;
