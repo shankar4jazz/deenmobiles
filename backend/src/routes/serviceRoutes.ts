@@ -13,7 +13,7 @@ import {
   updateDiagnosisValidation,
   addServicePartValidation,
 } from '../validators/serviceValidators';
-import { uploadServiceImages } from '../middleware/serviceUpload';
+import { uploadServiceImages, uploadDeviceImages } from '../middleware/s3Upload';
 import { param } from 'express-validator';
 
 const router = Router();
@@ -154,6 +154,43 @@ router.delete(
   ),
   validate([...serviceIdValidation, ...imageIdValidation]),
   ServiceController.deleteImage
+);
+
+/**
+ * @route   POST /api/v1/services/:id/device-images
+ * @desc    Upload device images
+ * @access  Private (Receptionist, Technician, Manager, Admin)
+ */
+router.post(
+  '/:id/device-images',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  uploadDeviceImages,
+  ServiceController.uploadDeviceImages
+);
+
+/**
+ * @route   DELETE /api/v1/services/:id/device-images/:imageId
+ * @desc    Delete device image
+ * @access  Private (Receptionist, Technician, Manager, Admin)
+ */
+router.delete(
+  '/:id/device-images/:imageId',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate([...serviceIdValidation, ...imageIdValidation]),
+  ServiceController.deleteDeviceImage
 );
 
 /**

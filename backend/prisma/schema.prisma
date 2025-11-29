@@ -269,6 +269,7 @@ model Service {
   estimate          Estimate? // Formal estimate linked to service
   notifications     Notification[]
   images            ServiceImage[]
+  deviceImages      DeviceImage[]
   partsUsed         ServicePart[]
   statusHistory     ServiceStatusHistory[]
   rating            ServiceRating?
@@ -336,6 +337,18 @@ model ServiceImage {
 
   @@index([serviceId])
   @@map("service_images")
+}
+
+model DeviceImage {
+  id        String   @id @default(uuid())
+  serviceId String
+  imageUrl  String
+  caption   String?
+  createdAt DateTime @default(now())
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@map("device_images")
 }
 
 model ServiceStatusHistory {

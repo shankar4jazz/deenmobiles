@@ -4,6 +4,7 @@ import { Logger } from '../utils/logger';
 import { ServiceStatus } from '@prisma/client';
 import { StockMovementService } from './stockMovementService';
 import JobSheetService from './jobSheetService';
+import { S3Service } from './s3Service';
 import path from 'path';
 import fs from 'fs';
 
@@ -549,6 +550,11 @@ export class ServiceService {
               createdAt: 'asc',
             },
           },
+          deviceImages: {
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
           partsUsed: {
             include: {
               part: {
@@ -628,9 +634,9 @@ export class ServiceService {
   }
 
   /**
-   * Upload service images
+   * Upload service images (accepts S3 URLs)
    */
-  static async uploadServiceImages(serviceId: string, files: Express.Multer.File[], userId: string, companyId: string) {
+  static async uploadServiceImages(serviceId: string, imageUrls: string[], userId: string, companyId: string) {
     try {
       // Verify service exists
       const service = await prisma.service.findFirst({
@@ -644,12 +650,12 @@ export class ServiceService {
         throw new AppError(404, 'Service not found');
       }
 
-      // Create image records
-      const imagePromises = files.map((file) =>
+      // Create image records with S3 URLs
+      const imagePromises = imageUrls.map((url) =>
         prisma.serviceImage.create({
           data: {
             serviceId,
-            imageUrl: `/uploads/services/${file.filename}`,
+            imageUrl: url,
             caption: null,
           },
         })
@@ -666,13 +672,12 @@ export class ServiceService {
           entityId: serviceId,
           details: JSON.stringify({
             action: 'uploaded_images',
-            count: files.length,
-            fileNames: files.map((f) => f.filename),
+            count: imageUrls.length,
           }),
         },
       });
 
-      Logger.info('Service images uploaded successfully', { serviceId, count: files.length });
+      Logger.info('Service images uploaded successfully', { serviceId, count: imageUrls.length });
 
       return images;
     } catch (error) {
@@ -701,10 +706,15 @@ export class ServiceService {
         throw new AppError(404, 'Image not found');
       }
 
-      // Delete file from disk
-      const filePath = path.join(__dirname, '../../public', image.imageUrl);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      // Delete file from S3 or local disk
+      if (S3Service.isS3Url(image.imageUrl)) {
+        await S3Service.deleteFileByUrl(image.imageUrl);
+      } else {
+        // Legacy local file deletion
+        const filePath = path.join(__dirname, '../../public', image.imageUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
       }
 
       // Delete image record
@@ -732,6 +742,112 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error deleting service image', { error, imageId, serviceId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to delete service image');
+    }
+  }
+
+  /**
+   * Upload device images (accepts S3 URLs)
+   */
+  static async uploadDeviceImages(serviceId: string, imageUrls: string[], userId: string, companyId: string) {
+    try {
+      // Verify service exists
+      const service = await prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          companyId,
+        },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      // Create device image records with S3 URLs
+      const imagePromises = imageUrls.map((url) =>
+        prisma.deviceImage.create({
+          data: {
+            serviceId,
+            imageUrl: url,
+            caption: null,
+          },
+        })
+      );
+
+      const images = await Promise.all(imagePromises);
+
+      // Create activity log
+      await prisma.activityLog.create({
+        data: {
+          userId,
+          action: 'UPLOAD',
+          entity: 'service',
+          entityId: serviceId,
+          details: JSON.stringify({
+            action: 'uploaded_device_images',
+            count: imageUrls.length,
+          }),
+        },
+      });
+
+      Logger.info('Device images uploaded successfully', { serviceId, count: imageUrls.length });
+
+      return images;
+    } catch (error) {
+      Logger.error('Error uploading device images', { error, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to upload device images');
+    }
+  }
+
+  /**
+   * Delete device image
+   */
+  static async deleteDeviceImage(imageId: string, serviceId: string, userId: string, companyId: string) {
+    try {
+      // Verify image exists and belongs to service
+      const image = await prisma.deviceImage.findFirst({
+        where: {
+          id: imageId,
+          serviceId,
+          service: {
+            companyId,
+          },
+        },
+      });
+
+      if (!image) {
+        throw new AppError(404, 'Device image not found');
+      }
+
+      // Delete file from S3
+      if (S3Service.isS3Url(image.imageUrl)) {
+        await S3Service.deleteFileByUrl(image.imageUrl);
+      }
+
+      // Delete image record
+      await prisma.deviceImage.delete({
+        where: { id: imageId },
+      });
+
+      // Create activity log
+      await prisma.activityLog.create({
+        data: {
+          userId,
+          action: 'DELETE',
+          entity: 'service',
+          entityId: serviceId,
+          details: JSON.stringify({
+            action: 'deleted_device_image',
+            imageUrl: image.imageUrl,
+          }),
+        },
+      });
+
+      Logger.info('Device image deleted successfully', { imageId, serviceId });
+
+      return { success: true };
+    } catch (error) {
+      Logger.error('Error deleting device image', { error, imageId, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to delete device image');
     }
   }
 

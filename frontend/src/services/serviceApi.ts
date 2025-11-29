@@ -43,15 +43,25 @@ export interface Service {
     phone?: string;
   };
   images?: ServiceImage[];
+  deviceImages?: DeviceImage[];
   partsUsed?: ServicePart[];
   statusHistory?: ServiceStatusHistory[];
   _count?: {
     images: number;
+    deviceImages: number;
     partsUsed: number;
   };
 }
 
 export interface ServiceImage {
+  id: string;
+  serviceId: string;
+  imageUrl: string;
+  caption?: string;
+  createdAt: string;
+}
+
+export interface DeviceImage {
   id: string;
   serviceId: string;
   imageUrl: string;
@@ -252,6 +262,30 @@ export const serviceApi = {
    */
   deleteServiceImage: async (serviceId: string, imageId: string): Promise<void> => {
     await api.delete(`/services/${serviceId}/images/${imageId}`);
+  },
+
+  /**
+   * Upload device images
+   */
+  uploadDeviceImages: async (serviceId: string, files: File[]): Promise<DeviceImage[]> => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('deviceImages', file);
+    });
+
+    const response = await api.post(`/services/${serviceId}/device-images`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.data;
+  },
+
+  /**
+   * Delete device image
+   */
+  deleteDeviceImage: async (serviceId: string, imageId: string): Promise<void> => {
+    await api.delete(`/services/${serviceId}/device-images/${imageId}`);
   },
 
   /**

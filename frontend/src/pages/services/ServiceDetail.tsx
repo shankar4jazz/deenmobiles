@@ -10,7 +10,7 @@ import JobSheetButton from '@/components/services/JobSheetButton';
 import InvoiceButton from '@/components/services/InvoiceButton';
 import {
   ArrowLeft, Edit, Save, X, Camera, Package, Clock, User, Phone,
-  Mail, Smartphone, FileText, DollarSign, Calendar, CheckCircle, AlertCircle,
+  Mail, Smartphone, FileText, DollarSign, Calendar, CheckCircle, AlertCircle, Trash2,
 } from 'lucide-react';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -43,6 +43,9 @@ export default function ServiceDetail() {
   const [selectedStatus, setSelectedStatus] = useState<ServiceStatus | ''>('');
   const [statusNotes, setStatusNotes] = useState('');
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadingDeviceImages, setUploadingDeviceImages] = useState(false);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+  const [deletingDeviceImageId, setDeletingDeviceImageId] = useState<string | null>(null);
 
   // Fetch service details
   const { data: service, isLoading } = useQuery({
@@ -71,12 +74,51 @@ export default function ServiceDetail() {
     },
   });
 
-  // Upload images mutation
+  // Upload service images mutation
   const uploadImagesMutation = useMutation({
     mutationFn: (files: File[]) => serviceApi.uploadServiceImages(id!, files),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service', id] });
       setUploadingImages(false);
+    },
+    onError: () => {
+      setUploadingImages(false);
+    },
+  });
+
+  // Upload device images mutation
+  const uploadDeviceImagesMutation = useMutation({
+    mutationFn: (files: File[]) => serviceApi.uploadDeviceImages(id!, files),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      setUploadingDeviceImages(false);
+    },
+    onError: () => {
+      setUploadingDeviceImages(false);
+    },
+  });
+
+  // Delete service image mutation
+  const deleteImageMutation = useMutation({
+    mutationFn: (imageId: string) => serviceApi.deleteServiceImage(id!, imageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      setDeletingImageId(null);
+    },
+    onError: () => {
+      setDeletingImageId(null);
+    },
+  });
+
+  // Delete device image mutation
+  const deleteDeviceImageMutation = useMutation({
+    mutationFn: (imageId: string) => serviceApi.deleteDeviceImage(id!, imageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      setDeletingDeviceImageId(null);
+    },
+    onError: () => {
+      setDeletingDeviceImageId(null);
     },
   });
 
@@ -86,6 +128,32 @@ export default function ServiceDetail() {
       setUploadingImages(true);
       uploadImagesMutation.mutate(files);
     }
+  };
+
+  const handleDeviceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setUploadingDeviceImages(true);
+      uploadDeviceImagesMutation.mutate(files);
+    }
+  };
+
+  const handleDeleteImage = (imageId: string) => {
+    setDeletingImageId(imageId);
+    deleteImageMutation.mutate(imageId);
+  };
+
+  const handleDeleteDeviceImage = (imageId: string) => {
+    setDeletingDeviceImageId(imageId);
+    deleteDeviceImageMutation.mutate(imageId);
+  };
+
+  // Helper to get the correct image URL (S3 or local)
+  const getImageUrl = (imageUrl: string) => {
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+    return `${import.meta.env.VITE_API_BASE_URL}${imageUrl}`;
   };
 
   const handleSaveDiagnosis = () => {
@@ -306,7 +374,7 @@ export default function ServiceDetail() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Camera className="w-5 h-5" />
-                Device Photos
+                Service Photos
               </h2>
               <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
                 <Camera className="w-4 h-4" />
@@ -332,16 +400,85 @@ export default function ServiceDetail() {
                 {service.images.map((image) => (
                   <div key={image.id} className="relative group">
                     <img
-                      src={`${import.meta.env.VITE_API_BASE_URL}${image.imageUrl}`}
+                      src={getImageUrl(image.imageUrl)}
                       alt={image.caption || 'Service image'}
                       className="w-full h-40 object-cover rounded-lg border border-gray-200"
                     />
+                    <button
+                      onClick={() => handleDeleteImage(image.id)}
+                      disabled={deletingImageId === image.id}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
+                      title="Delete image"
+                    >
+                      {deletingImageId === image.id ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-400">
-                No photos uploaded yet
+                No service photos uploaded yet
+              </div>
+            )}
+          </div>
+
+          {/* Device Images */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Smartphone className="w-5 h-5" />
+                Device Photos
+              </h2>
+              <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+                <Camera className="w-4 h-4" />
+                Add Device Photos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleDeviceImageUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {uploadingDeviceImages && (
+              <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                Uploading device images...
+              </div>
+            )}
+
+            {service.deviceImages && service.deviceImages.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {service.deviceImages.map((image) => (
+                  <div key={image.id} className="relative group">
+                    <img
+                      src={getImageUrl(image.imageUrl)}
+                      alt={image.caption || 'Device image'}
+                      className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                    />
+                    <button
+                      onClick={() => handleDeleteDeviceImage(image.id)}
+                      disabled={deletingDeviceImageId === image.id}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
+                      title="Delete image"
+                    >
+                      {deletingDeviceImageId === image.id ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                No device photos uploaded yet
               </div>
             )}
           </div>
