@@ -25,8 +25,8 @@ RUN npm run build
 # Production stage
 FROM node:20-slim AS production
 
-# Install OpenSSL for Prisma runtime
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL for Prisma runtime and curl for health checks
+RUN apt-get update -y && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -50,8 +50,8 @@ RUN mkdir -p public/uploads
 EXPOSE 5000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:5000/health || exit 1
 
 # Start the application
 CMD ["node", "dist/index.js"]
