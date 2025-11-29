@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { CustomerController } from '../controllers/customerController';
 import { authenticate } from '../middleware/auth';
-import upload from '../middleware/upload';
+import { uploadIdProof, processIdProofUpload } from '../middleware/s3Upload';
 
 const router = Router();
 
@@ -15,7 +15,8 @@ router.use(authenticate);
  */
 router.post(
   '/',
-  upload.single('idProofDocument'),
+  uploadIdProof,
+  processIdProofUpload(),
   CustomerController.createCustomer
 );
 
@@ -54,7 +55,8 @@ router.get('/:id', CustomerController.getCustomerById);
  */
 router.put(
   '/:id',
-  upload.single('idProofDocument'),
+  uploadIdProof,
+  processIdProofUpload(),
   CustomerController.updateCustomer
 );
 

@@ -4,8 +4,6 @@ import { EmployeeService } from '../services/employeeService';
 import { ApiResponse } from '../utils/response';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AuthRequest } from '../types';
-import { FileUtils } from '../utils/fileUtils';
-// Fixed: Added boolean parsing for FormData
 
 export class EmployeeController {
   /**
@@ -21,15 +19,9 @@ export class EmployeeController {
       employeeData.isActive = employeeData.isActive === 'true';
     }
 
-    // Handle profile image upload
-    let profileImage: string | undefined;
-    if (req.file) {
-      profileImage = FileUtils.generateFileUrl(req.file.filename, 'profiles');
-    }
-
+    // Profile image URL is already set by S3 upload middleware in req.body.profileImage
     const employee = await EmployeeService.createEmployee({
       ...employeeData,
-      profileImage,
       companyId,
     });
 
@@ -111,11 +103,7 @@ export class EmployeeController {
       updateData.isActive = updateData.isActive === 'true';
     }
 
-    // Handle profile image upload
-    if (req.file) {
-      updateData.profileImage = FileUtils.generateFileUrl(req.file.filename, 'profiles');
-    }
-
+    // Profile image URL is already set by S3 upload middleware in req.body.profileImage
     const employee = await EmployeeService.updateEmployee(id, companyId, updateData);
 
     return ApiResponse.success(res, employee, 'Employee updated successfully');

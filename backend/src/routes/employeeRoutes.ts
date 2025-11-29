@@ -3,7 +3,7 @@ import { UserRole } from '@prisma/client';
 import { EmployeeController } from '../controllers/employeeController';
 import { validate } from '../middleware/validate';
 import { authenticate, authorize } from '../middleware/auth';
-import { uploadProfileImage } from '../middleware/upload';
+import { uploadProfileImage, processProfileImageUpload } from '../middleware/s3Upload';
 import {
   createEmployeeValidation,
   updateEmployeeValidation,
@@ -46,6 +46,7 @@ router.post(
   '/',
   authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   uploadProfileImage,
+  processProfileImageUpload('employees'),
   validate(createEmployeeValidation),
   EmployeeController.createEmployee
 );
@@ -82,6 +83,7 @@ router.put(
   '/:id',
   authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   uploadProfileImage,
+  processProfileImageUpload('employees'),
   validate(updateEmployeeValidation),
   EmployeeController.updateEmployee
 );

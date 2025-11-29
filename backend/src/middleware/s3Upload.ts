@@ -143,4 +143,23 @@ export function processExpenseAttachmentUpload() {
   };
 }
 
+/**
+ * Middleware to upload customer ID proof document to S3 after multer processing
+ * Adds `idProofDocumentUrl` to req.body
+ */
+export function processIdProofUpload() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (req.file) {
+        const customerId = (req as any).params?.id || 'new';
+        const url = await uploadFileToS3(req.file, 'customers', customerId);
+        req.body.idProofDocumentUrl = url;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
 export default imageUpload;

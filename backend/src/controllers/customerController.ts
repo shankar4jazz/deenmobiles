@@ -28,8 +28,8 @@ export class CustomerController {
         });
       }
 
-      // Get ID proof document file if uploaded
-      const idProofDocument = req.file;
+      // Get ID proof document URL from S3 upload middleware
+      const idProofDocumentUrl = req.body.idProofDocumentUrl;
 
       const customer = await CustomerService.createCustomer({
         name,
@@ -38,7 +38,7 @@ export class CustomerController {
         email: email || undefined,
         address: address || undefined,
         idProofType: idProofType || undefined,
-        idProofDocument,
+        idProofDocumentUrl: idProofDocumentUrl || undefined,
         remarks: remarks || undefined,
         companyId,
         branchId: branchId || undefined,
@@ -130,8 +130,8 @@ export class CustomerController {
         removeIdProof,
       } = req.body;
 
-      // Get ID proof document file if uploaded
-      const idProofDocument = req.file;
+      // Get ID proof document URL from S3 upload middleware
+      const idProofDocumentUrl = req.body.idProofDocumentUrl;
 
       // Prepare update data
       const updateData: any = {};
@@ -146,9 +146,9 @@ export class CustomerController {
 
       // Handle ID proof document
       if (removeIdProof === 'true' || removeIdProof === true) {
-        updateData.idProofDocument = null;
-      } else if (idProofDocument) {
-        updateData.idProofDocument = idProofDocument;
+        updateData.idProofDocumentUrl = null;
+      } else if (idProofDocumentUrl) {
+        updateData.idProofDocumentUrl = idProofDocumentUrl;
       }
 
       const customer = await CustomerService.updateCustomer(

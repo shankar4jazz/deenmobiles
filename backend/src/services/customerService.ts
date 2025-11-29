@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { uploadFile, deleteFile } from '../utils/fileUpload';
+import { S3Service } from './s3Service';
 
 const prisma = new PrismaClient();
 
@@ -10,7 +10,7 @@ export interface CreateCustomerDTO {
   email?: string;
   address?: string;
   idProofType?: string;
-  idProofDocument?: Express.Multer.File;
+  idProofDocumentUrl?: string;
   remarks?: string;
   companyId: string;
   branchId?: string;
@@ -23,7 +23,7 @@ export interface UpdateCustomerDTO {
   email?: string;
   address?: string;
   idProofType?: string;
-  idProofDocument?: Express.Multer.File | null;
+  idProofDocumentUrl?: string | null;
   remarks?: string;
   branchId?: string;
 }
@@ -83,13 +83,7 @@ export class CustomerService {
       throw new Error('Phone number already exists for this company');
     }
 
-    // Upload ID proof document if provided
-    let idProofDocumentPath: string | undefined;
-    if (data.idProofDocument) {
-      idProofDocumentPath = await uploadFile(data.idProofDocument, 'id-proofs');
-    }
-
-    // Create customer
+    // Create customer with S3 URL if provided
     const customer = await prisma.customer.create({
       data: {
         name: data.name,
@@ -98,7 +92,7 @@ export class CustomerService {
         email: data.email,
         address: data.address,
         idProofType: data.idProofType,
-        idProofDocument: idProofDocumentPath,
+        idProofDocument: data.idProofDocumentUrl || null,
         remarks: data.remarks,
         companyId: data.companyId,
         branchId: data.branchId,
@@ -240,21 +234,21 @@ export class CustomerService {
       }
     }
 
-    // Handle ID proof document upload/deletion
+    // Handle ID proof document upload/deletion with S3
     let idProofDocumentPath = existingCustomer.idProofDocument;
 
-    if (data.idProofDocument === null) {
-      // Delete existing document
-      if (existingCustomer.idProofDocument) {
-        await deleteFile(existingCustomer.idProofDocument);
-        idProofDocumentPath = null;
+    if (data.idProofDocumentUrl === null) {
+      // Delete existing document from S3
+      if (existingCustomer.idProofDocument && S3Service.isS3Url(existingCustomer.idProofDocument)) {
+        await S3Service.deleteFileByUrl(existingCustomer.idProofDocument);
       }
-    } else if (data.idProofDocument && typeof data.idProofDocument === 'object') {
-      // Upload new document
-      if (existingCustomer.idProofDocument) {
-        await deleteFile(existingCustomer.idProofDocument);
+      idProofDocumentPath = null;
+    } else if (data.idProofDocumentUrl) {
+      // Delete old file from S3 if it exists
+      if (existingCustomer.idProofDocument && S3Service.isS3Url(existingCustomer.idProofDocument)) {
+        await S3Service.deleteFileByUrl(existingCustomer.idProofDocument);
       }
-      idProofDocumentPath = await uploadFile(data.idProofDocument, 'id-proofs');
+      idProofDocumentPath = data.idProofDocumentUrl;
     }
 
     // Update customer
@@ -311,9 +305,9 @@ export class CustomerService {
       );
     }
 
-    // Delete ID proof document if exists
-    if (customer.idProofDocument) {
-      await deleteFile(customer.idProofDocument);
+    // Delete ID proof document from S3 if exists
+    if (customer.idProofDocument && S3Service.isS3Url(customer.idProofDocument)) {
+      await S3Service.deleteFileByUrl(customer.idProofDocument);
     }
 
     // Delete customer
