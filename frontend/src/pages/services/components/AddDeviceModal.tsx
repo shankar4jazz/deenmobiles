@@ -3,10 +3,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Camera, Smartphone } from 'lucide-react';
-import { ItemBrand, ItemModel } from '../../../types';
+import { ItemBrand, ItemModel, DeviceCondition } from '../../../types/masters';
 import { masterDataApi } from '../../../services/masterDataApi';
 import { customerDeviceApi } from '../../../services/customerDeviceApi';
 import { toast } from 'sonner';
+
+const ACCESSORY_OPTIONS = ['Charger', 'Case/Cover', 'Screen Protector', 'Earphones', 'SIM Card', 'Memory Card'];
 
 const deviceFormSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
@@ -17,6 +19,11 @@ const deviceFormSchema = z.object({
     .optional()
     .or(z.literal('')),
   color: z.string().optional(),
+  password: z.string().optional(),
+  pattern: z.string().optional(),
+  conditionId: z.string().optional(),
+  accessories: z.array(z.string()).optional(),
+  notes: z.string().optional(),
 });
 
 type DeviceFormData = z.infer<typeof deviceFormSchema>;
@@ -36,6 +43,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
 }) => {
   const [brands, setBrands] = useState<ItemBrand[]>([]);
   const [models, setModels] = useState<ItemModel[]>([]);
+  const [conditions, setConditions] = useState<DeviceCondition[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMasterData, setLoadingMasterData] = useState(true);
   const isMountedRef = useRef(true);
@@ -59,10 +67,16 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
       modelId: '',
       imei: '',
       color: '',
+      password: '',
+      pattern: '',
+      conditionId: '',
+      accessories: [],
+      notes: '',
     },
   });
 
   const selectedBrandId = watch('brandId');
+  const selectedAccessories = watch('accessories') || [];
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -87,9 +101,13 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   const loadMasterData = async () => {
     try {
       setLoadingMasterData(true);
-      const brandsRes = await masterDataApi.getAllBrands({ limit: 100, isActive: true });
+      const [brandsRes, conditionsRes] = await Promise.all([
+        masterDataApi.getAllBrands({ limit: 100, isActive: true }),
+        masterDataApi.getAllDeviceConditions({ limit: 100, isActive: true }),
+      ]);
       if (isMountedRef.current) {
         setBrands(brandsRes.data);
+        setConditions(conditionsRes.data);
       }
     } catch (error: any) {
       if (isMountedRef.current) {
@@ -116,6 +134,15 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
       if (isMountedRef.current) {
         toast.error('Failed to load models');
       }
+    }
+  };
+
+  const toggleAccessory = (accessory: string) => {
+    const current = selectedAccessories;
+    if (current.includes(accessory)) {
+      setValue('accessories', current.filter((a) => a !== accessory));
+    } else {
+      setValue('accessories', [...current, accessory]);
     }
   };
 
@@ -181,16 +208,16 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl transform transition-all">
+        <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl transform transition-all">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Smartphone className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Smartphone className="h-5 w-5 text-purple-600" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Add New Device</h2>
-                <p className="text-sm text-gray-500">Enter device details</p>
+                <p className="text-sm text-gray-500">Enter device details for service</p>
               </div>
             </div>
             <button
@@ -209,14 +236,12 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="h-10 bg-gray-200 rounded"></div>
                   <div className="h-10 bg-gray-200 rounded"></div>
-                  <div className="h-10 bg-gray-200 rounded"></div>
-                  <div className="h-10 bg-gray-200 rounded"></div>
                 </div>
               </div>
             </div>
           ) : (
             <div className="p-6 max-h-[70vh] overflow-y-auto">
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {/* Row 1: Brand & Model */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -225,7 +250,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                     </label>
                     <select
                       {...register('brandId')}
-                      className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
                         errors.brandId ? 'border-red-500' : 'border-gray-300'
                       }`}
                     >
@@ -248,7 +273,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                     <select
                       {...register('modelId')}
                       disabled={!selectedBrandId}
-                      className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
                         errors.modelId ? 'border-red-500' : 'border-gray-300'
                       } ${!selectedBrandId ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     >
@@ -274,7 +299,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                       type="text"
                       maxLength={15}
                       placeholder="15 digits (optional)"
-                      className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
                         errors.imei ? 'border-red-500' : 'border-gray-300'
                       }`}
                     />
@@ -289,9 +314,82 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                       {...register('color')}
                       type="text"
                       placeholder="e.g., Black, White"
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     />
                   </div>
+                </div>
+
+                {/* Row 3: Password & Pattern */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Device Password/PIN</label>
+                    <input
+                      {...register('password')}
+                      type="text"
+                      placeholder="Device unlock PIN"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pattern Lock</label>
+                    <input
+                      {...register('pattern')}
+                      type="text"
+                      placeholder="e.g., L-shape, Z-pattern"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4: Device Condition */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Device Condition</label>
+                  <select
+                    {...register('conditionId')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">Select Condition</option>
+                    {conditions.map((condition) => (
+                      <option key={condition.id} value={condition.id}>
+                        {condition.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Accessories */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Accessories Included
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {ACCESSORY_OPTIONS.map((accessory) => (
+                      <button
+                        key={accessory}
+                        type="button"
+                        onClick={() => toggleAccessory(accessory)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                          selectedAccessories.includes(accessory)
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {accessory}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    {...register('notes')}
+                    rows={2}
+                    placeholder="Any additional notes about the device..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
                 </div>
 
                 {/* Device Images */}
@@ -299,45 +397,45 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Device Images (Optional)
                   </label>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                      <div className="text-center">
-                        <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <span className="text-sm text-gray-600">Click to upload images</span>
-                        <span className="block text-xs text-gray-500 mt-1">
-                          Max 5 images (JPEG, PNG, WebP)
-                        </span>
+                  <div className="flex flex-wrap gap-2">
+                    {/* Previews */}
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleImageSelect}
-                        className="hidden"
-                      />
-                    </label>
+                    ))}
 
-                    {imagePreviews.length > 0 && (
-                      <div className="grid grid-cols-5 gap-3">
-                        {imagePreviews.map((preview, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={preview}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-20 object-cover rounded-lg border border-gray-200"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(index)}
-                              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                    {/* Upload Button */}
+                    {selectedImages.length < 5 && (
+                      <label className="w-16 h-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors">
+                        <Camera className="h-5 w-5 text-gray-400" />
+                        <span className="text-[10px] text-gray-500 mt-0.5">Add</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                      </label>
                     )}
                   </div>
+                  {selectedImages.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedImages.length}/5 images
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -348,7 +446,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
@@ -356,7 +454,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={loading || loadingMasterData}
-              className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+              className="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-purple-400 transition-colors"
             >
               {loading ? 'Adding Device...' : 'Add Device'}
             </button>
