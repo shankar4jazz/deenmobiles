@@ -229,6 +229,23 @@ export interface UpdateDeviceConditionDto {
   isActive?: boolean;
 }
 
+// Service Issue
+export interface ServiceIssue extends MasterDataBase {
+  name: string;
+  description?: string;
+}
+
+export interface CreateServiceIssueDto {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateServiceIssueDto {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
 // Master Data Type enum
 export enum MasterDataType {
   CATEGORY = 'category',
@@ -240,9 +257,10 @@ export enum MasterDataType {
   PAYMENT_METHOD = 'payment-method',
   EXPENSE_CATEGORY = 'expense-category',
   DEVICE_CONDITION = 'device-condition',
+  SERVICE_ISSUE = 'service-issue',
 }
 
 // Generic Master Data Item type
-export type MasterDataItem = ItemCategory | ItemUnit | ItemGSTRate | ItemBrand | ItemModel | ServiceCategory | PaymentMethod | ExpenseCategory | DeviceCondition;
-export type CreateMasterDataDto = CreateItemCategoryDto | CreateItemUnitDto | CreateItemGSTRateDto | CreateItemBrandDto | CreateItemModelDto | CreateServiceCategoryDto | CreatePaymentMethodDto | CreateExpenseCategoryDto | CreateDeviceConditionDto;
-export type UpdateMasterDataDto = UpdateItemCategoryDto | UpdateItemUnitDto | UpdateItemGSTRateDto | UpdateItemBrandDto | UpdateItemModelDto | UpdateServiceCategoryDto | UpdatePaymentMethodDto | UpdateExpenseCategoryDto | UpdateDeviceConditionDto;
+export type MasterDataItem = ItemCategory | ItemUnit | ItemGSTRate | ItemBrand | ItemModel | ServiceCategory | PaymentMethod | ExpenseCategory | DeviceCondition | ServiceIssue;
+export type CreateMasterDataDto = CreateItemCategoryDto | CreateItemUnitDto | CreateItemGSTRateDto | CreateItemBrandDto | CreateItemModelDto | CreateServiceCategoryDto | CreatePaymentMethodDto | CreateExpenseCategoryDto | CreateDeviceConditionDto | CreateServiceIssueDto;
+export type UpdateMasterDataDto = UpdateItemCategoryDto | UpdateItemUnitDto | UpdateItemGSTRateDto | UpdateItemBrandDto | UpdateItemModelDto | UpdateServiceCategoryDto | UpdatePaymentMethodDto | UpdateExpenseCategoryDto | UpdateDeviceConditionDto | UpdateServiceIssueDto;

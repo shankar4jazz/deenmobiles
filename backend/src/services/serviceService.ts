@@ -21,6 +21,7 @@ interface CreateServiceData {
   customerDeviceId: string;
   serviceCategoryId: string;
   issue: string;
+  issueIds?: string[];
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;
@@ -260,6 +261,18 @@ export class ServiceService {
                 paymentDate: entry.paymentDate || new Date(),
                 serviceId: service.id,
                 companyId: data.companyId,
+              },
+            });
+          }
+        }
+
+        // Create service issue links if issueIds provided
+        if (data.issueIds && data.issueIds.length > 0) {
+          for (const issueId of data.issueIds) {
+            await tx.serviceIssueOnService.create({
+              data: {
+                serviceId: service.id,
+                serviceIssueId: issueId,
               },
             });
           }

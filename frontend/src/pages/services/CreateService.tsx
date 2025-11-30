@@ -10,7 +10,7 @@ import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
 import { ArrowLeft } from 'lucide-react';
 import { CustomerDevice, Customer } from '@/types';
-import { ServiceCategory, DeviceCondition } from '@/types/masters';
+import { ServiceCategory, ServiceIssue } from '@/types/masters';
 
 // Components
 import { FormRow } from '@/components/common/FormRow';
@@ -19,6 +19,7 @@ import { SearchableDeviceSelect } from '@/components/common/SearchableDeviceSele
 import { SearchableServiceCategorySelect } from '@/components/common/SearchableServiceCategorySelect';
 import { SearchableDeviceConditionSelect } from '@/components/common/SearchableDeviceConditionSelect';
 import { MultiImageUpload } from '@/components/common/MultiImageUpload';
+import { IssueTagInput } from '@/components/common/IssueTagInput';
 import { AddDeviceModal } from './components/AddDeviceModal';
 import AddCustomerModal from '@/components/branch/AddCustomerModal';
 
@@ -28,7 +29,7 @@ const serviceSchema = z.object({
   customerDeviceId: z.string().min(1, 'Please select a device'),
   serviceCategoryId: z.string().min(1, 'Please select a service category'),
   deviceConditionId: z.string().optional(),
-  issue: z.string().min(1, 'Issue is required'),
+  issueIds: z.array(z.string()).min(1, 'Please add at least one issue'),
   issueDescription: z.string().optional(),
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
   advancePayment: z.number().min(0, 'Advance payment cannot be negative').optional(),
@@ -72,6 +73,7 @@ export default function CreateService() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<CustomerDevice | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<ServiceCategory | null>(null);
+  const [selectedIssues, setSelectedIssues] = useState<ServiceIssue[]>([]);
 
   const {
     control,
@@ -87,7 +89,7 @@ export default function CreateService() {
       customerDeviceId: '',
       serviceCategoryId: '',
       deviceConditionId: '',
-      issue: '',
+      issueIds: [],
       issueDescription: '',
       estimatedCost: 0,
       advancePayment: 0,
@@ -194,11 +196,16 @@ export default function CreateService() {
         }]
       : [];
 
+    // Combine issue names from selected issues
+    const issueNames = selectedIssues.map((issue) => issue.name).join(', ');
+    const issueText = issueNames + (data.issueDescription ? ` - ${data.issueDescription}` : '');
+
     const submitData: CreateServiceData = {
       customerId: data.customerId,
       customerDeviceId: data.customerDeviceId,
       serviceCategoryId: data.serviceCategoryId,
-      issue: `${data.issue}${data.issueDescription ? ` - ${data.issueDescription}` : ''}`,
+      issue: issueText,
+      issueIds: data.issueIds,
       estimatedCost: data.estimatedCost || 0,
       paymentEntries,
       branchId: data.branchId,
@@ -276,18 +283,19 @@ export default function CreateService() {
               />
             </FormRow>
 
-            <FormRow label="Issue" required error={errors.issue?.message}>
+            <FormRow label="Issues" required error={errors.issueIds?.message}>
               <Controller
                 control={control}
-                name="issue"
+                name="issueIds"
                 render={({ field }) => (
-                  <input
-                    {...field}
-                    type="text"
-                    placeholder="e.g., Screen broken"
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                      errors.issue ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                  <IssueTagInput
+                    value={field.value}
+                    onChange={(ids, issues) => {
+                      field.onChange(ids);
+                      setSelectedIssues(issues);
+                    }}
+                    error={errors.issueIds?.message}
+                    placeholder="Type to search or add issues..."
                   />
                 )}
               />

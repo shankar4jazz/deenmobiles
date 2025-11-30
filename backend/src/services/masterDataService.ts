@@ -130,6 +130,19 @@ interface UpdateDeviceConditionData {
   isActive?: boolean;
 }
 
+// ==================== Service Issue Interfaces ====================
+interface CreateServiceIssueData {
+  name: string;
+  description?: string;
+  companyId: string;
+}
+
+interface UpdateServiceIssueData {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
 // ==================== Filter Interfaces ====================
 interface MasterDataFilters {
   companyId: string;
@@ -2076,6 +2089,194 @@ export class MasterDataService {
       if (error instanceof AppError) throw error;
       Logger.error('Error deactivating device condition', { error, id });
       throw new AppError(500, 'Failed to deactivate device condition');
+    }
+  }
+
+  // ==================== SERVICE ISSUE METHODS ====================
+
+  /**
+   * Get all service issues
+   */
+  static async getAllServiceIssues(filters: MasterDataFilters) {
+    try {
+      const {
+        companyId,
+        search,
+        isActive,
+        page = 1,
+        limit = 100,
+      } = filters;
+
+      const skip = (page - 1) * limit;
+
+      const where: any = {
+        companyId,
+      };
+
+      if (isActive !== undefined) {
+        where.isActive = isActive;
+      }
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [serviceIssues, total] = await Promise.all([
+        prisma.serviceIssue.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: 'asc' },
+        }),
+        prisma.serviceIssue.count({ where }),
+      ]);
+
+      return {
+        data: serviceIssues,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      Logger.error('Error fetching service issues', { error, filters });
+      throw new AppError(500, 'Failed to fetch service issues');
+    }
+  }
+
+  /**
+   * Get service issue by ID
+   */
+  static async getServiceIssueById(id: string, companyId: string) {
+    try {
+      const serviceIssue = await prisma.serviceIssue.findFirst({
+        where: { id, companyId },
+      });
+
+      if (!serviceIssue) {
+        throw new AppError(404, 'Service issue not found');
+      }
+
+      return serviceIssue;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error fetching service issue', { error, id });
+      throw new AppError(500, 'Failed to fetch service issue');
+    }
+  }
+
+  /**
+   * Create a new service issue
+   */
+  static async createServiceIssue(data: CreateServiceIssueData) {
+    try {
+      // Check for duplicate name (case-insensitive)
+      const duplicate = await prisma.serviceIssue.findFirst({
+        where: {
+          companyId: data.companyId,
+          name: { equals: data.name, mode: 'insensitive' },
+        },
+      });
+
+      if (duplicate) {
+        // Return existing issue instead of error for auto-create flow
+        return duplicate;
+      }
+
+      const serviceIssue = await prisma.serviceIssue.create({
+        data: {
+          name: data.name,
+          description: data.description,
+          companyId: data.companyId,
+        },
+      });
+
+      Logger.info('Service issue created', { serviceIssueId: serviceIssue.id });
+      return serviceIssue;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error creating service issue', { error, data });
+      throw new AppError(500, 'Failed to create service issue');
+    }
+  }
+
+  /**
+   * Update a service issue
+   */
+  static async updateServiceIssue(id: string, companyId: string, data: UpdateServiceIssueData) {
+    try {
+      // Check if service issue exists
+      const existing = await prisma.serviceIssue.findFirst({
+        where: { id, companyId },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Service issue not found');
+      }
+
+      // Check for duplicate name if being updated
+      if (data.name) {
+        const duplicate = await prisma.serviceIssue.findFirst({
+          where: {
+            companyId,
+            name: { equals: data.name, mode: 'insensitive' },
+            id: { not: id },
+          },
+        });
+
+        if (duplicate) {
+          throw new AppError(400, 'Service issue name already exists');
+        }
+      }
+
+      const serviceIssue = await prisma.serviceIssue.update({
+        where: { id },
+        data: {
+          ...(data.name && { name: data.name }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.isActive !== undefined && { isActive: data.isActive }),
+        },
+      });
+
+      Logger.info('Service issue updated', { serviceIssueId: id });
+      return serviceIssue;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error updating service issue', { error, id, data });
+      throw new AppError(500, 'Failed to update service issue');
+    }
+  }
+
+  /**
+   * Deactivate a service issue (soft delete)
+   */
+  static async deactivateServiceIssue(id: string, companyId: string) {
+    try {
+      // Check if service issue exists
+      const existing = await prisma.serviceIssue.findFirst({
+        where: { id, companyId },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Service issue not found');
+      }
+
+      const serviceIssue = await prisma.serviceIssue.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      Logger.info('Service issue deactivated', { serviceIssueId: id });
+      return serviceIssue;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error deactivating service issue', { error, id });
+      throw new AppError(500, 'Failed to deactivate service issue');
     }
   }
 }

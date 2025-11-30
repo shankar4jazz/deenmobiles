@@ -757,4 +757,82 @@ export class MasterDataController {
 
     return ApiResponse.success(res, deviceCondition, 'Device condition deactivated successfully');
   });
+
+  // ==================== SERVICE ISSUE ENDPOINTS ====================
+
+  /**
+   * GET /api/v1/master-data/service-issues
+   * Get all service issues
+   */
+  static getAllServiceIssues = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const companyId = req.user!.companyId;
+    const { search, isActive, page, limit } = req.query;
+
+    const result = await MasterDataService.getAllServiceIssues({
+      companyId,
+      search: search as string,
+      isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+
+    return ApiResponse.success(res, result, 'Service issues retrieved successfully');
+  });
+
+  /**
+   * GET /api/v1/master-data/service-issues/:id
+   * Get service issue by ID
+   */
+  static getServiceIssueById = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    const serviceIssue = await MasterDataService.getServiceIssueById(id, companyId);
+
+    return ApiResponse.success(res, serviceIssue, 'Service issue retrieved successfully');
+  });
+
+  /**
+   * POST /api/v1/master-data/service-issues
+   * Create a new service issue
+   */
+  static createServiceIssue = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { name, description } = req.body;
+    const companyId = req.user!.companyId;
+
+    const serviceIssue = await MasterDataService.createServiceIssue({
+      name,
+      description,
+      companyId,
+    });
+
+    return ApiResponse.created(res, serviceIssue, 'Service issue created successfully');
+  });
+
+  /**
+   * PUT /api/v1/master-data/service-issues/:id
+   * Update service issue
+   */
+  static updateServiceIssue = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const updateData = req.body;
+
+    const serviceIssue = await MasterDataService.updateServiceIssue(id, companyId, updateData);
+
+    return ApiResponse.success(res, serviceIssue, 'Service issue updated successfully');
+  });
+
+  /**
+   * DELETE /api/v1/master-data/service-issues/:id
+   * Deactivate service issue (soft delete)
+   */
+  static deactivateServiceIssue = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    const serviceIssue = await MasterDataService.deactivateServiceIssue(id, companyId);
+
+    return ApiResponse.success(res, serviceIssue, 'Service issue deactivated successfully');
+  });
 }

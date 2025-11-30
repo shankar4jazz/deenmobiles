@@ -121,6 +121,7 @@ export interface CreateServiceData {
   customerDeviceId: string;
   serviceCategoryId: string;
   issue: string;
+  issueIds?: string[];
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;

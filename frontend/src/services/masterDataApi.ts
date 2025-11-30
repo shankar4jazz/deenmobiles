@@ -9,6 +9,7 @@ import {
   PaymentMethod,
   ExpenseCategory,
   DeviceCondition,
+  ServiceIssue,
   CreateItemCategoryDto,
   CreateItemUnitDto,
   CreateItemGSTRateDto,
@@ -18,6 +19,7 @@ import {
   CreatePaymentMethodDto,
   CreateExpenseCategoryDto,
   CreateDeviceConditionDto,
+  CreateServiceIssueDto,
   UpdateItemCategoryDto,
   UpdateItemUnitDto,
   UpdateItemGSTRateDto,
@@ -27,6 +29,7 @@ import {
   UpdatePaymentMethodDto,
   UpdateExpenseCategoryDto,
   UpdateDeviceConditionDto,
+  UpdateServiceIssueDto,
   PaginatedResponse,
 } from '../types/masters';
 
@@ -492,6 +495,56 @@ export const deviceConditionApi = {
   },
 };
 
+// ==================== SERVICE ISSUE API ====================
+export const serviceIssueApi = {
+  /**
+   * Get all service issues
+   */
+  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<ServiceIssue>> => {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.isActive !== undefined)
+      params.append('isActive', filters.isActive.toString());
+
+    const response = await api.get(`/master-data/service-issues?${params.toString()}`);
+    return response.data.data;
+  },
+
+  /**
+   * Get service issue by ID
+   */
+  getById: async (id: string): Promise<ServiceIssue> => {
+    const response = await api.get(`/master-data/service-issues/${id}`);
+    return response.data.data;
+  },
+
+  /**
+   * Create a new service issue
+   */
+  create: async (data: CreateServiceIssueDto): Promise<ServiceIssue> => {
+    const response = await api.post('/master-data/service-issues', data);
+    return response.data.data;
+  },
+
+  /**
+   * Update a service issue
+   */
+  update: async (id: string, data: UpdateServiceIssueDto): Promise<ServiceIssue> => {
+    const response = await api.put(`/master-data/service-issues/${id}`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Deactivate a service issue
+   */
+  deactivate: async (id: string): Promise<ServiceIssue> => {
+    const response = await api.delete(`/master-data/service-issues/${id}`);
+    return response.data.data;
+  },
+};
+
 // Combined export for convenience
 export const masterDataApi = {
   categories: categoryApi,
@@ -503,6 +556,7 @@ export const masterDataApi = {
   paymentMethods: paymentMethodApi,
   expenseCategories: expenseCategoryApi,
   deviceConditions: deviceConditionApi,
+  serviceIssues: serviceIssueApi,
   // Convenience methods for direct access
   getAllCategories: categoryApi.getAll,
   getAllUnits: unitApi.getAll,
@@ -513,4 +567,5 @@ export const masterDataApi = {
   getAllPaymentMethods: paymentMethodApi.getAll,
   getAllExpenseCategories: expenseCategoryApi.getAll,
   getAllDeviceConditions: deviceConditionApi.getAll,
+  getAllServiceIssues: serviceIssueApi.getAll,
 };

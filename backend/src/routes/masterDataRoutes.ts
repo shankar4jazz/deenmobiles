@@ -489,4 +489,56 @@ router.delete(
   MasterDataController.deactivateDeviceCondition
 );
 
+// ==================== SERVICE ISSUE ROUTES ====================
+
+/**
+ * @route   GET /api/v1/master-data/service-issues
+ * @desc    Get all service issues
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.get('/service-issues', authorize(...authorizedRoles), MasterDataController.getAllServiceIssues);
+
+/**
+ * @route   GET /api/v1/master-data/service-issues/:id
+ * @desc    Get service issue by ID
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.get(
+  '/service-issues/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.getServiceIssueById
+);
+
+/**
+ * @route   POST /api/v1/master-data/service-issues
+ * @desc    Create a new service issue
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.post('/service-issues', authorize(...authorizedRoles), MasterDataController.createServiceIssue);
+
+/**
+ * @route   PUT /api/v1/master-data/service-issues/:id
+ * @desc    Update service issue
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.put(
+  '/service-issues/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.updateServiceIssue
+);
+
+/**
+ * @route   DELETE /api/v1/master-data/service-issues/:id
+ * @desc    Deactivate service issue (soft delete)
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.delete(
+  '/service-issues/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.deactivateServiceIssue
+);
+
 export default router;
