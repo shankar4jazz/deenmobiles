@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
@@ -11,6 +11,7 @@ import InvoiceButton from '@/components/services/InvoiceButton';
 import {
   ArrowLeft, Edit, Save, X, Camera, Package, Clock, User, Phone,
   Mail, Smartphone, FileText, DollarSign, Calendar, CheckCircle, AlertCircle, Trash2,
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download,
 } from 'lucide-react';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -46,6 +47,12 @@ export default function ServiceDetail() {
   const [uploadingDeviceImages, setUploadingDeviceImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [deletingDeviceImageId, setDeletingDeviceImageId] = useState<string | null>(null);
+
+  // Photo viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<{ id: string; imageUrl: string; caption?: string }[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   // Fetch service details
   const { data: service, isLoading } = useQuery({
@@ -147,6 +154,81 @@ export default function ServiceDetail() {
     setDeletingDeviceImageId(imageId);
     deleteDeviceImageMutation.mutate(imageId);
   };
+
+  // Photo viewer handlers
+  const openPhotoViewer = (images: { id: string; imageUrl: string; caption?: string }[], startIndex: number) => {
+    setViewerImages(images);
+    setCurrentImageIndex(startIndex);
+    setZoomLevel(1);
+    setViewerOpen(true);
+  };
+
+  const closePhotoViewer = () => {
+    setViewerOpen(false);
+    setViewerImages([]);
+    setCurrentImageIndex(0);
+    setZoomLevel(1);
+  };
+
+  const goToPrevImage = useCallback(() => {
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : viewerImages.length - 1));
+    setZoomLevel(1);
+  }, [viewerImages.length]);
+
+  const goToNextImage = useCallback(() => {
+    setCurrentImageIndex((prev) => (prev < viewerImages.length - 1 ? prev + 1 : 0));
+    setZoomLevel(1);
+  }, [viewerImages.length]);
+
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 0.25, 0.5));
+  };
+
+  const handleDownloadImage = () => {
+    if (viewerImages[currentImageIndex]) {
+      const imageUrl = getImageUrl(viewerImages[currentImageIndex].imageUrl);
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `image-${currentImageIndex + 1}.jpg`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Keyboard navigation for photo viewer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!viewerOpen) return;
+
+      switch (e.key) {
+        case 'Escape':
+          closePhotoViewer();
+          break;
+        case 'ArrowLeft':
+          goToPrevImage();
+          break;
+        case 'ArrowRight':
+          goToNextImage();
+          break;
+        case '+':
+        case '=':
+          handleZoomIn();
+          break;
+        case '-':
+          handleZoomOut();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewerOpen, goToPrevImage, goToNextImage]);
 
   // Helper to get the correct image URL (S3 or local)
   const getImageUrl = (imageUrl: string) => {
@@ -397,15 +479,24 @@ export default function ServiceDetail() {
 
             {service.images && service.images.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {service.images.map((image) => (
+                {service.images.map((image, index) => (
                   <div key={image.id} className="relative group">
                     <img
                       src={getImageUrl(image.imageUrl)}
                       alt={image.caption || 'Service image'}
-                      className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                      className="w-full h-40 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openPhotoViewer(service.images!, index)}
                     />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="bg-black/50 rounded-full p-2">
+                        <ZoomIn className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
                     <button
-                      onClick={() => handleDeleteImage(image.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteImage(image.id);
+                      }}
                       disabled={deletingImageId === image.id}
                       className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
                       title="Delete image"
@@ -454,15 +545,24 @@ export default function ServiceDetail() {
 
             {service.deviceImages && service.deviceImages.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {service.deviceImages.map((image) => (
+                {service.deviceImages.map((image, index) => (
                   <div key={image.id} className="relative group">
                     <img
                       src={getImageUrl(image.imageUrl)}
                       alt={image.caption || 'Device image'}
-                      className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                      className="w-full h-40 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openPhotoViewer(service.deviceImages!, index)}
                     />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="bg-black/50 rounded-full p-2">
+                        <ZoomIn className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
                     <button
-                      onClick={() => handleDeleteDeviceImage(image.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDeviceImage(image.id);
+                      }}
                       disabled={deletingDeviceImageId === image.id}
                       className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
                       title="Delete image"
@@ -574,6 +674,136 @@ export default function ServiceDetail() {
           <ServiceHistoryTimeline serviceId={service.id} />
         </div>
       </div>
+
+      {/* Photo Viewer Modal */}
+      {viewerOpen && viewerImages.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={closePhotoViewer}
+        >
+          {/* Close button */}
+          <button
+            onClick={closePhotoViewer}
+            className="absolute top-4 right-4 p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors z-10"
+            title="Close (Esc)"
+          >
+            <X className="w-8 h-8" />
+          </button>
+
+          {/* Top toolbar */}
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 bg-black/50 rounded-lg px-4 py-2">
+            <span className="text-white text-sm">
+              {currentImageIndex + 1} / {viewerImages.length}
+            </span>
+            <div className="w-px h-5 bg-white/30 mx-2" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleZoomOut();
+              }}
+              disabled={zoomLevel <= 0.5}
+              className="p-1.5 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Zoom out (-)"
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            <span className="text-white text-sm min-w-[50px] text-center">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleZoomIn();
+              }}
+              disabled={zoomLevel >= 3}
+              className="p-1.5 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Zoom in (+)"
+            >
+              <ZoomIn className="w-5 h-5" />
+            </button>
+            <div className="w-px h-5 bg-white/30 mx-2" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownloadImage();
+              }}
+              className="p-1.5 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+              title="Download"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Previous button */}
+          {viewerImages.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevImage();
+              }}
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 p-3 text-white/80 hover:text-white rounded-full bg-black/30 hover:bg-black/50 transition-colors"
+              title="Previous (Left Arrow)"
+            >
+              <ChevronLeft className="w-8 h-8" />
+            </button>
+          )}
+
+          {/* Image container */}
+          <div
+            className="flex items-center justify-center w-full h-full p-16 overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={getImageUrl(viewerImages[currentImageIndex].imageUrl)}
+              alt={viewerImages[currentImageIndex].caption || `Image ${currentImageIndex + 1}`}
+              className="max-w-full max-h-full object-contain transition-transform duration-200"
+              style={{ transform: `scale(${zoomLevel})` }}
+              draggable={false}
+            />
+          </div>
+
+          {/* Next button */}
+          {viewerImages.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNextImage();
+              }}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 p-3 text-white/80 hover:text-white rounded-full bg-black/30 hover:bg-black/50 transition-colors"
+              title="Next (Right Arrow)"
+            >
+              <ChevronRight className="w-8 h-8" />
+            </button>
+          )}
+
+          {/* Thumbnail strip */}
+          {viewerImages.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 bg-black/50 rounded-lg p-2 max-w-[90vw] overflow-x-auto">
+              {viewerImages.map((image, index) => (
+                <button
+                  key={image.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImageIndex(index);
+                    setZoomLevel(1);
+                  }}
+                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                    index === currentImageIndex
+                      ? 'border-white opacity-100'
+                      : 'border-transparent opacity-60 hover:opacity-80'
+                  }`}
+                >
+                  <img
+                    src={getImageUrl(image.imageUrl)}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
