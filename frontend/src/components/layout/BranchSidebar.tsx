@@ -238,14 +238,11 @@ export default function BranchSidebar() {
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-purple-900 to-purple-800">
       {/* Branch Info Section */}
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-purple-700">
-        <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center">
-          <Building2 className="h-6 w-6 text-purple-600" />
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-purple-700">
+        <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center">
+          <Building2 className="h-5 w-5 text-purple-600" />
         </div>
-        <div>
-          <h2 className="text-white font-bold text-lg">{user?.activeBranch?.name || 'Branch'}</h2>
-          <p className="text-purple-300 text-xs">Code: {user?.activeBranch?.code || 'N/A'}</p>
-        </div>
+        <h2 className="text-white font-semibold text-sm">{user?.activeBranch?.name || 'Branch'}</h2>
       </div>
 
       {/* Navigation Items */}
