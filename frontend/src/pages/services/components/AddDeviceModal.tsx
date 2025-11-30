@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Camera, Smartphone } from 'lucide-react';
-import { ItemBrand, ItemModel, DeviceCondition } from '../../../types';
+import { ItemBrand, ItemModel } from '../../../types';
 import { masterDataApi } from '../../../services/masterDataApi';
 import { customerDeviceApi } from '../../../services/customerDeviceApi';
 import { toast } from 'sonner';
@@ -17,11 +17,6 @@ const deviceFormSchema = z.object({
     .optional()
     .or(z.literal('')),
   color: z.string().optional(),
-  password: z.string().optional(),
-  pattern: z.string().optional(),
-  conditionId: z.string().optional(),
-  accessories: z.array(z.string()).optional(),
-  notes: z.string().optional(),
 });
 
 type DeviceFormData = z.infer<typeof deviceFormSchema>;
@@ -33,8 +28,6 @@ interface AddDeviceModalProps {
   onSuccess: (device: any) => void;
 }
 
-const ACCESSORY_OPTIONS = ['Charger', 'Case/Cover', 'Screen Protector', 'Earphones'];
-
 export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   isOpen,
   onClose,
@@ -43,7 +36,6 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
 }) => {
   const [brands, setBrands] = useState<ItemBrand[]>([]);
   const [models, setModels] = useState<ItemModel[]>([]);
-  const [conditions, setConditions] = useState<DeviceCondition[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMasterData, setLoadingMasterData] = useState(true);
   const isMountedRef = useRef(true);
@@ -67,16 +59,10 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
       modelId: '',
       imei: '',
       color: '',
-      password: '',
-      pattern: '',
-      conditionId: '',
-      accessories: [],
-      notes: '',
     },
   });
 
   const selectedBrandId = watch('brandId');
-  const selectedAccessories = watch('accessories') || [];
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -101,13 +87,9 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   const loadMasterData = async () => {
     try {
       setLoadingMasterData(true);
-      const [brandsRes, conditionsRes] = await Promise.all([
-        masterDataApi.getAllBrands({ limit: 100, isActive: true }),
-        masterDataApi.getAllDeviceConditions({ limit: 100, isActive: true }),
-      ]);
+      const brandsRes = await masterDataApi.getAllBrands({ limit: 100, isActive: true });
       if (isMountedRef.current) {
         setBrands(brandsRes.data);
-        setConditions(conditionsRes.data);
       }
     } catch (error: any) {
       if (isMountedRef.current) {
@@ -134,15 +116,6 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
       if (isMountedRef.current) {
         toast.error('Failed to load models');
       }
-    }
-  };
-
-  const toggleAccessory = (accessory: string) => {
-    const current = selectedAccessories;
-    if (current.includes(accessory)) {
-      setValue('accessories', current.filter((a) => a !== accessory));
-    } else {
-      setValue('accessories', [...current, accessory]);
     }
   };
 
@@ -208,7 +181,7 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl transform transition-all">
+        <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl transform transition-all">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
@@ -319,83 +292,6 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                </div>
-
-                {/* Row 3: Password & Condition */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Device Password
-                    </label>
-                    <input
-                      {...register('password')}
-                      type="text"
-                      placeholder="PIN/Password"
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-                    <select
-                      {...register('conditionId')}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Condition</option>
-                      {conditions.map((condition) => (
-                        <option key={condition.id} value={condition.id}>
-                          {condition.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Row 4: Pattern */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Device Pattern
-                  </label>
-                  <input
-                    {...register('pattern')}
-                    type="text"
-                    placeholder="e.g., Pattern lock sequence"
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Accessories */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Accessories Included
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {ACCESSORY_OPTIONS.map((accessory) => (
-                      <button
-                        key={accessory}
-                        type="button"
-                        onClick={() => toggleAccessory(accessory)}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                          selectedAccessories.includes(accessory)
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {accessory}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea
-                    {...register('notes')}
-                    rows={2}
-                    placeholder="Any additional notes about the device..."
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
                 </div>
 
                 {/* Device Images */}
