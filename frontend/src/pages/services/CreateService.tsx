@@ -215,7 +215,7 @@ export default function CreateService() {
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center h-14">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate(-1)}
@@ -227,22 +227,6 @@ export default function CreateService() {
                 <h1 className="text-lg font-semibold text-gray-900">New Service</h1>
                 <p className="text-xs text-gray-500">Create a new service request</p>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit(onSubmit)}
-                disabled={createServiceMutation.isPending}
-                className="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-purple-400"
-              >
-                {createServiceMutation.isPending ? 'Creating...' : 'Create Service'}
-              </button>
             </div>
           </div>
         </div>
@@ -438,6 +422,24 @@ export default function CreateService() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createServiceMutation.isPending}
+              className="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-purple-400"
+            >
+              {createServiceMutation.isPending ? 'Creating...' : 'Create Service'}
+            </button>
           </div>
         </form>
       </div>
