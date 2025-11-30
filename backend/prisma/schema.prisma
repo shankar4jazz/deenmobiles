@@ -918,6 +918,7 @@ model CustomerDevice {
   company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   branch       Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
   services     Service[]
+  images       CustomerDeviceImage[]
 
   @@index([customerId])
   @@index([brandId])
@@ -926,6 +927,19 @@ model CustomerDevice {
   @@index([branchId])
   @@index([isActive])
   @@map("customer_devices")
+}
+
+// Customer Device Images - stores photos of customer devices
+model CustomerDeviceImage {
+  id               String         @id @default(uuid())
+  customerDeviceId String
+  imageUrl         String
+  caption          String?
+  createdAt        DateTime       @default(now())
+  customerDevice   CustomerDevice @relation(fields: [customerDeviceId], references: [id], onDelete: Cascade)
+
+  @@index([customerDeviceId])
+  @@map("customer_device_images")
 }
 
 // Company-level item catalog

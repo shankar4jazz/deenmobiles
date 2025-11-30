@@ -8,12 +8,47 @@ import {
   Service,
 } from '../types';
 
+export interface CreateCustomerDeviceWithImages extends CustomerDeviceFormData {
+  images?: File[];
+}
+
 export const customerDeviceApi = {
   /**
-   * Create a new customer device
+   * Create a new customer device with optional images
    */
-  createDevice: async (data: CustomerDeviceFormData): Promise<CustomerDevice> => {
-    const response = await api.post('/customer-devices', data);
+  createDevice: async (data: CreateCustomerDeviceWithImages): Promise<CustomerDevice> => {
+    const { images, ...deviceData } = data;
+
+    // If images are provided, use FormData
+    if (images && images.length > 0) {
+      const formData = new FormData();
+
+      // Append device data
+      Object.entries(deviceData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            value.forEach((item) => formData.append(key, item));
+          } else {
+            formData.append(key, String(value));
+          }
+        }
+      });
+
+      // Append images
+      images.forEach((image) => {
+        formData.append('deviceImages', image);
+      });
+
+      const response = await api.post('/customer-devices', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    }
+
+    // No images, use regular JSON
+    const response = await api.post('/customer-devices', deviceData);
     return response.data.data;
   },
 

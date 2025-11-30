@@ -4,6 +4,7 @@ import { CustomerDeviceController } from '../controllers/customerDeviceControlle
 import { validate } from '../middleware/validate';
 import { authenticate, authorize } from '../middleware/auth';
 import { param, query } from 'express-validator';
+import { uploadCustomerDeviceImages, processCustomerDeviceImagesUpload } from '../middleware/s3Upload';
 
 const router = Router();
 
@@ -85,6 +86,8 @@ router.get(
 router.post(
   '/',
   authorize(...authorizedRoles),
+  uploadCustomerDeviceImages,
+  processCustomerDeviceImagesUpload(),
   CustomerDeviceController.createDevice
 );
 

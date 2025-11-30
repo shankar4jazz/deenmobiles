@@ -27,6 +27,7 @@ export interface CreateCustomerDeviceData {
   notes?: string;
   companyId: string;
   branchId?: string;
+  imageUrls?: string[];
 }
 
 export interface UpdateCustomerDeviceData {
@@ -130,6 +131,14 @@ export default class CustomerDeviceService {
               phone: true,
             },
           },
+          images: {
+            select: {
+              id: true,
+              imageUrl: true,
+              caption: true,
+              createdAt: true,
+            },
+          },
           _count: {
             select: {
               services: true,
@@ -199,6 +208,14 @@ export default class CustomerDeviceService {
             email: true,
           },
         },
+        images: {
+          select: {
+            id: true,
+            imageUrl: true,
+            caption: true,
+            createdAt: true,
+          },
+        },
         _count: {
           select: {
             services: true,
@@ -218,7 +235,7 @@ export default class CustomerDeviceService {
    * Create a new customer device
    */
   static async createCustomerDevice(data: CreateCustomerDeviceData) {
-    const { customerId, brandId, modelId, companyId, ...deviceData } = data;
+    const { customerId, brandId, modelId, companyId, imageUrls, ...deviceData } = data;
 
     // Verify customer exists and belongs to company
     const customer = await prisma.customer.findFirst({
@@ -304,6 +321,14 @@ export default class CustomerDeviceService {
         modelId,
         companyId,
         ...deviceData,
+        // Create device images if provided
+        ...(imageUrls && imageUrls.length > 0 && {
+          images: {
+            create: imageUrls.map((url) => ({
+              imageUrl: url,
+            })),
+          },
+        }),
       },
       include: {
         brand: {
@@ -333,6 +358,14 @@ export default class CustomerDeviceService {
             id: true,
             name: true,
             phone: true,
+          },
+        },
+        images: {
+          select: {
+            id: true,
+            imageUrl: true,
+            caption: true,
+            createdAt: true,
           },
         },
       },

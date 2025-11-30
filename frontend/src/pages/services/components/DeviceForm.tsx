@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X } from 'lucide-react';
+import { X, Camera } from 'lucide-react';
 import { CustomerDeviceFormData, ItemBrand, ItemModel, DeviceCondition } from '../../../types';
 import { masterDataApi } from '../../../services/masterDataApi';
 import { customerDeviceApi } from '../../../services/customerDeviceApi';
@@ -41,6 +41,10 @@ export const DeviceForm: React.FC<DeviceFormProps> = ({ customerId, onSuccess, o
   const [loading, setLoading] = useState(false);
   const [loadingMasterData, setLoadingMasterData] = useState(true);
   const isMountedRef = useRef(true);
+
+  // Image upload state
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
   const {
     register,
@@ -134,11 +138,37 @@ export const DeviceForm: React.FC<DeviceFormProps> = ({ customerId, onSuccess, o
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + selectedImages.length > 5) {
+      toast.error('Maximum 5 images allowed');
+      return;
+    }
+
+    setSelectedImages((prev) => [...prev, ...files]);
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviews((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const onSubmit = async (data: DeviceFormData) => {
     try {
       setLoading(true);
 
-      const device = await customerDeviceApi.createDevice(data);
+      const device = await customerDeviceApi.createDevice({
+        ...data,
+        images: selectedImages.length > 0 ? selectedImages : undefined,
+      });
       toast.success('Device added successfully');
       onSuccess(device);
     } catch (error: any) {
@@ -324,6 +354,50 @@ export const DeviceForm: React.FC<DeviceFormProps> = ({ customerId, onSuccess, o
             placeholder="Any additional notes about the device..."
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
           />
+        </div>
+
+        {/* Device Images */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Device Images (Optional)
+          </label>
+          <div className="space-y-3">
+            <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors">
+              <div className="text-center">
+                <Camera className="h-6 w-6 text-gray-400 mx-auto mb-1" />
+                <span className="text-xs text-gray-600">Click to upload images</span>
+                <span className="block text-xs text-gray-500">Max 5 images</span>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+            </label>
+
+            {imagePreviews.length > 0 && (
+              <div className="grid grid-cols-5 gap-2">
+                {imagePreviews.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={preview}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-16 object-cover rounded-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Actions */}
