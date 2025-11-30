@@ -11,7 +11,7 @@ import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
 import { ArrowLeft, Smartphone, Camera, X, UserPlus, Loader2 } from 'lucide-react';
 import { DeviceSelector } from './components/DeviceSelector';
-import { DeviceForm } from './components/DeviceForm';
+import { AddDeviceModal } from './components/AddDeviceModal';
 import { CustomerDevice } from '@/types';
 import { PaymentEntriesInput, PaymentEntry } from '@/components/PaymentEntriesInput';
 import AddCustomerModal from '@/components/branch/AddCustomerModal';
@@ -424,27 +424,19 @@ export default function CreateService() {
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-4">Device Information</h2>
 
-                {showDeviceForm ? (
-                  <DeviceForm
-                    customerId={customerId}
-                    onSuccess={handleDeviceCreated}
-                    onCancel={() => setShowDeviceForm(false)}
-                  />
-                ) : (
-                  <DeviceSelector
-                    customerId={customerId}
-                    selectedDeviceId={selectedDevice?.id || null}
-                    onSelectDevice={handleDeviceSelect}
-                    onCreateNew={() => setShowDeviceForm(true)}
-                  />
-                )}
+                <DeviceSelector
+                  customerId={customerId}
+                  selectedDeviceId={selectedDevice?.id || null}
+                  onSelectDevice={handleDeviceSelect}
+                  onCreateNew={() => setShowDeviceForm(true)}
+                />
 
                 {errors.customerDeviceId && (
                   <p className="text-xs text-red-500 mt-2">{errors.customerDeviceId.message}</p>
                 )}
 
                 {/* Selected Device Summary */}
-                {selectedDevice && !showDeviceForm && (
+                {selectedDevice && (
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <div className="flex items-start gap-3">
                       <Smartphone className="h-5 w-5 text-blue-600 mt-0.5" />
@@ -700,6 +692,14 @@ export default function CreateService() {
         branchName={user?.activeBranch?.name || ''}
         onSuccess={handleCustomerCreated}
         initialPhone={isPhoneSearch && searchPhoneNumber.length === 10 ? searchPhoneNumber : undefined}
+      />
+
+      {/* Add Device Modal */}
+      <AddDeviceModal
+        isOpen={showDeviceForm}
+        onClose={() => setShowDeviceForm(false)}
+        customerId={customerId}
+        onSuccess={handleDeviceCreated}
       />
     </div>
   );
