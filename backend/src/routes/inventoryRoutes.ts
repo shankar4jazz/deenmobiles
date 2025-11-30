@@ -9,7 +9,7 @@ import {
   stockAdjustmentValidation,
 } from '../validators/inventoryValidators';
 import { param } from 'express-validator';
-// import { upload } from '../middleware/upload'; // Uncomment when upload middleware is ready
+import { uploadBillAttachment, processBillAttachmentUpload } from '../middleware/s3Upload';
 
 const router = Router();
 
@@ -116,7 +116,8 @@ router.post(
     UserRole.BRANCH_ADMIN,
     UserRole.MANAGER
   ),
-  // upload.single('billAttachment'), // Uncomment when upload middleware is ready
+  uploadBillAttachment,
+  processBillAttachmentUpload(),
   validate(createInventoryValidation),
   InventoryController.createInventory
 );
@@ -173,7 +174,8 @@ router.put(
     UserRole.BRANCH_ADMIN,
     UserRole.MANAGER
   ),
-  // upload.single('billAttachment'), // Uncomment when upload middleware is ready
+  uploadBillAttachment,
+  processBillAttachmentUpload(),
   validate([...inventoryIdValidation, ...updateInventoryValidation]),
   InventoryController.updateInventory
 );

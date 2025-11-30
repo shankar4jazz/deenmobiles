@@ -65,6 +65,7 @@ export const uploadDeviceImages = imageUpload.array('deviceImages', 20);
 export const uploadExpenseAttachment = documentUpload.single('attachment');
 export const uploadIdProof = documentUpload.single('idProofDocument');
 export const uploadSingleImage = imageUpload.single('image');
+export const uploadBillAttachment = documentUpload.single('billAttachment');
 
 /**
  * Helper function to upload a single file to S3
@@ -154,6 +155,25 @@ export function processIdProofUpload() {
         const customerId = (req as any).params?.id || 'new';
         const url = await uploadFileToS3(req.file, 'customers', customerId);
         req.body.idProofDocumentUrl = url;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+/**
+ * Middleware to upload inventory bill attachment to S3 after multer processing
+ * Adds `billAttachmentUrl` to req.body
+ */
+export function processBillAttachmentUpload() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (req.file) {
+        const inventoryId = (req as any).params?.id || 'new';
+        const url = await uploadFileToS3(req.file, 'inventory', inventoryId);
+        req.body.billAttachmentUrl = url;
       }
       next();
     } catch (error) {

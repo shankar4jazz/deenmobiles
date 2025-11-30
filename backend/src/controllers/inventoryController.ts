@@ -16,10 +16,7 @@ export class InventoryController {
     const companyId = req.user!.companyId;
     const userId = req.user!.userId;
 
-    // Handle file upload if present
-    if (req.file) {
-      inventoryData.billAttachmentUrl = req.file.path || req.file.filename;
-    }
+    // billAttachmentUrl is already set by S3 upload middleware in req.body
 
     const inventory = await InventoryService.createInventory(
       {
@@ -98,10 +95,7 @@ export class InventoryController {
     const userId = req.user!.userId;
     const updateData = req.body;
 
-    // Handle file upload if present
-    if (req.file) {
-      updateData.billAttachmentUrl = req.file.path || req.file.filename;
-    }
+    // billAttachmentUrl is already set by S3 upload middleware in req.body
 
     const inventory = await InventoryService.updateInventory(id, companyId, updateData, userId);
 
