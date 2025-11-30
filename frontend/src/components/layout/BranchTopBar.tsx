@@ -15,17 +15,6 @@ export default function BranchTopBar() {
 
   return (
     <div className="sticky top-0 z-40">
-      {/* Branch Name Banner */}
-      <div className="bg-gradient-to-r from-purple-600 via-purple-500 to-purple-600 px-6 py-2">
-        <div className="flex items-center justify-center gap-2">
-          <Building2 className="h-4 w-4 text-white" />
-          <p className="text-white font-semibold text-sm">
-            {user?.activeBranch?.name || 'Branch'} <span className="text-purple-200 mx-2">•</span>
-            <span className="text-purple-100 font-normal">Code: {user?.activeBranch?.code || 'N/A'}</span>
-          </p>
-        </div>
-      </div>
-
       {/* Main Top Bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="flex items-center justify-between px-6 py-4">
