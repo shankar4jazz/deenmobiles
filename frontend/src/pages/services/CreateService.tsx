@@ -211,32 +211,29 @@ export default function CreateService() {
   const remainingAmount = (estimatedCost || 0) - (advancePayment || 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="border-b sticky top-0 z-10 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center h-14">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center h-12">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate(-1)}
                 className="text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">New Service</h1>
-                <p className="text-xs text-gray-500">Create a new service request</p>
-              </div>
+              <h1 className="text-base font-semibold text-gray-900">New Service</h1>
             </div>
           </div>
         </div>
       </div>
 
       {/* Form Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Row 1: Customer, Device, Service Category */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <FormRow label="Customer" required error={errors.customerId?.message}>
               <SearchableCustomerSelectWithAdd
                 value={customerId}
@@ -270,7 +267,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 2: Device Condition, Issue, Issue Description */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <FormRow label="Device Condition">
               <SearchableDeviceConditionSelect
                 value={watch('deviceConditionId') || ''}
@@ -313,7 +310,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 3: Estimated Cost, Advance Payment, Payment Method */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
               <Controller
                 control={control}
@@ -385,7 +382,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 4: Device Photos & Payment Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-2">
               <FormRow label="Device Photos">
                 <MultiImageUpload
@@ -425,7 +422,7 @@ export default function CreateService() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
             <button
               type="button"
               onClick={() => navigate(-1)}
