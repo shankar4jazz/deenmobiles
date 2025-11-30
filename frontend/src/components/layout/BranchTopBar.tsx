@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, Building2, ChevronDown } from 'lucide-react';
+import { LogOut, User, ChevronDown } from 'lucide-react';
 
 export default function BranchTopBar() {
   const navigate = useNavigate();
@@ -17,29 +17,7 @@ export default function BranchTopBar() {
     <div className="sticky top-0 z-40">
       {/* Main Top Bar */}
       <div className="bg-white border-b border-gray-200">
-        <div className="flex items-center justify-between px-6 py-4">
-        {/* Branch Info - More Prominent */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-purple-600 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Building2 className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900">
-                  {user?.activeBranch?.name || 'Branch Dashboard'}
-                </h1>
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                  Branch Manager
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Branch Code: <span className="font-semibold text-purple-600">{user?.activeBranch?.code || 'N/A'}</span>
-              </p>
-            </div>
-          </div>
-        </div>
-
+        <div className="flex items-center justify-end px-6 py-3">
         {/* User Profile */}
         <div className="relative">
           <button

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
 import {
   LayoutDashboard,
   Users,
@@ -152,6 +153,7 @@ const navItems: NavItem[] = [
 
 export default function BranchSidebar() {
   const location = useLocation();
+  const { user } = useAuthStore();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['Masters', 'Inventory', 'Invoices']);
 
   const toggleMenu = (name: string) => {
@@ -235,14 +237,14 @@ export default function BranchSidebar() {
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-purple-900 to-purple-800">
-      {/* Logo Section */}
+      {/* Branch Info Section */}
       <div className="flex items-center gap-3 px-6 py-6 border-b border-purple-700">
         <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center">
           <Building2 className="h-6 w-6 text-purple-600" />
         </div>
         <div>
-          <h2 className="text-white font-bold text-lg">Branch Portal</h2>
-          <p className="text-purple-300 text-xs">Management System</p>
+          <h2 className="text-white font-bold text-lg">{user?.activeBranch?.name || 'Branch'}</h2>
+          <p className="text-purple-300 text-xs">Code: {user?.activeBranch?.code || 'N/A'}</p>
         </div>
       </div>
 
