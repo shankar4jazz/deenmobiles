@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, ChevronDown } from 'lucide-react';
+import { LogOut, User, ChevronDown, Search } from 'lucide-react';
 
 export default function BranchTopBar() {
   const navigate = useNavigate();
@@ -17,7 +17,19 @@ export default function BranchTopBar() {
     <div className="sticky top-0 z-40">
       {/* Main Top Bar */}
       <div className="bg-white border-b border-gray-200">
-        <div className="flex items-center justify-end px-6 py-3">
+        <div className="flex items-center justify-between px-6 py-3">
+        {/* Search Bar */}
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search services, customers, invoices..."
+              className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-transparent rounded-lg text-sm focus:bg-white focus:border-purple-300 focus:ring-2 focus:ring-purple-100 transition-all outline-none"
+            />
+          </div>
+        </div>
+
         {/* User Profile */}
         <div className="relative">
           <button
