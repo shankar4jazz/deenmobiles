@@ -214,7 +214,7 @@ export default function CreateService() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-4">
               <button
@@ -249,53 +249,52 @@ export default function CreateService() {
       </div>
 
       {/* Form Content */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Customer Selection */}
-          <FormRow label="Customer" required error={errors.customerId?.message}>
-            <SearchableCustomerSelectWithAdd
-              value={customerId}
-              onChange={handleCustomerChange}
-              onAddNew={handleAddCustomer}
-              error={errors.customerId?.message}
-              placeholder="Search and select customer..."
-            />
-          </FormRow>
+          {/* Row 1: Customer, Device, Service Category */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormRow label="Customer" required error={errors.customerId?.message}>
+              <SearchableCustomerSelectWithAdd
+                value={customerId}
+                onChange={handleCustomerChange}
+                onAddNew={handleAddCustomer}
+                error={errors.customerId?.message}
+                placeholder="Search customer..."
+              />
+            </FormRow>
 
-          {/* Device Selection */}
-          <FormRow label="Device" required error={errors.customerDeviceId?.message}>
-            <SearchableDeviceSelect
-              value={watch('customerDeviceId')}
-              onChange={handleDeviceChange}
-              customerId={customerId}
-              onAddNew={() => setShowAddDeviceModal(true)}
-              disabled={!customerId}
-              error={errors.customerDeviceId?.message}
-              placeholder={customerId ? 'Select device...' : 'Select customer first'}
-            />
-          </FormRow>
+            <FormRow label="Device" required error={errors.customerDeviceId?.message}>
+              <SearchableDeviceSelect
+                value={watch('customerDeviceId')}
+                onChange={handleDeviceChange}
+                customerId={customerId}
+                onAddNew={() => setShowAddDeviceModal(true)}
+                disabled={!customerId}
+                error={errors.customerDeviceId?.message}
+                placeholder={customerId ? 'Select device...' : 'Select customer first'}
+              />
+            </FormRow>
 
-          {/* Service Category */}
-          <FormRow label="Service Category" required error={errors.serviceCategoryId?.message}>
-            <SearchableServiceCategorySelect
-              value={watch('serviceCategoryId')}
-              onChange={handleCategoryChange}
-              error={errors.serviceCategoryId?.message}
-              placeholder="Select service category..."
-            />
-          </FormRow>
+            <FormRow label="Service Category" required error={errors.serviceCategoryId?.message}>
+              <SearchableServiceCategorySelect
+                value={watch('serviceCategoryId')}
+                onChange={handleCategoryChange}
+                error={errors.serviceCategoryId?.message}
+                placeholder="Select category..."
+              />
+            </FormRow>
+          </div>
 
-          {/* Device Condition */}
-          <FormRow label="Device Condition">
-            <SearchableDeviceConditionSelect
-              value={watch('deviceConditionId') || ''}
-              onChange={handleConditionChange}
-              placeholder="Select device condition..."
-            />
-          </FormRow>
+          {/* Row 2: Device Condition, Issue, Issue Description */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormRow label="Device Condition">
+              <SearchableDeviceConditionSelect
+                value={watch('deviceConditionId') || ''}
+                onChange={handleConditionChange}
+                placeholder="Select condition..."
+              />
+            </FormRow>
 
-          {/* Issue & Description Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormRow label="Issue" required error={errors.issue?.message}>
               <Controller
                 control={control}
@@ -304,7 +303,7 @@ export default function CreateService() {
                   <input
                     {...field}
                     type="text"
-                    placeholder="e.g., Screen broken, Not charging"
+                    placeholder="e.g., Screen broken"
                     className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
                       errors.issue ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -329,111 +328,116 @@ export default function CreateService() {
             </FormRow>
           </div>
 
-          {/* Device Photos */}
-          <FormRow label="Device Photos">
-            <MultiImageUpload
-              images={selectedImages}
-              previews={imagePreviews}
-              onChange={handleImagesChange}
-              maxImages={5}
-            />
-          </FormRow>
+          {/* Row 3: Estimated Cost, Advance Payment, Payment Method */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
+              <Controller
+                control={control}
+                name="estimatedCost"
+                render={({ field }) => (
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+                        errors.estimatedCost ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+                )}
+              />
+            </FormRow>
 
-          {/* Pricing Section */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Pricing & Payment</h3>
+            <FormRow label="Advance Payment" error={errors.advancePayment?.message}>
+              <Controller
+                control={control}
+                name="advancePayment"
+                render={({ field }) => (
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+                        errors.advancePayment ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+                )}
+              />
+            </FormRow>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Estimated Cost */}
-              <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
-                <Controller
-                  control={control}
-                  name="estimatedCost"
-                  render={({ field }) => (
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                      <input
-                        type="number"
-                        step="1"
-                        min="0"
-                        value={field.value || ''}
-                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                        placeholder="0"
-                        className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                          errors.estimatedCost ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-                  )}
-                />
-              </FormRow>
+            <FormRow label="Payment Method" error={errors.paymentMethodId?.message}>
+              <Controller
+                control={control}
+                name="paymentMethodId"
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    disabled={!advancePayment || advancePayment <= 0}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+                      errors.paymentMethodId ? 'border-red-500' : 'border-gray-300'
+                    } ${!advancePayment || advancePayment <= 0 ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  >
+                    <option value="">Select method</option>
+                    {paymentMethodsData?.data?.map((method) => (
+                      <option key={method.id} value={method.id}>
+                        {method.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
+            </FormRow>
+          </div>
 
-              {/* Advance Payment */}
-              <FormRow label="Advance Payment" error={errors.advancePayment?.message}>
-                <Controller
-                  control={control}
-                  name="advancePayment"
-                  render={({ field }) => (
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                      <input
-                        type="number"
-                        step="1"
-                        min="0"
-                        value={field.value || ''}
-                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                        placeholder="0"
-                        className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                          errors.advancePayment ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-                  )}
-                />
-              </FormRow>
-
-              {/* Payment Method */}
-              <FormRow label="Payment Method" error={errors.paymentMethodId?.message}>
-                <Controller
-                  control={control}
-                  name="paymentMethodId"
-                  render={({ field }) => (
-                    <select
-                      {...field}
-                      disabled={!advancePayment || advancePayment <= 0}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                        errors.paymentMethodId ? 'border-red-500' : 'border-gray-300'
-                      } ${!advancePayment || advancePayment <= 0 ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    >
-                      <option value="">Select method</option>
-                      {paymentMethodsData?.data?.map((method) => (
-                        <option key={method.id} value={method.id}>
-                          {method.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+          {/* Row 4: Device Photos & Payment Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <FormRow label="Device Photos">
+                <MultiImageUpload
+                  images={selectedImages}
+                  previews={imagePreviews}
+                  onChange={handleImagesChange}
+                  maxImages={5}
                 />
               </FormRow>
             </div>
 
             {/* Payment Summary */}
-            {(estimatedCost || 0) > 0 && (
-              <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                <div className="text-sm">
-                  <span className="text-gray-600">Estimated:</span>
-                  <span className="ml-2 font-semibold text-gray-900">₹{estimatedCost || 0}</span>
-                </div>
-                {(advancePayment || 0) > 0 && (
-                  <div className="text-sm">
-                    <span className="text-gray-600">Balance:</span>
-                    <span className={`ml-2 font-semibold ${remainingAmount > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                      ₹{remainingAmount}
-                    </span>
+            <div className="flex flex-col justify-end">
+              {(estimatedCost || 0) > 0 && (
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Estimated:</span>
+                    <span className="font-semibold text-gray-900">₹{estimatedCost || 0}</span>
                   </div>
-                )}
-              </div>
-            )}
+                  {(advancePayment || 0) > 0 && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Advance:</span>
+                        <span className="font-semibold text-green-600">₹{advancePayment}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-200">
+                        <span className="text-gray-600">Balance:</span>
+                        <span className={`font-semibold ${remainingAmount > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                          ₹{remainingAmount}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </form>
       </div>
