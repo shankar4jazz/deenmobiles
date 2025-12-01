@@ -1,14 +1,44 @@
-import { useQuery } from '@tanstack/react-query';
-import { Wrench, ClipboardCheck, Clock, Package } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Wrench, ClipboardCheck, Clock, Package, Star, Trophy, Zap, Bell, ChevronRight, TrendingUp } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
+import { technicianApi, TechnicianDashboardStats, TechnicianNotification } from '@/services/technicianApi';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import StatCard from '@/components/dashboard/StatCard';
+import { LevelBadge } from '@/components/common/LevelBadge';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export default function TechnicianDashboard() {
+  const queryClient = useQueryClient();
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Original dashboard data
   const { data, isLoading } = useQuery({
     queryKey: ['technicianDashboard'],
     queryFn: dashboardApi.getTechnicianDashboard,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000,
+  });
+
+  // Technician stats with points and levels
+  const { data: techStats } = useQuery({
+    queryKey: ['technicianStats'],
+    queryFn: technicianApi.getDashboardStats,
+    refetchInterval: 60000,
+  });
+
+  // Notifications
+  const { data: notificationsData } = useQuery({
+    queryKey: ['technicianNotifications'],
+    queryFn: () => technicianApi.getNotifications(1, 5, false),
+    refetchInterval: 30000,
+  });
+
+  // Mark notification as read
+  const markAsReadMutation = useMutation({
+    mutationFn: technicianApi.markAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['technicianNotifications'] });
+    },
   });
 
   if (isLoading || !data) {
@@ -21,7 +51,8 @@ export default function TechnicianDashboard() {
     );
   }
 
-  const { stats, assignedServices, completedServices, performanceStats } = data;
+  const { assignedServices, completedServices, performanceStats } = data;
+  const unreadCount = notificationsData?.unreadCount || 0;
 
   const statusColors: Record<string, string> = {
     PENDING: '#f59e0b',
@@ -31,13 +62,136 @@ export default function TechnicianDashboard() {
     DELIVERED: '#06b6d4',
   };
 
+  const handleNotificationClick = (notification: TechnicianNotification) => {
+    if (!notification.isRead) {
+      markAsReadMutation.mutate(notification.id);
+    }
+  };
+
   return (
     <DashboardLayout>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Tasks</h1>
-        <p className="text-gray-600">Manage your assigned service requests</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Dashboard</h1>
+          <p className="text-gray-600">Welcome back! Here&apos;s your performance overview.</p>
+        </div>
+
+        {/* Notifications Bell */}
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full"
+          >
+            <Bell className="w-6 h-6" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* Notifications Dropdown */}
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Notifications</h3>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => {
+                      technicianApi.markAllAsRead();
+                      queryClient.invalidateQueries({ queryKey: ['technicianNotifications'] });
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notificationsData?.notifications.length === 0 ? (
+                  <p className="p-4 text-center text-gray-500 text-sm">No notifications</p>
+                ) : (
+                  notificationsData?.notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      onClick={() => handleNotificationClick(notif)}
+                      className={`p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                        !notif.isRead ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        {!notif.isRead && (
+                          <span className="w-2 h-2 mt-1.5 bg-blue-500 rounded-full flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900">{notif.title}</p>
+                          <p className="text-xs text-gray-600 line-clamp-2">{notif.message}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(notif.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Level & Points Banner */}
+      {techStats && (
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 mb-6 text-white">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                <Trophy className="w-8 h-8 text-yellow-300" />
+              </div>
+              <div>
+                {techStats.profile.currentLevel && (
+                  <div className="mb-1">
+                    <LevelBadge
+                      name={techStats.profile.currentLevel.name}
+                      badgeColor={techStats.profile.currentLevel.badgeColor}
+                      size="md"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-4 text-sm opacity-90">
+                  <span className="flex items-center gap-1">
+                    <Zap className="w-4 h-4" />
+                    {techStats.profile.totalPoints.toLocaleString()} Total Points
+                  </span>
+                  {techStats.thisMonth.averageRating && (
+                    <span className="flex items-center gap-1">
+                      <Star className="w-4 h-4 text-yellow-300" />
+                      {techStats.thisMonth.averageRating.toFixed(1)} Rating
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Level Progress */}
+            {techStats.profile.nextLevel && (
+              <div className="flex-1 max-w-md">
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span>Progress to {techStats.profile.nextLevel.name}</span>
+                  <span>{techStats.profile.pointsToNextLevel.toLocaleString()} pts to go</span>
+                </div>
+                <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-yellow-400 transition-all"
+                    style={{ width: `${techStats.profile.progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -71,6 +225,47 @@ export default function TechnicianDashboard() {
         />
       </div>
 
+      {/* Monthly Stats */}
+      {techStats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <ClipboardCheck className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">This Month Completed</p>
+                <p className="text-xl font-bold text-gray-900">{techStats.thisMonth.servicesCompleted}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Zap className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Points Earned This Month</p>
+                <p className="text-xl font-bold text-gray-900">{techStats.thisMonth.totalPoints.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Today&apos;s Progress</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {techStats.today.completed}/{techStats.today.pending + techStats.today.completed}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Assigned Tasks */}
@@ -99,10 +294,19 @@ export default function TechnicianDashboard() {
                         >
                           {service.status.replace('_', ' ')}
                         </span>
+                        {service.serviceCategory?.technicianPoints && (
+                          <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Zap className="w-3 h-3" />
+                            +{service.serviceCategory.technicianPoints} pts
+                          </span>
+                        )}
                       </div>
-                      <button className="text-sm text-purple-600 hover:text-purple-700 font-medium">
-                        Update Status
-                      </button>
+                      <Link
+                        to={`/services/${service.id}`}
+                        className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                      >
+                        View <ChevronRight className="w-4 h-4" />
+                      </Link>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -120,7 +324,7 @@ export default function TechnicianDashboard() {
                     {service.issue && (
                       <div className="mt-3">
                         <p className="text-gray-600 text-xs mb-1">Issue Description</p>
-                        <p className="text-sm text-gray-700">{service.issue}</p>
+                        <p className="text-sm text-gray-700 line-clamp-2">{service.issue}</p>
                       </div>
                     )}
 
@@ -138,12 +342,12 @@ export default function TechnicianDashboard() {
                     )}
 
                     <div className="mt-4 flex items-center gap-2">
-                      <button className="flex-1 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors">
+                      <Link
+                        to={`/services/${service.id}`}
+                        className="flex-1 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors text-center"
+                      >
                         View Details
-                      </button>
-                      <button className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
-                        Mark Complete
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 ))
@@ -152,8 +356,9 @@ export default function TechnicianDashboard() {
           </div>
         </div>
 
-        {/* Right Column - Recently Completed */}
+        {/* Right Column - Recently Completed & Performance */}
         <div className="space-y-6">
+          {/* Recently Completed */}
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-gray-800">Recently Completed</h2>
@@ -172,6 +377,12 @@ export default function TechnicianDashboard() {
                       </span>
                     </div>
                     <p className="text-xs text-gray-600">{service.customer?.name}</p>
+                    {service.serviceCategory?.technicianPoints && (
+                      <p className="text-xs text-purple-600 mt-1 flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        +{service.serviceCategory.technicianPoints} points earned
+                      </p>
+                    )}
                   </div>
                 ))
               )}
@@ -209,8 +420,37 @@ export default function TechnicianDashboard() {
               </p>
             </div>
           </div>
+
+          {/* Points Info Card */}
+          {techStats && techStats.profile.currentLevel && (
+            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-100">
+              <h3 className="font-semibold text-gray-900 mb-3">Level Benefits</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Points Multiplier</span>
+                  <span className="font-medium text-purple-600">
+                    {techStats.profile.currentLevel.pointsMultiplier}x
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Incentive</span>
+                  <span className="font-medium text-green-600">
+                    {techStats.profile.currentLevel.incentivePercent}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Click outside to close notifications */}
+      {showNotifications && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowNotifications(false)}
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -54,6 +54,8 @@ model Company {
   jobSheetTemplates           JobSheetTemplate[]             @relation("CompanyJobSheetTemplates")
   jobSheetTemplateCategories  JobSheetTemplateCategory[]     @relation("CompanyJobSheetTemplateCategories")
   serviceIssues               ServiceIssue[]
+  technicianLevels            TechnicianLevel[]
+  technicianProfiles          TechnicianProfile[]
 
   @@map("companies")
 }
@@ -92,6 +94,7 @@ model Branch {
   invoiceTemplates    InvoiceTemplate[]
   themes              Theme[]
   jobSheetTemplates   JobSheetTemplate[]         @relation("BranchJobSheetTemplates")
+  technicianProfiles  TechnicianProfile[]
 
   @@index([companyId])
   @@index([managerId])
@@ -144,6 +147,8 @@ model User {
   createdInvoiceTemplates    InvoiceTemplate[]          @relation("UserCreatedInvoiceTemplates")
   createdThemes              Theme[]                    @relation("UserCreatedThemes")
   createdJobSheetTemplates   JobSheetTemplate[]         @relation("UserCreatedJobSheetTemplates")
+  technicianProfile          TechnicianProfile?
+  technicianNotifications    TechnicianNotification[]
 
   @@index([companyId])
   @@index([branchId])
@@ -287,6 +292,7 @@ model Service {
   paymentEntries    PaymentEntry[]         @relation("ServicePaymentEntries")
   serviceIssues     ServiceIssueOnService[]
   accessories       ServiceAccessory[]
+  pointsHistory     TechnicianPointsHistory[]
 
   @@index([companyId])
   @@index([branchId])
@@ -876,6 +882,7 @@ model ServiceCategory {
   updatedAt        DateTime  @updatedAt
   company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   services         Service[]
+  technicianSkills TechnicianSkill[]
 
   @@unique([name, companyId])
   @@index([companyId])
@@ -1612,4 +1619,187 @@ model ReportCache {
   @@index([reportType, companyId])
   @@index([expiresAt])
   @@map("report_caches")
+}
+
+// ==========================================
+// TECHNICIAN MANAGEMENT SYSTEM
+// ==========================================
+
+enum PointsType {
+  SERVICE_COMPLETED
+  SERVICE_DELIVERED
+  RATING_BONUS
+  SPEED_BONUS
+  DAILY_TARGET_BONUS
+  WEEKLY_TARGET_BONUS
+  PENALTY_LATE
+  PENALTY_REWORK
+  MANUAL_ADJUSTMENT
+  PROMOTION_BONUS
+}
+
+enum NotificationType {
+  SERVICE_ASSIGNED
+  SERVICE_REASSIGNED
+  POINTS_EARNED
+  LEVEL_PROMOTION
+  DAILY_TARGET
+  REMINDER
+  ANNOUNCEMENT
+}
+
+model TechnicianLevel {
+  id               String   @id @default(uuid())
+  name             String // "Junior Technician", "Senior Technician", etc.
+  code             String // "JUNIOR", "SENIOR", "EXPERT"
+  minPoints        Int // Minimum points required
+  maxPoints        Int? // Maximum points (null for highest level)
+  pointsMultiplier Float    @default(1.0) // Bonus multiplier for points
+  incentivePercent Float    @default(0) // Percentage incentive on service revenue
+  badgeColor       String? // "#FFD700" for gold, etc.
+  description      String?
+  sortOrder        Int      @default(0)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  technicians       TechnicianProfile[]
+  promotionToThis   TechnicianPromotion[] @relation("PromotedToLevel")
+  promotionFromThis TechnicianPromotion[] @relation("PromotedFromLevel")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([sortOrder])
+  @@map("technician_levels")
+}
+
+model TechnicianProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Points & Level
+  totalPoints    Int              @default(0)
+  currentLevelId String?
+  currentLevel   TechnicianLevel? @relation(fields: [currentLevelId], references: [id])
+  levelPromotedAt DateTime?
+
+  // Performance Metrics (cached for quick display)
+  totalServicesCompleted Int     @default(0)
+  totalRevenue           Decimal @default(0) @db.Decimal(12, 2)
+  averageRating          Float?
+  avgCompletionHours     Float?
+
+  // Availability
+  isAvailable       Boolean @default(true)
+  maxConcurrentJobs Int     @default(5)
+
+  companyId String
+  branchId  String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch    Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  // Relations
+  skills        TechnicianSkill[]
+  pointsHistory TechnicianPointsHistory[]
+  promotions    TechnicianPromotion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, branchId])
+  @@index([currentLevelId])
+  @@index([totalPoints])
+  @@map("technician_profiles")
+}
+
+model TechnicianSkill {
+  id                  String            @id @default(uuid())
+  technicianProfileId String
+  technicianProfile   TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+
+  serviceCategoryId String
+  serviceCategory   ServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+
+  proficiencyLevel Int      @default(1) // 1-5 skill level
+  isVerified       Boolean  @default(false)
+  verifiedAt       DateTime?
+  verifiedBy       String? // User ID who verified
+
+  createdAt DateTime @default(now())
+
+  @@unique([technicianProfileId, serviceCategoryId])
+  @@index([serviceCategoryId])
+  @@map("technician_skills")
+}
+
+model TechnicianPointsHistory {
+  id                  String            @id @default(uuid())
+  technicianProfileId String
+  technicianProfile   TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+
+  points      Int // Can be positive or negative
+  type        PointsType
+  description String
+
+  // Reference to source
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  // Bonus info
+  bonusMultiplier Float @default(1.0)
+  basePoints      Int // Points before multiplier
+
+  createdAt DateTime @default(now())
+
+  @@index([technicianProfileId])
+  @@index([serviceId])
+  @@index([createdAt])
+  @@index([type])
+  @@map("technician_points_history")
+}
+
+model TechnicianPromotion {
+  id                  String            @id @default(uuid())
+  technicianProfileId String
+  technicianProfile   TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+
+  fromLevelId String?
+  fromLevel   TechnicianLevel? @relation("PromotedFromLevel", fields: [fromLevelId], references: [id])
+
+  toLevelId String
+  toLevel   TechnicianLevel @relation("PromotedToLevel", fields: [toLevelId], references: [id])
+
+  pointsAtPromotion Int
+  promotedBy        String // User ID who approved
+  notes             String?
+
+  createdAt DateTime @default(now())
+
+  @@index([technicianProfileId])
+  @@index([toLevelId])
+  @@map("technician_promotions")
+}
+
+model TechnicianNotification {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType
+  title   String
+  message String
+  data    Json? // Additional data (serviceId, points, etc.)
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("technician_notifications")
 }

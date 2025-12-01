@@ -5,6 +5,8 @@ import { ServiceStatus } from '@prisma/client';
 import { StockMovementService } from './stockMovementService';
 import JobSheetService from './jobSheetService';
 import { S3Service } from './s3Service';
+import { PointsService } from './pointsService';
+import { TechnicianNotificationService } from './technicianNotificationService';
 import path from 'path';
 import fs from 'fs';
 
@@ -1247,6 +1249,17 @@ export class ServiceService {
         newStatus: status,
       });
 
+      // Award points to technician on completion/delivery (async, don't block response)
+      if (status === ServiceStatus.COMPLETED && result.assignedToId) {
+        PointsService.onServiceCompleted(serviceId).catch((err) => {
+          Logger.error('Failed to award completion points', { error: err, serviceId });
+        });
+      } else if (status === ServiceStatus.DELIVERED && result.assignedToId) {
+        PointsService.onServiceDelivered(serviceId).catch((err) => {
+          Logger.error('Failed to award delivery points', { error: err, serviceId });
+        });
+      }
+
       return result;
     } catch (error) {
       Logger.error('Error updating service status', { error, serviceId, status });
@@ -1331,6 +1344,17 @@ export class ServiceService {
       });
 
       Logger.info('Service assigned to technician', { serviceId, technicianId });
+
+      // Send notification to technician (async, don't block response)
+      TechnicianNotificationService.notifyServiceAssigned(
+        technicianId,
+        serviceId,
+        updatedService.ticketNumber,
+        service.deviceModel,
+        service.issue
+      ).catch((err) => {
+        Logger.error('Failed to send assignment notification', { error: err, serviceId });
+      });
 
       return updatedService;
     } catch (error) {

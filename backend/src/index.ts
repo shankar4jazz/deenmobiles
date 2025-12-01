@@ -37,6 +37,7 @@ import analyticsRoutes from './routes/analyticsRoutes';
 import customerDeviceRoutes from './routes/customerDeviceRoutes';
 import jobSheetTemplateRoutes from './routes/jobSheetTemplateRoutes';
 import jobSheetTemplateCategoryRoutes from './routes/jobSheetTemplateCategoryRoutes';
+import technicianRoutes from './routes/technicianRoutes';
 
 const app: Application = express();
 
@@ -104,6 +105,7 @@ app.use(`/api/${config.apiVersion}/analytics`, analyticsRoutes);
 app.use(`/api/${config.apiVersion}/customer-devices`, customerDeviceRoutes);
 app.use(`/api/${config.apiVersion}/job-sheet-templates`, jobSheetTemplateRoutes);
 app.use(`/api/${config.apiVersion}/job-sheet-template-categories`, jobSheetTemplateCategoryRoutes);
+app.use(`/api/${config.apiVersion}/technicians`, technicianRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
