@@ -5,6 +5,8 @@ export interface Service {
   id: string;
   ticketNumber: string;
   customerId: string;
+  customerDeviceId?: string;
+  serviceCategoryId?: string;
   deviceModel: string;
   deviceIMEI?: string;
   devicePassword?: string;
@@ -153,14 +155,19 @@ export interface CreateServiceData {
 }
 
 export interface UpdateServiceData {
-  deviceModel?: string;
-  deviceIMEI?: string;
-  devicePassword?: string;
+  customerDeviceId?: string;
+  serviceCategoryId?: string;
   issue?: string;
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;
   advancePayment?: number;
+  // Intake fields
+  devicePassword?: string;
+  devicePattern?: string;
+  conditionId?: string;
+  intakeNotes?: string;
+  accessoryIds?: string[];
 }
 
 export interface ServiceFilters {

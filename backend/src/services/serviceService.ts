@@ -44,6 +44,13 @@ interface UpdateServiceData {
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;
+  advancePayment?: number;
+  // Intake fields
+  devicePassword?: string;
+  devicePattern?: string;
+  conditionId?: string;
+  intakeNotes?: string;
+  accessoryIds?: string[];
 }
 
 interface ServiceFilters {
@@ -648,21 +655,84 @@ export class ServiceService {
           id: serviceId,
           companyId,
         },
+        include: {
+          customerDevice: {
+            include: {
+              brand: { select: { name: true } },
+              model: { select: { name: true } },
+            },
+          },
+        },
       });
 
       if (!existing) {
         throw new AppError(404, 'Service not found');
       }
 
-      // Update service
-      const service = await prisma.service.update({
-        where: { id: serviceId },
-        data,
-        include: {
-          customer: true,
-          assignedTo: true,
-          branch: true,
-        },
+      // Extract accessoryIds for separate handling
+      const { accessoryIds, ...updateData } = data;
+
+      // If customerDeviceId is changing, update deviceModel
+      if (updateData.customerDeviceId && updateData.customerDeviceId !== existing.customerDeviceId) {
+        const newDevice = await prisma.customerDevice.findFirst({
+          where: {
+            id: updateData.customerDeviceId,
+            companyId,
+          },
+          include: {
+            brand: { select: { name: true } },
+            model: { select: { name: true } },
+          },
+        });
+
+        if (!newDevice) {
+          throw new AppError(404, 'Customer device not found');
+        }
+
+        (updateData as any).deviceModel = `${newDevice.brand.name} ${newDevice.model.name}`;
+        (updateData as any).deviceIMEI = newDevice.imei;
+      }
+
+      // Use transaction for atomic updates
+      const service = await prisma.$transaction(async (tx) => {
+        // Update service
+        const updatedService = await tx.service.update({
+          where: { id: serviceId },
+          data: updateData,
+          include: {
+            customer: true,
+            assignedTo: true,
+            branch: true,
+            condition: true,
+            accessories: {
+              include: {
+                accessory: true,
+              },
+            },
+          },
+        });
+
+        // Handle accessory updates if provided
+        if (accessoryIds !== undefined) {
+          // Delete existing accessories
+          await tx.serviceAccessory.deleteMany({
+            where: { serviceId },
+          });
+
+          // Create new accessory links
+          if (accessoryIds.length > 0) {
+            for (const accessoryId of accessoryIds) {
+              await tx.serviceAccessory.create({
+                data: {
+                  serviceId,
+                  accessoryId,
+                },
+              });
+            }
+          }
+        }
+
+        return updatedService;
       });
 
       // Create activity log
@@ -678,7 +748,8 @@ export class ServiceService {
 
       Logger.info('Service updated successfully', { serviceId, updates: data });
 
-      return service;
+      // Refetch to include updated accessories
+      return await this.getServiceById(serviceId, companyId);
     } catch (error) {
       Logger.error('Error updating service', { error, serviceId, data });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to update service');
