@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceApi } from '@/services/serviceApi';
 import { technicianApi, TechnicianForAssignment } from '@/services/technicianApi';
-import { UserCheck, AlertCircle, Search, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { UserCheck, AlertCircle, Search, ChevronDown, ChevronUp, Filter, Eye } from 'lucide-react';
 import { LevelBadge } from '../common/LevelBadge';
 import TechnicianCard from './TechnicianCard';
+import TechnicianProfileModal from './TechnicianProfileModal';
 
 interface TechnicianAssignmentProps {
   serviceId: string;
@@ -34,6 +35,7 @@ export default function TechnicianAssignment({
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('workload');
   const [viewMode, setViewMode] = useState<'compact' | 'detailed'>('compact');
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Fetch technicians for assignment
   const { data: techniciansData, isLoading } = useQuery({
@@ -116,22 +118,43 @@ export default function TechnicianAssignment({
               )}
             </div>
             {currentAssigneeProfile && (
-              <div className="text-right text-xs text-gray-500">
-                <div>
-                  {currentAssigneeProfile.totalWorkload}/{currentAssigneeProfile.profile.maxConcurrentJobs} jobs
-                </div>
-                {currentAssigneeProfile.profile.averageRating && (
-                  <div className="flex items-center gap-1 justify-end">
-                    <svg className="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    {currentAssigneeProfile.profile.averageRating.toFixed(1)}
+              <div className="flex items-center gap-2">
+                <div className="text-right text-xs text-gray-500">
+                  <div>
+                    {currentAssigneeProfile.totalWorkload}/{currentAssigneeProfile.profile.maxConcurrentJobs} jobs
                   </div>
-                )}
+                  {currentAssigneeProfile.profile.averageRating && (
+                    <div className="flex items-center gap-1 justify-end">
+                      <svg className="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      {currentAssigneeProfile.profile.averageRating.toFixed(1)}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowProfileModal(true);
+                  }}
+                  className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                  title="View Profile"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* Technician Profile Modal */}
+      {currentAssigneeProfile && (
+        <TechnicianProfileModal
+          technician={currentAssigneeProfile}
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+        />
       )}
 
       {!currentAssignee && !showList && (
