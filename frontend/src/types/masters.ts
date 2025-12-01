@@ -246,6 +246,30 @@ export interface UpdateServiceIssueDto {
   isActive?: boolean;
 }
 
+// Accessory (Global - not company scoped)
+export interface Accessory {
+  id: string;
+  name: string;
+  code?: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAccessoryDto {
+  name: string;
+  code?: string;
+  description?: string;
+}
+
+export interface UpdateAccessoryDto {
+  name?: string;
+  code?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
 // Master Data Type enum
 export enum MasterDataType {
   CATEGORY = 'category',
@@ -258,9 +282,10 @@ export enum MasterDataType {
   EXPENSE_CATEGORY = 'expense-category',
   DEVICE_CONDITION = 'device-condition',
   SERVICE_ISSUE = 'service-issue',
+  ACCESSORY = 'accessory',
 }
 
 // Generic Master Data Item type
-export type MasterDataItem = ItemCategory | ItemUnit | ItemGSTRate | ItemBrand | ItemModel | ServiceCategory | PaymentMethod | ExpenseCategory | DeviceCondition | ServiceIssue;
-export type CreateMasterDataDto = CreateItemCategoryDto | CreateItemUnitDto | CreateItemGSTRateDto | CreateItemBrandDto | CreateItemModelDto | CreateServiceCategoryDto | CreatePaymentMethodDto | CreateExpenseCategoryDto | CreateDeviceConditionDto | CreateServiceIssueDto;
-export type UpdateMasterDataDto = UpdateItemCategoryDto | UpdateItemUnitDto | UpdateItemGSTRateDto | UpdateItemBrandDto | UpdateItemModelDto | UpdateServiceCategoryDto | UpdatePaymentMethodDto | UpdateExpenseCategoryDto | UpdateDeviceConditionDto | UpdateServiceIssueDto;
+export type MasterDataItem = ItemCategory | ItemUnit | ItemGSTRate | ItemBrand | ItemModel | ServiceCategory | PaymentMethod | ExpenseCategory | DeviceCondition | ServiceIssue | Accessory;
+export type CreateMasterDataDto = CreateItemCategoryDto | CreateItemUnitDto | CreateItemGSTRateDto | CreateItemBrandDto | CreateItemModelDto | CreateServiceCategoryDto | CreatePaymentMethodDto | CreateExpenseCategoryDto | CreateDeviceConditionDto | CreateServiceIssueDto | CreateAccessoryDto;
+export type UpdateMasterDataDto = UpdateItemCategoryDto | UpdateItemUnitDto | UpdateItemGSTRateDto | UpdateItemBrandDto | UpdateItemModelDto | UpdateServiceCategoryDto | UpdatePaymentMethodDto | UpdateExpenseCategoryDto | UpdateDeviceConditionDto | UpdateServiceIssueDto | UpdateAccessoryDto;

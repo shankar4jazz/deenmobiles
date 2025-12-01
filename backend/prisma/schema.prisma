@@ -252,6 +252,9 @@ model Service {
   deviceModel       String
   deviceIMEI        String?
   devicePassword    String?
+  devicePattern     String?                // Pattern lock (stored as "1,2,3,5,9" format)
+  conditionId       String?                // Device condition at service intake
+  intakeNotes       String?                // Notes about device condition at intake
   issue             String
   diagnosis         String?
   estimatedCost     Float
@@ -280,14 +283,17 @@ model Service {
   customer          Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
   customerDevice    CustomerDevice?        @relation(fields: [customerDeviceId], references: [id], onDelete: SetNull)
   serviceCategory   ServiceCategory?       @relation(fields: [serviceCategoryId], references: [id], onDelete: SetNull)
+  condition         DeviceCondition?       @relation(fields: [conditionId], references: [id], onDelete: SetNull)
   paymentEntries    PaymentEntry[]         @relation("ServicePaymentEntries")
   serviceIssues     ServiceIssueOnService[]
+  accessories       ServiceAccessory[]
 
   @@index([companyId])
   @@index([branchId])
   @@index([customerId])
   @@index([assignedToId])
   @@index([serviceCategoryId])
+  @@index([conditionId])
   @@index([ticketNumber])
   @@index([status])
   @@map("services")
@@ -894,6 +900,37 @@ model ServiceIssue {
   @@map("service_issues")
 }
 
+// Accessory Master Data - Global accessories list
+model Accessory {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  code        String?            @unique
+  description String?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  services    ServiceAccessory[]
+
+  @@index([isActive])
+  @@index([name])
+  @@map("accessories")
+}
+
+// Junction table for Service and Accessory (many-to-many)
+model ServiceAccessory {
+  id          String    @id @default(uuid())
+  serviceId   String
+  accessoryId String
+  createdAt   DateTime  @default(now())
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  accessory   Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, accessoryId])
+  @@index([serviceId])
+  @@index([accessoryId])
+  @@map("service_accessories")
+}
+
 model ServiceIssueOnService {
   id             String       @id @default(uuid())
   serviceId      String
@@ -918,7 +955,7 @@ model DeviceCondition {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customerDevices CustomerDevice[]
+  services        Service[]
 
   @@unique([name, companyId])
   @@index([companyId])
@@ -933,12 +970,6 @@ model CustomerDevice {
   modelId      String
   imei         String?
   color        String?
-  password     String?
-  pattern      String?
-  conditionId  String?
-  accessories  String[]         @default([])
-  purchaseYear Int?
-  notes        String?
   isActive     Boolean          @default(true)
   companyId    String
   branchId     String?
@@ -947,7 +978,6 @@ model CustomerDevice {
   customer     Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   brand        ItemBrand        @relation(fields: [brandId], references: [id], onDelete: Restrict)
   model        ItemModel        @relation(fields: [modelId], references: [id], onDelete: Restrict)
-  condition    DeviceCondition? @relation(fields: [conditionId], references: [id], onDelete: SetNull)
   company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   branch       Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
   services     Service[]

@@ -2069,13 +2069,13 @@ export class MasterDataService {
         throw new AppError(404, 'Device condition not found');
       }
 
-      // Check if device condition is being used
-      const usageCount = await prisma.customerDevice.count({
+      // Check if device condition is being used in services
+      const usageCount = await prisma.service.count({
         where: { conditionId: id },
       });
 
       if (usageCount > 0) {
-        throw new AppError(400, `Cannot deactivate device condition. It is being used by ${usageCount} device(s)`);
+        throw new AppError(400, `Cannot deactivate device condition. It is being used by ${usageCount} service(s)`);
       }
 
       const deviceCondition = await prisma.deviceCondition.update({
@@ -2286,6 +2286,208 @@ export class MasterDataService {
       if (error instanceof AppError) throw error;
       Logger.error('Error deactivating service issue', { error, id });
       throw new AppError(500, 'Failed to deactivate service issue');
+    }
+  }
+
+  // ==================== ACCESSORY METHODS (Global) ====================
+
+  /**
+   * Get all accessories (global - not company scoped)
+   */
+  static async getAllAccessories(filters: Omit<MasterDataFilters, 'companyId'> & { companyId?: string }) {
+    try {
+      const {
+        search,
+        isActive,
+        page = 1,
+        limit = 100,
+      } = filters;
+
+      const skip = (page - 1) * limit;
+
+      const where: any = {};
+
+      if (isActive !== undefined) {
+        where.isActive = isActive;
+      }
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [accessories, total] = await Promise.all([
+        prisma.accessory.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: 'asc' },
+        }),
+        prisma.accessory.count({ where }),
+      ]);
+
+      return {
+        data: accessories,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      Logger.error('Error fetching accessories', { error, filters });
+      throw new AppError(500, 'Failed to fetch accessories');
+    }
+  }
+
+  /**
+   * Get accessory by ID
+   */
+  static async getAccessoryById(id: string) {
+    try {
+      const accessory = await prisma.accessory.findUnique({
+        where: { id },
+      });
+
+      if (!accessory) {
+        throw new AppError(404, 'Accessory not found');
+      }
+
+      return accessory;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error fetching accessory', { error, id });
+      throw new AppError(500, 'Failed to fetch accessory');
+    }
+  }
+
+  /**
+   * Create a new accessory (global)
+   */
+  static async createAccessory(data: { name: string; code?: string; description?: string }) {
+    try {
+      // Check for duplicate name
+      const existingByName = await prisma.accessory.findUnique({
+        where: { name: data.name },
+      });
+
+      if (existingByName) {
+        // Return existing accessory for auto-create flow
+        return existingByName;
+      }
+
+      // Check for duplicate code if provided
+      if (data.code) {
+        const existingByCode = await prisma.accessory.findUnique({
+          where: { code: data.code.toUpperCase() },
+        });
+
+        if (existingByCode) {
+          throw new AppError(400, 'Accessory code already exists');
+        }
+      }
+
+      const accessory = await prisma.accessory.create({
+        data: {
+          name: data.name,
+          code: data.code?.toUpperCase(),
+          description: data.description,
+        },
+      });
+
+      Logger.info('Accessory created', { accessoryId: accessory.id, name: accessory.name });
+      return accessory;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error creating accessory', { error, data });
+      throw new AppError(500, 'Failed to create accessory');
+    }
+  }
+
+  /**
+   * Update an accessory
+   */
+  static async updateAccessory(id: string, data: { name?: string; code?: string; description?: string; isActive?: boolean }) {
+    try {
+      // Check if accessory exists
+      const existing = await prisma.accessory.findUnique({
+        where: { id },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Accessory not found');
+      }
+
+      // Check for duplicate name if being updated
+      if (data.name && data.name !== existing.name) {
+        const duplicate = await prisma.accessory.findUnique({
+          where: { name: data.name },
+        });
+
+        if (duplicate) {
+          throw new AppError(400, 'Accessory name already exists');
+        }
+      }
+
+      // Check for duplicate code if being updated
+      if (data.code && data.code !== existing.code) {
+        const duplicate = await prisma.accessory.findUnique({
+          where: { code: data.code.toUpperCase() },
+        });
+
+        if (duplicate) {
+          throw new AppError(400, 'Accessory code already exists');
+        }
+      }
+
+      const accessory = await prisma.accessory.update({
+        where: { id },
+        data: {
+          ...(data.name && { name: data.name }),
+          ...(data.code !== undefined && { code: data.code ? data.code.toUpperCase() : null }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.isActive !== undefined && { isActive: data.isActive }),
+        },
+      });
+
+      Logger.info('Accessory updated', { accessoryId: id });
+      return accessory;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error updating accessory', { error, id, data });
+      throw new AppError(500, 'Failed to update accessory');
+    }
+  }
+
+  /**
+   * Deactivate an accessory (soft delete)
+   */
+  static async deactivateAccessory(id: string) {
+    try {
+      // Check if accessory exists
+      const existing = await prisma.accessory.findUnique({
+        where: { id },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Accessory not found');
+      }
+
+      const accessory = await prisma.accessory.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      Logger.info('Accessory deactivated', { accessoryId: id });
+      return accessory;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error deactivating accessory', { error, id });
+      throw new AppError(500, 'Failed to deactivate accessory');
     }
   }
 }

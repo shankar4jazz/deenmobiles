@@ -10,6 +10,7 @@ import {
   ExpenseCategory,
   DeviceCondition,
   ServiceIssue,
+  Accessory,
   CreateItemCategoryDto,
   CreateItemUnitDto,
   CreateItemGSTRateDto,
@@ -20,6 +21,7 @@ import {
   CreateExpenseCategoryDto,
   CreateDeviceConditionDto,
   CreateServiceIssueDto,
+  CreateAccessoryDto,
   UpdateItemCategoryDto,
   UpdateItemUnitDto,
   UpdateItemGSTRateDto,
@@ -30,6 +32,7 @@ import {
   UpdateExpenseCategoryDto,
   UpdateDeviceConditionDto,
   UpdateServiceIssueDto,
+  UpdateAccessoryDto,
   PaginatedResponse,
 } from '../types/masters';
 
@@ -545,6 +548,56 @@ export const serviceIssueApi = {
   },
 };
 
+// ==================== ACCESSORY API (Global) ====================
+export const accessoryApi = {
+  /**
+   * Get all accessories (global - not company scoped)
+   */
+  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<Accessory>> => {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.isActive !== undefined)
+      params.append('isActive', filters.isActive.toString());
+
+    const response = await api.get(`/master-data/accessories?${params.toString()}`);
+    return response.data.data;
+  },
+
+  /**
+   * Get accessory by ID
+   */
+  getById: async (id: string): Promise<Accessory> => {
+    const response = await api.get(`/master-data/accessories/${id}`);
+    return response.data.data;
+  },
+
+  /**
+   * Create a new accessory
+   */
+  create: async (data: CreateAccessoryDto): Promise<Accessory> => {
+    const response = await api.post('/master-data/accessories', data);
+    return response.data.data;
+  },
+
+  /**
+   * Update an accessory
+   */
+  update: async (id: string, data: UpdateAccessoryDto): Promise<Accessory> => {
+    const response = await api.put(`/master-data/accessories/${id}`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Deactivate an accessory
+   */
+  deactivate: async (id: string): Promise<Accessory> => {
+    const response = await api.delete(`/master-data/accessories/${id}`);
+    return response.data.data;
+  },
+};
+
 // Combined export for convenience
 export const masterDataApi = {
   categories: categoryApi,
@@ -557,6 +610,7 @@ export const masterDataApi = {
   expenseCategories: expenseCategoryApi,
   deviceConditions: deviceConditionApi,
   serviceIssues: serviceIssueApi,
+  accessories: accessoryApi,
   // Convenience methods for direct access
   getAllCategories: categoryApi.getAll,
   getAllUnits: unitApi.getAll,
@@ -568,4 +622,5 @@ export const masterDataApi = {
   getAllExpenseCategories: expenseCategoryApi.getAll,
   getAllDeviceConditions: deviceConditionApi.getAll,
   getAllServiceIssues: serviceIssueApi.getAll,
+  getAllAccessories: accessoryApi.getAll,
 };

@@ -835,4 +835,76 @@ export class MasterDataController {
 
     return ApiResponse.success(res, serviceIssue, 'Service issue deactivated successfully');
   });
+
+  // ==================== ACCESSORY ENDPOINTS (Global) ====================
+
+  /**
+   * GET /api/v1/master-data/accessories
+   * Get all accessories (global - not company scoped)
+   */
+  static getAllAccessories = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { search, isActive, page, limit } = req.query;
+
+    const result = await MasterDataService.getAllAccessories({
+      search: search as string,
+      isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+
+    return ApiResponse.success(res, result, 'Accessories retrieved successfully');
+  });
+
+  /**
+   * GET /api/v1/master-data/accessories/:id
+   * Get accessory by ID
+   */
+  static getAccessoryById = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const accessory = await MasterDataService.getAccessoryById(id);
+
+    return ApiResponse.success(res, accessory, 'Accessory retrieved successfully');
+  });
+
+  /**
+   * POST /api/v1/master-data/accessories
+   * Create a new accessory
+   */
+  static createAccessory = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { name, code, description } = req.body;
+
+    const accessory = await MasterDataService.createAccessory({
+      name,
+      code,
+      description,
+    });
+
+    return ApiResponse.created(res, accessory, 'Accessory created successfully');
+  });
+
+  /**
+   * PUT /api/v1/master-data/accessories/:id
+   * Update accessory
+   */
+  static updateAccessory = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const accessory = await MasterDataService.updateAccessory(id, updateData);
+
+    return ApiResponse.success(res, accessory, 'Accessory updated successfully');
+  });
+
+  /**
+   * DELETE /api/v1/master-data/accessories/:id
+   * Deactivate accessory (soft delete)
+   */
+  static deactivateAccessory = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const accessory = await MasterDataService.deactivateAccessory(id);
+
+    return ApiResponse.success(res, accessory, 'Accessory deactivated successfully');
+  });
 }

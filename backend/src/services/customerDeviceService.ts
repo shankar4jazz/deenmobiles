@@ -10,7 +10,6 @@ export interface CustomerDeviceFilters {
   isActive?: boolean;
   brandId?: string;
   modelId?: string;
-  conditionId?: string;
 }
 
 export interface CreateCustomerDeviceData {
@@ -19,12 +18,6 @@ export interface CreateCustomerDeviceData {
   modelId: string;
   imei?: string;
   color?: string;
-  password?: string;
-  pattern?: string;
-  conditionId?: string;
-  accessories?: string[];
-  purchaseYear?: number;
-  notes?: string;
   companyId: string;
   branchId?: string;
   imageUrls?: string[];
@@ -35,12 +28,6 @@ export interface UpdateCustomerDeviceData {
   modelId?: string;
   imei?: string;
   color?: string;
-  password?: string;
-  pattern?: string;
-  conditionId?: string;
-  accessories?: string[];
-  purchaseYear?: number;
-  notes?: string;
   isActive?: boolean;
 }
 
@@ -60,7 +47,6 @@ export default class CustomerDeviceService {
       isActive,
       brandId,
       modelId,
-      conditionId,
     } = filters;
 
     const skip = (page - 1) * limit;
@@ -82,15 +68,10 @@ export default class CustomerDeviceService {
       where.modelId = modelId;
     }
 
-    if (conditionId) {
-      where.conditionId = conditionId;
-    }
-
     if (search) {
       where.OR = [
         { imei: { contains: search, mode: 'insensitive' } },
         { color: { contains: search, mode: 'insensitive' } },
-        { notes: { contains: search, mode: 'insensitive' } },
         { brand: { name: { contains: search, mode: 'insensitive' } } },
         { model: { name: { contains: search, mode: 'insensitive' } } },
       ];
@@ -114,14 +95,6 @@ export default class CustomerDeviceService {
               id: true,
               name: true,
               code: true,
-            },
-          },
-          condition: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-              description: true,
             },
           },
           customer: {
@@ -190,14 +163,6 @@ export default class CustomerDeviceService {
             id: true,
             name: true,
             code: true,
-          },
-        },
-        condition: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            description: true,
           },
         },
         customer: {
@@ -276,27 +241,9 @@ export default class CustomerDeviceService {
       throw new AppError(404, 'Model not found, inactive, or does not belong to selected brand');
     }
 
-    // Sanitize conditionId and branchId - remove if empty string
-    if (deviceData.conditionId === '' || deviceData.conditionId === null) {
-      delete deviceData.conditionId;
-    }
+    // Sanitize branchId - remove if empty string
     if (deviceData.branchId === '' || deviceData.branchId === null) {
       delete deviceData.branchId;
-    }
-
-    // Verify condition exists if provided
-    if (deviceData.conditionId) {
-      const condition = await prisma.deviceCondition.findFirst({
-        where: {
-          id: deviceData.conditionId,
-          companyId,
-          isActive: true,
-        },
-      });
-
-      if (!condition) {
-        throw new AppError(404, 'Device condition not found or inactive');
-      }
     }
 
     // Check if IMEI already exists for this customer (if provided)
@@ -343,14 +290,6 @@ export default class CustomerDeviceService {
             id: true,
             name: true,
             code: true,
-          },
-        },
-        condition: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            description: true,
           },
         },
         customer: {
@@ -428,26 +367,6 @@ export default class CustomerDeviceService {
       }
     }
 
-    // Sanitize conditionId - remove if empty string
-    if (data.conditionId === '' || data.conditionId === null) {
-      delete data.conditionId;
-    }
-
-    // If conditionId is being updated, verify it exists
-    if (data.conditionId) {
-      const condition = await prisma.deviceCondition.findFirst({
-        where: {
-          id: data.conditionId,
-          companyId,
-          isActive: true,
-        },
-      });
-
-      if (!condition) {
-        throw new AppError(404, 'Device condition not found or inactive');
-      }
-    }
-
     // Check IMEI uniqueness if being updated
     if (data.imei && data.imei !== existingDevice.imei) {
       const duplicateDevice = await prisma.customerDevice.findFirst({
@@ -480,14 +399,6 @@ export default class CustomerDeviceService {
             id: true,
             name: true,
             code: true,
-          },
-        },
-        condition: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            description: true,
           },
         },
         customer: {

@@ -158,8 +158,6 @@ export class JobSheetService {
         customerDevice: service.customerDevice
           ? {
               color: service.customerDevice.color || undefined,
-              accessories: service.customerDevice.accessories || undefined,
-              purchaseYear: service.customerDevice.purchaseYear || undefined,
             }
           : undefined,
         branch: service.branch,
@@ -356,8 +354,6 @@ export class JobSheetService {
         customerDevice: service.customerDevice
           ? {
               color: service.customerDevice.color || undefined,
-              accessories: service.customerDevice.accessories || undefined,
-              purchaseYear: service.customerDevice.purchaseYear || undefined,
             }
           : undefined,
         branch: service.branch,

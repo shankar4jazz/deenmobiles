@@ -541,4 +541,56 @@ router.delete(
   MasterDataController.deactivateServiceIssue
 );
 
+// ==================== ACCESSORY ROUTES (Global) ====================
+
+/**
+ * @route   GET /api/v1/master-data/accessories
+ * @desc    Get all accessories (global)
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.get('/accessories', authorize(...authorizedRoles), MasterDataController.getAllAccessories);
+
+/**
+ * @route   GET /api/v1/master-data/accessories/:id
+ * @desc    Get accessory by ID
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.get(
+  '/accessories/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.getAccessoryById
+);
+
+/**
+ * @route   POST /api/v1/master-data/accessories
+ * @desc    Create a new accessory
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.post('/accessories', authorize(...authorizedRoles), MasterDataController.createAccessory);
+
+/**
+ * @route   PUT /api/v1/master-data/accessories/:id
+ * @desc    Update accessory
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.put(
+  '/accessories/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.updateAccessory
+);
+
+/**
+ * @route   DELETE /api/v1/master-data/accessories/:id
+ * @desc    Deactivate accessory (soft delete)
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.delete(
+  '/accessories/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.deactivateAccessory
+);
+
 export default router;
