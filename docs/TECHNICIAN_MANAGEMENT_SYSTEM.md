@@ -911,6 +911,305 @@ GET /api/v1/dashboard/technician
 
 ---
 
+## Part 11: Multi-Branch Role Hierarchy
+
+### 11.1 Role Structure
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    COMPANY LEVEL                                 │
+│  ┌──────────────┐    ┌──────────────┐                           │
+│  │ SUPER_ADMIN  │───>│    ADMIN     │                           │
+│  │ (System)     │    │  (Company)   │                           │
+│  └──────────────┘    └──────────────┘                           │
+│                             │                                    │
+│                             │ Creates                            │
+│                             v                                    │
+├─────────────────────────────────────────────────────────────────┤
+│                    BRANCH LEVEL                                  │
+│                                                                  │
+│           ┌──────────────────────────────────────┐              │
+│           │          BRANCH_ADMIN                │              │
+│           │  (Manages entire branch)             │              │
+│           └──────────────────────────────────────┘              │
+│                             │                                    │
+│              ┌──────────────┼──────────────┐                    │
+│              │ Creates      │ Creates      │ Creates            │
+│              v              v              v                    │
+│     ┌──────────────┐ ┌──────────────┐ ┌──────────────┐         │
+│     │SERVICE_ADMIN │ │ RECEPTIONIST │ │  TECHNICIAN  │         │
+│     │(Assigns work)│ │(Creates svc) │ │ (Does work)  │         │
+│     └──────────────┘ └──────────────┘ └──────────────┘         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 Role Permissions
+
+| Role | Create Users | Assign Services | Update Service | View Services |
+|------|-------------|-----------------|----------------|---------------|
+| SUPER_ADMIN | All roles | All branches | All | All |
+| ADMIN | Branch-level roles | All branches | All | All |
+| BRANCH_ADMIN | Service Admin, Receptionist, Technician | Own branch | Own branch | Own branch |
+| SERVICE_ADMIN | None | Own branch technicians | Own branch | Own branch |
+| RECEPTIONIST | None | None | Create only | Own branch |
+| TECHNICIAN | None | None | Assigned only | Assigned only |
+
+### 11.3 User Creation Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│               BRANCH_ADMIN Creates Users                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Create SERVICE_ADMIN                                         │
+│     ┌────────────────────────────────────────────────────────┐  │
+│     │ Name: [Service Admin Name]                             │  │
+│     │ Email: [serviceadmin@branch.com]                       │  │
+│     │ Phone: [9876543210]                                    │  │
+│     │ Role: SERVICE_ADMIN                                    │  │
+│     │ Branch: [Auto-filled - Branch Admin's branch]          │  │
+│     │ Password: [Auto-generated / Set manually]              │  │
+│     └────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  2. Create TECHNICIAN                                            │
+│     ┌────────────────────────────────────────────────────────┐  │
+│     │ Name: [Technician Name]                                │  │
+│     │ Email: [tech@branch.com]                               │  │
+│     │ Phone: [9876543210]                                    │  │
+│     │ Role: TECHNICIAN                                       │  │
+│     │ Branch: [Auto-filled - Branch Admin's branch]          │  │
+│     │ Password: [Auto-generated / Set manually]              │  │
+│     │                                                        │  │
+│     │ -- Technician Profile (Auto-created) --                │  │
+│     │ Skills: [Select service categories]                    │  │
+│     │ Max Jobs: [5]                                          │  │
+│     │ Starting Level: [Trainee]                              │  │
+│     └────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  3. Create RECEPTIONIST                                          │
+│     ┌────────────────────────────────────────────────────────┐  │
+│     │ Name: [Receptionist Name]                              │  │
+│     │ Email: [reception@branch.com]                          │  │
+│     │ Phone: [9876543210]                                    │  │
+│     │ Role: RECEPTIONIST                                     │  │
+│     │ Branch: [Auto-filled - Branch Admin's branch]          │  │
+│     └────────────────────────────────────────────────────────┘  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 11.4 Login & Dashboard by Role
+
+| Role | Login Access | Dashboard Shows |
+|------|-------------|-----------------|
+| BRANCH_ADMIN | Branch admin panel | All branch stats, user management, reports |
+| SERVICE_ADMIN | Service admin panel | All branch services, technician workload, assignment |
+| RECEPTIONIST | Reception panel | Create service, customer lookup, pending services |
+| TECHNICIAN | Technician app/panel | Only assigned services, personal stats, notifications |
+
+### 11.5 Technician Login Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TECHNICIAN LOGIN FLOW                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │  Technician  │───>│    Login     │───>│   Validate   │       │
+│  │  Opens App   │    │   Screen     │    │ Credentials  │       │
+│  └──────────────┘    └──────────────┘    └──────────────┘       │
+│                                                 │                │
+│                                                 v                │
+│                      ┌──────────────────────────────────────┐   │
+│                      │         CHECK USER ROLE              │   │
+│                      │                                      │   │
+│                      │  if (role === 'TECHNICIAN') {        │   │
+│                      │    redirect to TechnicianDashboard   │   │
+│                      │  }                                   │   │
+│                      └──────────────────────────────────────┘   │
+│                                                 │                │
+│                                                 v                │
+│                      ┌──────────────────────────────────────┐   │
+│                      │       TECHNICIAN DASHBOARD           │   │
+│                      │                                      │   │
+│                      │  Query: services WHERE               │   │
+│                      │    assignedToId = currentUserId      │   │
+│                      │    AND branchId = user.branchId      │   │
+│                      │                                      │   │
+│                      │  Shows:                              │   │
+│                      │  - Only assigned services            │   │
+│                      │  - Personal stats & points           │   │
+│                      │  - Notifications                     │   │
+│                      │  - Status update options             │   │
+│                      └──────────────────────────────────────┘   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 11.6 Service Admin Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  SERVICE ADMIN WORKFLOW                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  SERVICE_ADMIN can:                                              │
+│  ✅ View all services in their branch                           │
+│  ✅ Assign services to technicians (same branch only)           │
+│  ✅ Reassign services between technicians                       │
+│  ✅ View technician workload and availability                   │
+│  ✅ Update service status                                       │
+│  ✅ Add notes to services                                       │
+│  ❌ Cannot create new users                                     │
+│  ❌ Cannot access other branches                                │
+│  ❌ Cannot delete services                                      │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              SERVICE ADMIN DASHBOARD                      │   │
+│  │                                                          │   │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐            │   │
+│  │  │ Unassigned │ │  Pending   │ │In Progress │            │   │
+│  │  │    12      │ │     8      │ │     15     │            │   │
+│  │  └────────────┘ └────────────┘ └────────────┘            │   │
+│  │                                                          │   │
+│  │  TECHNICIAN WORKLOAD                                     │   │
+│  │  ┌──────────────────────────────────────────────────┐    │   │
+│  │  │ 👤 John (Senior)     Pending: 3  In Progress: 2  │    │   │
+│  │  │ 👤 Sarah (Junior)    Pending: 1  In Progress: 1  │    │   │
+│  │  │ 👤 Mike (Technician) Pending: 5  In Progress: 3  │    │   │
+│  │  └──────────────────────────────────────────────────┘    │   │
+│  │                                                          │   │
+│  │  UNASSIGNED SERVICES (Click to assign)                   │   │
+│  │  ┌──────────────────────────────────────────────────┐    │   │
+│  │  │ SRV-001 | iPhone 14 | Screen repair  [Assign ▼] │    │   │
+│  │  │ SRV-002 | Samsung   | Battery issue  [Assign ▼] │    │   │
+│  │  └──────────────────────────────────────────────────┘    │   │
+│  │                                                          │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 11.7 API Access Control
+
+```typescript
+// Middleware for role-based access
+const rolePermissions = {
+  TECHNICIAN: {
+    services: {
+      read: 'assigned_only',    // Only services assigned to them
+      update: 'status_only',    // Can only update status
+      delete: false
+    },
+    users: { read: false, create: false, update: false, delete: false }
+  },
+
+  SERVICE_ADMIN: {
+    services: {
+      read: 'branch_only',      // All services in their branch
+      update: 'branch_only',    // Can update any service in branch
+      assign: 'branch_only',    // Can assign to branch technicians
+      delete: false
+    },
+    users: { read: 'branch_technicians', create: false, update: false, delete: false }
+  },
+
+  BRANCH_ADMIN: {
+    services: {
+      read: 'branch_only',
+      update: 'branch_only',
+      assign: 'branch_only',
+      delete: 'branch_only'
+    },
+    users: {
+      read: 'branch_only',
+      create: ['SERVICE_ADMIN', 'RECEPTIONIST', 'TECHNICIAN'],
+      update: 'branch_only',
+      delete: 'branch_only'
+    }
+  }
+};
+```
+
+### 11.8 Branch Data Isolation
+
+```typescript
+// All queries for branch-level users automatically filter by branchId
+
+// Technician sees only assigned services
+const getTechnicianServices = (userId: string, branchId: string) => {
+  return prisma.service.findMany({
+    where: {
+      assignedToId: userId,
+      branchId: branchId
+    }
+  });
+};
+
+// Service Admin sees all branch services
+const getServiceAdminServices = (branchId: string) => {
+  return prisma.service.findMany({
+    where: {
+      branchId: branchId
+    }
+  });
+};
+
+// Service Admin gets only branch technicians for assignment
+const getBranchTechnicians = (branchId: string) => {
+  return prisma.user.findMany({
+    where: {
+      branchId: branchId,
+      role: 'TECHNICIAN',
+      isActive: true
+    },
+    include: {
+      technicianProfile: true,
+      assignedServices: {
+        where: {
+          status: { in: ['PENDING', 'IN_PROGRESS', 'WAITING_PARTS'] }
+        }
+      }
+    }
+  });
+};
+```
+
+---
+
+## Part 12: Existing Roles in System
+
+The system already has these roles defined in `schema.prisma`:
+
+```prisma
+enum UserRole {
+  SUPER_ADMIN       // System-wide access
+  ADMIN             // Company-level admin
+  MANAGER           // Can manage services
+  TECHNICIAN        // Repairs devices
+  RECEPTIONIST      // Creates services
+  BRANCH_ADMIN      // Manages single branch
+  SERVICE_ADMIN     // Assigns services
+  SERVICE_MANAGER   // Manages service operations
+  CUSTOMER_SUPPORT  // Customer facing
+}
+```
+
+**Already Implemented:**
+- ✅ User model with `branchId` field
+- ✅ Service model with `branchId` and `assignedToId`
+- ✅ Role-based routing in frontend
+- ✅ TechnicianDashboard exists (needs enhancement)
+
+**Needs Implementation:**
+- ⬜ Strict branch filtering in all queries
+- ⬜ SERVICE_ADMIN dashboard and assignment UI
+- ⬜ Branch-scoped user creation by BRANCH_ADMIN
+- ⬜ Enhanced TechnicianDashboard with assigned services only
+
+---
+
 ## Summary
 
 This Technician Management System will provide:
