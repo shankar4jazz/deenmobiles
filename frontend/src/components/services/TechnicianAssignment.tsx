@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceApi } from '@/services/serviceApi';
 import { api } from '@/services/api';
-import { UserCheck, AlertCircle, Search, X, Check } from 'lucide-react';
+import { UserCheck, AlertCircle, Search, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface TechnicianAssignmentProps {
   serviceId: string;
+  branchId?: string;
   currentAssignee?: {
     id: string;
     name: string;
@@ -16,19 +17,26 @@ interface TechnicianAssignmentProps {
 
 export default function TechnicianAssignment({
   serviceId,
+  branchId,
   currentAssignee,
   canAssign,
 }: TechnicianAssignmentProps) {
   const queryClient = useQueryClient();
-  const [showAssignment, setShowAssignment] = useState(false);
+  const [showList, setShowList] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Fetch technicians
-  const { data: techniciansData } = useQuery({
-    queryKey: ['technicians'],
+  // Fetch technicians from the same branch
+  const { data: techniciansData, isLoading } = useQuery({
+    queryKey: ['technicians', branchId],
     queryFn: async () => {
-      const response = await api.get('/users?role=TECHNICIAN&limit=100');
+      const params = new URLSearchParams();
+      params.append('role', 'TECHNICIAN');
+      params.append('limit', '100');
+      if (branchId) {
+        params.append('branchId', branchId);
+      }
+      const response = await api.get(`/users?${params.toString()}`);
       return response.data.data;
     },
     enabled: canAssign,
@@ -40,158 +48,134 @@ export default function TechnicianAssignment({
       serviceApi.assignTechnician(serviceId, data.technicianId, data.notes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
-      setShowAssignment(false);
+      setShowList(false);
       setSearchQuery('');
       setNotes('');
     },
   });
 
-  const filteredTechnicians = techniciansData?.users?.filter((tech: any) =>
+  const technicians = techniciansData?.users || [];
+  const filteredTechnicians = technicians.filter((tech: any) =>
     tech.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     tech.email.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  );
 
   const handleAssign = (technicianId: string) => {
     assignMutation.mutate({ technicianId, notes });
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <UserCheck className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Assignment</h3>
-        </div>
-        {canAssign && !showAssignment && (
-          <button
-            onClick={() => setShowAssignment(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            {currentAssignee ? 'Reassign' : 'Assign Technician'}
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
+      {/* Header - Clickable to show technician list */}
+      <div
+        className={`flex items-center justify-between ${canAssign ? 'cursor-pointer' : ''}`}
+        onClick={() => canAssign && setShowList(!showList)}
+      >
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-1">
+          <UserCheck className="w-3 h-3" />
+          Technician
+        </h3>
+        {canAssign && (
+          <button className="text-gray-400 hover:text-gray-600">
+            {showList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         )}
       </div>
 
-      {/* Current Assignment */}
-      {currentAssignee && !showAssignment && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-sm text-gray-600 mb-1">Assigned To</div>
-              <div className="font-semibold text-gray-900">{currentAssignee.name}</div>
-              <div className="text-sm text-gray-500 mt-1">{currentAssignee.email}</div>
-            </div>
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
-              ASSIGNED
-            </span>
-          </div>
+      {/* Current Assignment Display */}
+      {currentAssignee && !showList && (
+        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+          <div className="font-medium text-gray-900">{currentAssignee.name}</div>
+          <div className="text-xs text-gray-500">{currentAssignee.email}</div>
         </div>
       )}
 
-      {!currentAssignee && !showAssignment && (
-        <div className="text-center py-6">
-          <UserCheck className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No technician assigned</p>
-          {canAssign && (
-            <p className="text-sm text-gray-400 mt-1">Click "Assign Technician" to assign this service</p>
-          )}
+      {!currentAssignee && !showList && (
+        <div className="mt-2 text-sm text-gray-400 italic">
+          {canAssign ? 'Click to assign technician' : 'Not assigned'}
         </div>
       )}
 
-      {/* Assignment UI */}
-      {showAssignment && canAssign && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <span className="text-sm font-medium text-gray-900">
-              {currentAssignee ? 'Reassigning Service' : 'Assigning Service'}
-            </span>
-            <button
-              onClick={() => {
-                setShowAssignment(false);
-                setSearchQuery('');
-                setNotes('');
-              }}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Search Technicians */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search Technician
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Optional Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Assignment Notes (Optional)
-            </label>
-            <textarea
-              placeholder="Add any notes for the technician..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      {/* Technician List */}
+      {showList && canAssign && (
+        <div className="mt-3 space-y-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search technician..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
+          {/* Notes (Optional) */}
+          <textarea
+            placeholder="Assignment notes (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+
           {/* Technicians List */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Available Technicians ({filteredTechnicians.length})
-            </label>
-            <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-200">
-              {filteredTechnicians.length === 0 ? (
-                <div className="p-6 text-center text-gray-500">
-                  No technicians found
-                </div>
-              ) : (
-                filteredTechnicians.map((tech: any) => (
-                  <button
-                    key={tech.id}
-                    onClick={() => handleAssign(tech.id)}
-                    disabled={assignMutation.isPending}
-                    className="w-full p-4 hover:bg-gray-50 transition-colors text-left flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 flex items-center gap-2">
-                        {tech.name}
-                        {currentAssignee?.id === tech.id && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
-                            CURRENT
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">{tech.email}</div>
-                      {tech.phone && (
-                        <div className="text-xs text-gray-400 mt-0.5">{tech.phone}</div>
+          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+            {isLoading ? (
+              <div className="p-3 text-center text-gray-500 text-sm">Loading...</div>
+            ) : filteredTechnicians.length === 0 ? (
+              <div className="p-3 text-center text-gray-500 text-sm">
+                {technicians.length === 0 ? 'No technicians in this branch' : 'No technicians found'}
+              </div>
+            ) : (
+              filteredTechnicians.map((tech: any) => (
+                <button
+                  key={tech.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAssign(tech.id);
+                  }}
+                  disabled={assignMutation.isPending}
+                  className={`w-full p-2 hover:bg-gray-50 transition-colors text-left flex items-center justify-between disabled:opacity-50 ${
+                    currentAssignee?.id === tech.id ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-gray-900 flex items-center gap-1">
+                      <span className="truncate">{tech.name}</span>
+                      {currentAssignee?.id === tech.id && (
+                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
+                          Current
+                        </span>
                       )}
                     </div>
-                    <Check className="h-5 w-5 text-gray-400" />
-                  </button>
-                ))
-              )}
-            </div>
+                    <div className="text-xs text-gray-500 truncate">{tech.email}</div>
+                  </div>
+                  <Check className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                </button>
+              ))
+            )}
           </div>
 
+          {/* Cancel Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowList(false);
+              setSearchQuery('');
+              setNotes('');
+            }}
+            className="w-full px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+
           {assignMutation.isError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
-              <AlertCircle className="h-4 w-4" />
+            <div className="p-2 bg-red-50 border border-red-200 rounded flex items-center gap-1 text-red-600 text-xs">
+              <AlertCircle className="h-3 w-3" />
               <span>
-                {(assignMutation.error as any)?.response?.data?.message || 'Failed to assign technician'}
+                {(assignMutation.error as any)?.response?.data?.message || 'Failed to assign'}
               </span>
             </div>
           )}

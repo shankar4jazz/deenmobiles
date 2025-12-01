@@ -613,6 +613,7 @@ export default function ServiceDetail() {
           {/* Technician Assignment */}
           <TechnicianAssignment
             serviceId={service.id}
+            branchId={service.branchId}
             currentAssignee={service.assignedTo}
             canAssign={user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
           />
