@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceIssueApi } from '@/services/masterDataApi';
 import { ServiceIssue } from '@/types/masters';
-import { Search, X, Plus, AlertTriangle } from 'lucide-react';
+import { X, Plus, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface IssueTagInputProps {
@@ -30,21 +30,23 @@ export function IssueTagInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  // Fetch frequent issues by default (sorted by usage count from backend)
+  const { data: frequentIssuesData, isLoading: isLoadingFrequent } = useQuery({
+    queryKey: ['service-issues-frequent'],
+    queryFn: () => serviceIssueApi.getAll({ isActive: true, limit: 50 }),
+  });
+
   // Fetch issues with search
-  const { data, isLoading } = useQuery({
+  const { data: searchData, isLoading: isLoadingSearch } = useQuery({
     queryKey: ['service-issues-search', searchTerm],
     queryFn: () => serviceIssueApi.getAll({ search: searchTerm, isActive: true, limit: 50 }),
     enabled: searchTerm.length >= 1,
   });
 
-  // Fetch all issues for displaying selected tags
-  const { data: allIssuesData } = useQuery({
-    queryKey: ['service-issues-all'],
-    queryFn: () => serviceIssueApi.getAll({ isActive: true, limit: 200 }),
-  });
-
-  const issues = data?.data || [];
-  const allIssues = allIssuesData?.data || [];
+  // Show search results when searching, otherwise show frequent issues
+  const issues = searchTerm.length >= 1 ? (searchData?.data || []) : (frequentIssuesData?.data || []);
+  const isLoading = searchTerm.length >= 1 ? isLoadingSearch : isLoadingFrequent;
+  const allIssues = frequentIssuesData?.data || [];
 
   // Filter out already selected issues from suggestions
   const filteredIssues = issues.filter((issue) => !value.includes(issue.id));
@@ -225,18 +227,24 @@ export function IssueTagInput({
       {/* Dropdown */}
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-hidden">
-          {searchTerm.length === 0 ? (
-            <div className="p-3 text-center text-gray-500 text-sm">Type to search issues</div>
-          ) : isLoading ? (
-            <div className="p-3 text-center text-gray-500 text-sm">Searching...</div>
+          {isLoading ? (
+            <div className="p-3 text-center text-gray-500 text-sm">
+              {searchTerm.length >= 1 ? 'Searching...' : 'Loading...'}
+            </div>
           ) : (
             <div className="max-h-52 overflow-y-auto">
               {filteredIssues.length === 0 && !showAddOption ? (
                 <div className="p-3 text-center text-gray-500 text-sm">
-                  {searchTerm.length < 2 ? 'Type at least 2 characters' : 'No issues found'}
+                  {searchTerm.length >= 1 ? 'No issues found' : 'No issues available'}
                 </div>
               ) : (
                 <div className="py-1">
+                  {/* Header for default list */}
+                  {searchTerm.length === 0 && filteredIssues.length > 0 && (
+                    <div className="px-3 py-1.5 text-xs text-gray-500 font-medium bg-gray-50">
+                      Frequent Issues
+                    </div>
+                  )}
                   {/* Existing Issues */}
                   {filteredIssues.map((issue, index) => (
                     <button
@@ -247,7 +255,7 @@ export function IssueTagInput({
                         highlightedIndex === index ? 'bg-purple-50' : ''
                       }`}
                     >
-                      <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <AlertTriangle className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <span>{issue.name}</span>
                     </button>
                   ))}

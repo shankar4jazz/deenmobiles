@@ -2104,7 +2104,7 @@ export class MasterDataService {
         search,
         isActive,
         page = 1,
-        limit = 100,
+        limit = 50,
       } = filters;
 
       const skip = (page - 1) * limit;
@@ -2129,7 +2129,16 @@ export class MasterDataService {
           where,
           skip,
           take: limit,
-          orderBy: { name: 'asc' },
+          include: {
+            _count: {
+              select: { services: true },
+            },
+          },
+          orderBy: {
+            services: {
+              _count: 'desc',
+            },
+          },
         }),
         prisma.serviceIssue.count({ where }),
       ]);
