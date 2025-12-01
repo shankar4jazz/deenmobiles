@@ -8,6 +8,7 @@ import TechnicianAssignment from '@/components/services/TechnicianAssignment';
 import ServiceHistoryTimeline from '@/components/services/ServiceHistoryTimeline';
 import JobSheetButton from '@/components/services/JobSheetButton';
 import InvoiceButton from '@/components/services/InvoiceButton';
+import { PatternDisplay } from '@/components/common/PatternDisplay';
 import {
   ArrowLeft, Edit, Save, X, Camera, Package, Clock, User, Phone,
   Mail, Smartphone, FileText, DollarSign, Calendar, CheckCircle, AlertCircle, Trash2,
@@ -327,7 +328,7 @@ export default function ServiceDetail() {
                 <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
                 <div>
                   <div className="text-sm text-gray-500">Phone</div>
-                  <div className="font-medium text-gray-900">{service.customer?.phoneNumber}</div>
+                  <div className="font-medium text-gray-900">{service.customer?.phone}</div>
                 </div>
               </div>
               {service.customer?.email && (
@@ -393,17 +394,15 @@ export default function ServiceDetail() {
 
               {/* Pattern Lock */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                <div className="text-sm text-gray-500 mb-2 flex items-center gap-1">
                   <Grid3X3 className="w-4 h-4" />
                   Pattern Lock
                 </div>
-                <div className="font-mono text-gray-900">
-                  {service.devicePattern ? (
-                    service.devicePattern.split(',').join(' → ')
-                  ) : (
-                    <span className="text-gray-400 italic font-normal">Not provided</span>
-                  )}
-                </div>
+                {service.devicePattern ? (
+                  <PatternDisplay pattern={service.devicePattern} size={80} />
+                ) : (
+                  <span className="text-gray-400 italic">Not provided</span>
+                )}
               </div>
 
               {/* Device Condition */}
