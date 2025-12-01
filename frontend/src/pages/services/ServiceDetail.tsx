@@ -10,9 +10,9 @@ import JobSheetButton from '@/components/services/JobSheetButton';
 import InvoiceButton from '@/components/services/InvoiceButton';
 import { PatternDisplay } from '@/components/common/PatternDisplay';
 import {
-  ArrowLeft, Edit, Save, X, Camera, Package, Clock, User, Phone,
-  Mail, Smartphone, FileText, DollarSign, Calendar, CheckCircle, AlertCircle, Trash2,
-  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Lock, Grid3X3, ClipboardList, Shield,
+  ArrowLeft, Edit, Save, X, Camera, Clock,
+  Smartphone, FileText, DollarSign, CheckCircle, Trash2,
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download,
 } from 'lucide-react';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -60,7 +60,7 @@ export default function ServiceDetail() {
     queryKey: ['service', id],
     queryFn: () => serviceApi.getServiceById(id!),
     enabled: !!id,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
   });
 
   // Update diagnosis mutation
@@ -249,32 +249,22 @@ export default function ServiceDetail() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   const canUpdateDiagnosis = user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN';
   const canUpdateStatus = user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN';
 
   if (isLoading) {
     return (
-      <div className="p-12 text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        <p className="text-gray-500 mt-2">Loading service details...</p>
+      <div className="p-8 text-center">
+        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+        <p className="text-gray-500 mt-2 text-sm">Loading service details...</p>
       </div>
     );
   }
 
   if (!service) {
     return (
-      <div className="p-12 text-center">
-        <p className="text-gray-500">Service not found</p>
+      <div className="p-8 text-center">
+        <p className="text-gray-500 text-sm">Service not found</p>
       </div>
     );
   }
@@ -285,292 +275,242 @@ export default function ServiceDetail() {
     setEstimatedCost(service.estimatedCost);
   }
 
+  // Combine all images for unified grid
+  const allServiceImages = service.images || [];
+  const allDeviceImages = service.deviceImages || [];
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="p-4 max-w-7xl mx-auto">
+      {/* Header - Compact */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/branch/services')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Service Details</h1>
-            <p className="text-sm text-gray-500 mt-1">{service.ticketNumber}</p>
+            <h1 className="text-lg font-bold text-gray-900">Service Details</h1>
+            <p className="text-xs text-gray-500">{service.ticketNumber}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
           <InvoiceButton serviceId={service.id} variant="primary" />
-          <span className={`px-4 py-2 text-sm font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
+          <span className={`px-3 py-1.5 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
             {STATUS_LABELS[service.status]}
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Customer Information */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Customer Information</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-sm text-gray-500">Name</div>
-                  <div className="font-medium text-gray-900">{service.customer?.name}</div>
-                </div>
+        <div className="lg:col-span-2 space-y-4">
+          {/* Customer & Device Info - Combined */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+              Customer & Device
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div>
+                <span className="text-gray-500 text-xs">Customer</span>
+                <p className="font-medium">{service.customer?.name}</p>
               </div>
-              <div className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-sm text-gray-500">Phone</div>
-                  <div className="font-medium text-gray-900">{service.customer?.phone}</div>
-                </div>
+              <div>
+                <span className="text-gray-500 text-xs">Phone</span>
+                <p className="font-medium">{service.customer?.phone}</p>
+              </div>
+              <div>
+                <span className="text-gray-500 text-xs">Device</span>
+                <p className="font-medium">{service.deviceModel}</p>
+              </div>
+              <div>
+                <span className="text-gray-500 text-xs">IMEI</span>
+                <p className="font-medium">{service.deviceIMEI || '-'}</p>
               </div>
               {service.customer?.email && (
-                <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <div className="text-sm text-gray-500">Email</div>
-                    <div className="font-medium text-gray-900">{service.customer.email}</div>
-                  </div>
+                <div className="col-span-2">
+                  <span className="text-gray-500 text-xs">Email</span>
+                  <p className="font-medium">{service.customer.email}</p>
                 </div>
               )}
               {service.customer?.address && (
-                <div className="flex items-start gap-3 col-span-2">
-                  <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <div className="text-sm text-gray-500">Address</div>
-                    <div className="font-medium text-gray-900">{service.customer.address}</div>
-                  </div>
+                <div className="col-span-2">
+                  <span className="text-gray-500 text-xs">Address</span>
+                  <p className="font-medium text-gray-700">{service.customer.address}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Device Information */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Smartphone className="w-5 h-5" />
-              Device Information
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm text-gray-500">Model</div>
-                <div className="font-medium text-gray-900">{service.deviceModel}</div>
-              </div>
-              {service.deviceIMEI && (
-                <div>
-                  <div className="text-sm text-gray-500">IMEI</div>
-                  <div className="font-medium text-gray-900">{service.deviceIMEI}</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Device Intake Information */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <ClipboardList className="w-5 h-5" />
-              Device Intake Information
-            </h2>
-
-            {/* Row 1: Password, Pattern, Condition */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              {/* Password/PIN */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                  <Lock className="w-4 h-4" />
-                  Password/PIN
-                </div>
-                <div className="font-mono text-gray-900">
-                  {service.devicePassword || <span className="text-gray-400 italic font-normal">Not provided</span>}
+          {/* Device Intake - Compact */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+              Device Intake
+            </h3>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              {/* Password - compact */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                <div className="text-xs text-gray-500">Password/PIN</div>
+                <div className="font-mono text-sm">
+                  {service.devicePassword || <span className="text-gray-400">-</span>}
                 </div>
               </div>
-
-              {/* Pattern Lock */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <div className="text-sm text-gray-500 mb-2 flex items-center gap-1">
-                  <Grid3X3 className="w-4 h-4" />
-                  Pattern Lock
-                </div>
+              {/* Pattern - smaller */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                <div className="text-xs text-gray-500 mb-1">Pattern</div>
                 {service.devicePattern ? (
-                  <PatternDisplay pattern={service.devicePattern} size={80} />
+                  <PatternDisplay pattern={service.devicePattern} size={60} />
                 ) : (
-                  <span className="text-gray-400 italic">Not provided</span>
+                  <span className="text-gray-400 text-sm">-</span>
                 )}
               </div>
-
-              {/* Device Condition */}
+              {/* Condition */}
               <div>
-                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                  <Shield className="w-4 h-4" />
-                  Device Condition
+                <div className="text-xs text-gray-500">Condition</div>
+                <div className="font-medium text-sm">
+                  {service.condition?.name || <span className="text-gray-400 font-normal">-</span>}
                 </div>
-                <div className="font-medium text-gray-900">
-                  {service.condition?.name || <span className="text-gray-400 italic font-normal">Not provided</span>}
-                </div>
-                {service.condition?.description && (
-                  <div className="text-xs text-gray-500 mt-1">{service.condition.description}</div>
-                )}
               </div>
             </div>
-
-            {/* Row 2: Accessories */}
-            <div className="mb-4">
-              <div className="text-sm text-gray-500 mb-2 flex items-center gap-1">
-                <Package className="w-4 h-4" />
-                Accessories Included
-              </div>
+            {/* Accessories inline */}
+            <div className="flex items-center gap-2 flex-wrap text-sm">
+              <span className="text-gray-500 text-xs">Accessories:</span>
               {service.accessories && service.accessories.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {service.accessories.map((sa) => (
-                    <span
-                      key={sa.id}
-                      className="inline-flex items-center px-2.5 py-1 rounded-full text-sm bg-gray-100 text-gray-700"
-                    >
-                      {sa.accessory.name}
-                    </span>
-                  ))}
-                </div>
+                service.accessories.map((sa) => (
+                  <span
+                    key={sa.id}
+                    className="px-2 py-0.5 bg-gray-100 rounded text-xs"
+                  >
+                    {sa.accessory.name}
+                  </span>
+                ))
               ) : (
-                <div className="text-gray-400 italic">No accessories recorded</div>
+                <span className="text-gray-400 text-xs">None</span>
               )}
             </div>
-
-            {/* Row 3: Intake Notes */}
-            <div>
-              <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
-                <FileText className="w-4 h-4" />
-                Intake Notes
+            {/* Intake notes - only if exists */}
+            {service.intakeNotes && (
+              <div className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-600">
+                {service.intakeNotes}
               </div>
-              {service.intakeNotes ? (
-                <div className="bg-gray-50 rounded-lg p-3 text-gray-700 whitespace-pre-wrap">
-                  {service.intakeNotes}
-                </div>
-              ) : (
-                <div className="text-gray-400 italic">Not provided</div>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Issue & Diagnosis */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Issue & Diagnosis</h2>
+          {/* Issue & Diagnosis - Compact */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Issue & Diagnosis
+              </h3>
               {canUpdateDiagnosis && !isEditingDiagnosis && (
                 <button
                   onClick={() => setIsEditingDiagnosis(true)}
-                  className="flex items-center gap-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  className="flex items-center gap-1 text-purple-600 hover:text-purple-700 text-xs font-medium"
                 >
-                  <Edit className="w-4 h-4" />
+                  <Edit className="w-3 h-3" />
                   Edit
                 </button>
               )}
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm text-gray-500 mb-1">Reported Issue</div>
-                <div className="text-gray-900">{service.issue}</div>
-              </div>
-
-              {isEditingDiagnosis ? (
-                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Diagnosis
-                    </label>
-                    <textarea
-                      value={diagnosis}
-                      onChange={(e) => setDiagnosis(e.target.value)}
-                      rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Cost
-                    </label>
-                    <input
-                      type="number"
-                      value={estimatedCost}
-                      onChange={(e) => setEstimatedCost(parseFloat(e.target.value))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSaveDiagnosis}
-                      disabled={updateDiagnosisMutation.isPending}
-                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setIsEditingDiagnosis(false)}
-                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : service.diagnosis ? (
+            {isEditingDiagnosis ? (
+              <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Diagnosis</div>
-                  <div className="text-gray-900">{service.diagnosis}</div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Diagnosis</label>
+                  <textarea
+                    value={diagnosis}
+                    onChange={(e) => setDiagnosis(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
                 </div>
-              ) : (
-                <div className="text-sm text-gray-400 italic">No diagnosis yet</div>
-              )}
-            </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Estimated Cost</label>
+                  <input
+                    type="number"
+                    value={estimatedCost}
+                    onChange={(e) => setEstimatedCost(parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveDiagnosis}
+                    disabled={updateDiagnosisMutation.isPending}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    <Save className="w-3 h-3" />
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditingDiagnosis(false)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    <X className="w-3 h-3" />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm space-y-1">
+                <p><span className="text-gray-500">Issue:</span> {service.issue}</p>
+                <p><span className="text-gray-500">Diagnosis:</span> {service.diagnosis || <span className="text-gray-400 italic">Not yet diagnosed</span>}</p>
+              </div>
+            )}
           </div>
 
-          {/* Service Images */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                Service Photos
-              </h2>
-              <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
-                <Camera className="w-4 h-4" />
-                Add Photos
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
+          {/* Photos - Combined */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Photos</h3>
+              <div className="flex gap-2">
+                <label className="flex items-center gap-1 text-xs text-purple-600 cursor-pointer hover:text-purple-700">
+                  <Camera className="w-3 h-3" />
+                  + Service
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+                <label className="flex items-center gap-1 text-xs text-purple-600 cursor-pointer hover:text-purple-700">
+                  <Smartphone className="w-3 h-3" />
+                  + Device
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleDeviceImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
 
-            {uploadingImages && (
-              <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
+            {(uploadingImages || uploadingDeviceImages) && (
+              <div className="mb-3 p-2 bg-blue-50 text-blue-700 rounded text-xs">
                 Uploading images...
               </div>
             )}
 
-            {service.images && service.images.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {service.images.map((image, index) => (
+            {allServiceImages.length > 0 || allDeviceImages.length > 0 ? (
+              <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                {/* Service Images */}
+                {allServiceImages.map((image, index) => (
                   <div key={image.id} className="relative group">
                     <img
                       src={getImageUrl(image.imageUrl)}
                       alt={image.caption || 'Service image'}
-                      className="w-full h-40 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => openPhotoViewer(service.images!, index)}
+                      className="w-full h-20 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openPhotoViewer(allServiceImages, index)}
                     />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      <div className="bg-black/50 rounded-full p-2">
-                        <ZoomIn className="w-5 h-5 text-white" />
+                      <div className="bg-black/50 rounded-full p-1">
+                        <ZoomIn className="w-3 h-3 text-white" />
                       </div>
                     </div>
                     <button
@@ -579,64 +519,28 @@ export default function ServiceDetail() {
                         handleDeleteImage(image.id);
                       }}
                       disabled={deletingImageId === image.id}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
-                      title="Delete image"
+                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
                     >
                       {deletingImageId === image.id ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3" />
                       )}
                     </button>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                No service photos uploaded yet
-              </div>
-            )}
-          </div>
-
-          {/* Device Images */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Smartphone className="w-5 h-5" />
-                Device Photos
-              </h2>
-              <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
-                <Camera className="w-4 h-4" />
-                Add Device Photos
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleDeviceImageUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {uploadingDeviceImages && (
-              <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                Uploading device images...
-              </div>
-            )}
-
-            {service.deviceImages && service.deviceImages.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {service.deviceImages.map((image, index) => (
+                {/* Device Images - with blue border to differentiate */}
+                {allDeviceImages.map((image, index) => (
                   <div key={image.id} className="relative group">
                     <img
                       src={getImageUrl(image.imageUrl)}
                       alt={image.caption || 'Device image'}
-                      className="w-full h-40 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => openPhotoViewer(service.deviceImages!, index)}
+                      className="w-full h-20 object-cover rounded border-2 border-blue-300 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openPhotoViewer(allDeviceImages, index)}
                     />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      <div className="bg-black/50 rounded-full p-2">
-                        <ZoomIn className="w-5 h-5 text-white" />
+                      <div className="bg-black/50 rounded-full p-1">
+                        <ZoomIn className="w-3 h-3 text-white" />
                       </div>
                     </div>
                     <button
@@ -645,39 +549,38 @@ export default function ServiceDetail() {
                         handleDeleteDeviceImage(image.id);
                       }}
                       disabled={deletingDeviceImageId === image.id}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
-                      title="Delete image"
+                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
                     >
                       {deletingDeviceImageId === image.id ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3" />
                       )}
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-400">
-                No device photos uploaded yet
+              <div className="text-center py-4 text-gray-400 text-sm">
+                No photos uploaded yet
               </div>
             )}
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* Sidebar - Compact */}
+        <div className="space-y-4">
           {/* Status Update */}
           {canUpdateStatus && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Update Status</h3>
-              <div className="space-y-3">
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Update Status</h3>
+              <div className="space-y-2">
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value as ServiceStatus)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
-                  <option value="">Select new status</option>
+                  <option value="">Select status</option>
                   {Object.entries(STATUS_LABELS).map(([value, label]) => (
                     <option key={value} value={value} disabled={value === service.status}>
                       {label}
@@ -689,17 +592,17 @@ export default function ServiceDetail() {
                     <textarea
                       value={statusNotes}
                       onChange={(e) => setStatusNotes(e.target.value)}
-                      placeholder="Add notes (optional)"
-                      rows={3}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Notes (optional)"
+                      rows={2}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                     <button
                       onClick={handleStatusUpdate}
                       disabled={updateStatusMutation.isPending}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
                     >
-                      <CheckCircle className="w-4 h-4" />
-                      Update Status
+                      <CheckCircle className="w-3 h-3" />
+                      Update
                     </button>
                   </>
                 )}
@@ -714,32 +617,30 @@ export default function ServiceDetail() {
             canAssign={user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
           />
 
-          {/* Pricing Details */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5" />
+          {/* Pricing - Compact */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-1">
+              <DollarSign className="w-3 h-3" />
               Pricing
             </h3>
-            <div className="space-y-3">
+            <div className="text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-gray-600">Estimated Cost</span>
-                <span className="font-semibold">₹{service.estimatedCost.toFixed(2)}</span>
+                <span className="text-gray-500">Estimated</span>
+                <span>₹{service.estimatedCost.toFixed(2)}</span>
               </div>
               {service.actualCost && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Actual Cost</span>
-                  <span className="font-semibold">₹{service.actualCost.toFixed(2)}</span>
+                  <span className="text-gray-500">Actual</span>
+                  <span>₹{service.actualCost.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-green-600">
-                <span>Advance Paid</span>
-                <span className="font-semibold">₹{service.advancePayment.toFixed(2)}</span>
+                <span>Advance</span>
+                <span>₹{service.advancePayment.toFixed(2)}</span>
               </div>
-              <div className="pt-3 border-t border-gray-200 flex justify-between">
-                <span className="font-semibold">Balance Due</span>
-                <span className="font-semibold text-lg">
-                  ₹{((service.actualCost || service.estimatedCost) - service.advancePayment).toFixed(2)}
-                </span>
+              <div className="flex justify-between font-semibold pt-1 border-t">
+                <span>Balance</span>
+                <span>₹{((service.actualCost || service.estimatedCost) - service.advancePayment).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -868,7 +769,7 @@ export default function ServiceDetail() {
                     setCurrentImageIndex(index);
                     setZoomLevel(1);
                   }}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
                     index === currentImageIndex
                       ? 'border-white opacity-100'
                       : 'border-transparent opacity-60 hover:opacity-80'

@@ -3,7 +3,7 @@ interface PatternDisplayProps {
   size?: number; // Grid size in pixels
 }
 
-export function PatternDisplay({ pattern, size = 80 }: PatternDisplayProps) {
+export function PatternDisplay({ pattern, size = 60 }: PatternDisplayProps) {
   // Parse pattern string to array of numbers
   const patternDots = pattern
     ? pattern.split(',').map(Number).filter((n) => !isNaN(n) && n >= 0 && n <= 8)
