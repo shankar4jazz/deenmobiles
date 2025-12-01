@@ -35,7 +35,7 @@ export class TechnicianController {
    * Get current user's technician profile
    */
   static getMyProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const companyId = req.user!.companyId;
 
     const profile = await TechnicianService.getProfileByUserId(userId, companyId);
@@ -150,7 +150,7 @@ export class TechnicianController {
     const skill = await TechnicianService.updateSkill(skillId, companyId, {
       proficiencyLevel,
       isVerified,
-      verifiedBy: isVerified ? req.user!.id : undefined,
+      verifiedBy: isVerified ? req.user!.userId : undefined,
     });
 
     return ApiResponse.success(res, skill, 'Skill updated successfully');
@@ -207,7 +207,7 @@ export class TechnicianController {
     const { userId } = req.params;
     const companyId = req.user!.companyId;
     const { points, reason } = req.body;
-    const adjustedBy = req.user!.id;
+    const adjustedBy = req.user!.userId;
 
     const result = await PointsService.adjustPoints(userId, companyId, points, reason, adjustedBy);
 
@@ -291,7 +291,7 @@ export class TechnicianController {
     const { userId } = req.params;
     const companyId = req.user!.companyId;
     const { toLevelId, notes } = req.body;
-    const promotedBy = req.user!.id;
+    const promotedBy = req.user!.userId;
 
     const result = await LevelService.promoteTechnician(userId, companyId, toLevelId, promotedBy, notes);
 
@@ -318,7 +318,7 @@ export class TechnicianController {
    * Get notifications for current user
    */
   static getNotifications = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const unreadOnly = req.query.unreadOnly === 'true';
@@ -333,7 +333,7 @@ export class TechnicianController {
    * Get unread notification count
    */
   static getUnreadCount = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     const result = await TechnicianNotificationService.getUnreadCount(userId);
 
@@ -346,7 +346,7 @@ export class TechnicianController {
    */
   static markNotificationAsRead = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { notificationId } = req.params;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     const notification = await TechnicianNotificationService.markAsRead(notificationId, userId);
 
@@ -358,7 +358,7 @@ export class TechnicianController {
    * Mark all notifications as read
    */
   static markAllNotificationsAsRead = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     const result = await TechnicianNotificationService.markAllAsRead(userId);
 
@@ -372,7 +372,7 @@ export class TechnicianController {
    * Get dashboard stats for technician
    */
   static getDashboardStats = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const companyId = req.user!.companyId;
 
     const stats = await TechnicianService.getTechnicianStats(userId, companyId);
@@ -385,7 +385,7 @@ export class TechnicianController {
    * Get assigned services for technician
    */
   static getAssignedServices = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const companyId = req.user!.companyId;
     const status = req.query.status as ServiceStatus | undefined;
 

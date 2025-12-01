@@ -229,7 +229,11 @@ export class PointsService {
         include: {
           assignedTo: {
             include: {
-              technicianProfile: true,
+              technicianProfile: {
+                include: {
+                  currentLevel: true,
+                },
+              },
             },
           },
         },
@@ -241,6 +245,7 @@ export class PointsService {
       }
 
       const profile = service.assignedTo.technicianProfile;
+      const levelMultiplier = (profile as any).currentLevel?.pointsMultiplier || 1.0;
 
       // Calculate points
       const { totalPoints, breakdown } = await this.calculateServicePoints(
@@ -258,7 +263,7 @@ export class PointsService {
           description: item.description,
           serviceId,
           basePoints: item.basePoints,
-          bonusMultiplier: profile.currentLevel?.pointsMultiplier || 1.0,
+          bonusMultiplier: levelMultiplier,
         });
       }
 
