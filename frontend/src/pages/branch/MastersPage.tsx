@@ -12,6 +12,7 @@ import {
   ServiceCategory,
   PaymentMethod,
   ExpenseCategory,
+  ServiceIssue,
   CreateItemCategoryDto,
   CreateItemUnitDto,
   CreateItemGSTRateDto,
@@ -20,9 +21,10 @@ import {
   CreateServiceCategoryDto,
   CreatePaymentMethodDto,
   CreateExpenseCategoryDto,
+  CreateServiceIssueDto,
 } from '../../types/masters';
 
-type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'service-category' | 'payment-method' | 'expense-category';
+type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'service-category' | 'payment-method' | 'expense-category' | 'service-issue';
 
 export default function MastersPage() {
   const [activeTab, setActiveTab] = useState<MasterType>('category');
@@ -70,6 +72,11 @@ export default function MastersPage() {
   const expenseCategoriesQuery = useQuery({
     queryKey: ['expenseCategories'],
     queryFn: () => masterDataApi.expenseCategories.getAll({ limit: 100, isActive: true }),
+  });
+
+  const serviceIssuesQuery = useQuery({
+    queryKey: ['serviceIssues'],
+    queryFn: () => masterDataApi.serviceIssues.getAll({ limit: 200, isActive: true }),
   });
 
   const handleOpenModal = (item?: any) => {
@@ -240,6 +247,24 @@ export default function MastersPage() {
                 {expenseCategoriesQuery.data?.data.length || 0}
               </span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('service-issue')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'service-issue'
+                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span>Service Issues</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'service-issue'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {serviceIssuesQuery.data?.data.length || 0}
+              </span>
+            </button>
           </nav>
         </div>
 
@@ -320,6 +345,15 @@ export default function MastersPage() {
                 onImport={() => setIsImportModalOpen(true)}
               />
             )}
+            {activeTab === 'service-issue' && (
+              <ServiceIssueSection
+                data={serviceIssuesQuery.data?.data || []}
+                isLoading={serviceIssuesQuery.isLoading}
+                onAdd={() => handleOpenModal()}
+                onEdit={handleOpenModal}
+                onImport={() => setIsImportModalOpen(true)}
+              />
+            )}
           </div>
         </div>
 
@@ -347,7 +381,8 @@ export default function MastersPage() {
                 activeTab === 'model' ? 'models' :
                 activeTab === 'service-category' ? 'serviceCategories' :
                 activeTab === 'payment-method' ? 'paymentMethods' :
-                'expenseCategories';
+                activeTab === 'expense-category' ? 'expenseCategories' :
+                'serviceIssues';
               queryClient.invalidateQueries({ queryKey: [queryKey] });
             }}
           />
@@ -1315,6 +1350,125 @@ function ExpenseCategorySection({
   );
 }
 
+// Service Issue Section Component
+function ServiceIssueSection({
+  data,
+  isLoading,
+  onAdd,
+  onEdit,
+  onImport,
+}: {
+  data: ServiceIssue[];
+  isLoading: boolean;
+  onAdd: () => void;
+  onEdit: (item: ServiceIssue) => void;
+  onImport: () => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => masterDataApi.serviceIssues.deactivate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['serviceIssues'] });
+    },
+  });
+
+  if (isLoading) {
+    return <div className="text-center py-12 text-gray-500">Loading...</div>;
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 className="text-sm font-semibold text-gray-900">Service Issues</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={onImport}
+            className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs"
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </button>
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition-colors text-xs"
+          >
+            <Plus className="h-4 w-4" />
+            Add Issue
+          </button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Name
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Description
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Status
+              </th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {data.map((issue) => (
+              <tr key={issue.id} className="hover:bg-gray-50">
+                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                  {issue.name}
+                </td>
+                <td className="px-3 py-2 text-xs text-gray-500">
+                  {issue.description || '-'}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-xs">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      issue.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {issue.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
+                  <button
+                    onClick={() => onEdit(issue)}
+                    className="text-indigo-600 hover:text-indigo-900 mr-3"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to deactivate this service issue?')) {
+                        deleteMutation.mutate(issue.id);
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-900"
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {data.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No service issues found. Click "Add Issue" to create one.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Modal Component
 function MasterDataModal({
   type,
@@ -1355,6 +1509,7 @@ function MasterDataModal({
       if (type === 'service-category') return masterDataApi.serviceCategories.create(data);
       if (type === 'payment-method') return masterDataApi.paymentMethods.create(data);
       if (type === 'expense-category') return masterDataApi.expenseCategories.create(data);
+      if (type === 'service-issue') return masterDataApi.serviceIssues.create(data);
       throw new Error('Invalid type');
     },
     onSuccess: () => {
@@ -1367,7 +1522,8 @@ function MasterDataModal({
           type === 'model' ? 'models' :
           type === 'service-category' ? 'serviceCategories' :
           type === 'payment-method' ? 'paymentMethods' :
-          'expenseCategories'
+          type === 'expense-category' ? 'expenseCategories' :
+          'serviceIssues'
         ],
       });
       onClose();
@@ -1384,6 +1540,7 @@ function MasterDataModal({
       if (type === 'service-category') return masterDataApi.serviceCategories.update(item.id, data);
       if (type === 'payment-method') return masterDataApi.paymentMethods.update(item.id, data);
       if (type === 'expense-category') return masterDataApi.expenseCategories.update(item.id, data);
+      if (type === 'service-issue') return masterDataApi.serviceIssues.update(item.id, data);
       throw new Error('Invalid type');
     },
     onSuccess: () => {
@@ -1396,7 +1553,8 @@ function MasterDataModal({
           type === 'model' ? 'models' :
           type === 'service-category' ? 'serviceCategories' :
           type === 'payment-method' ? 'paymentMethods' :
-          'expenseCategories'
+          type === 'expense-category' ? 'expenseCategories' :
+          'serviceIssues'
         ],
       });
       onClose();
@@ -1425,7 +1583,8 @@ function MasterDataModal({
              type === 'model' ? 'Model' :
              type === 'service-category' ? 'Service Category' :
              type === 'payment-method' ? 'Payment Method' :
-             'Expense Category'}
+             type === 'expense-category' ? 'Expense Category' :
+             'Service Issue'}
           </h3>
           <button
             onClick={onClose}
@@ -1738,6 +1897,8 @@ function ImportModal({
               await masterDataApi.paymentMethods.create(row);
             } else if (type === 'expense-category') {
               await masterDataApi.expenseCategories.create(row);
+            } else if (type === 'service-issue') {
+              await masterDataApi.serviceIssues.create(row);
             }
             successCount++;
           } catch (err) {
@@ -1765,6 +1926,7 @@ function ImportModal({
       'service-category': 'name,code,defaultPrice,technicianPoints,description\nScreen Replacement,SCR_REP,1500,10,Screen replacement service\nBattery Replacement,BAT_REP,800,5,Battery replacement service',
       'payment-method': 'name,code,description\nCash,CASH,Cash payment\nUPI,UPI,UPI payment\nCard,CARD,Card payment',
       'expense-category': 'name,code,description\nRent,RENT,Office rent\nUtilities,UTIL,Electricity and water\nSalaries,SAL,Employee salaries',
+      'service-issue': 'name,description\nScreen Cracked,Display glass or screen is cracked\nBattery Draining Fast,Battery discharges quickly\nNot Charging,Device not charging when connected',
     };
     return templates[type];
   };
@@ -1848,6 +2010,14 @@ function ImportModal({
           ['Salaries', 'SAL', 'Employee salary payments'],
         ],
       },
+      'service-issue': {
+        headers: ['name', 'description'],
+        samples: [
+          ['Screen Cracked', 'Display glass or screen is cracked or shattered'],
+          ['Battery Draining Fast', 'Battery discharges quickly, poor battery life'],
+          ['Not Charging', 'Device not charging when connected to charger'],
+        ],
+      },
     };
 
     const template = templates[type];
@@ -1878,7 +2048,8 @@ function ImportModal({
              type === 'model' ? 'Models' :
              type === 'service-category' ? 'Service Categories' :
              type === 'payment-method' ? 'Payment Methods' :
-             'Expense Categories'}
+             type === 'expense-category' ? 'Expense Categories' :
+             'Service Issues'}
           </h3>
           <button
             onClick={onClose}
