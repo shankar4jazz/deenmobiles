@@ -8,6 +8,9 @@ export interface Service {
   deviceModel: string;
   deviceIMEI?: string;
   devicePassword?: string;
+  devicePattern?: string;
+  conditionId?: string;
+  intakeNotes?: string;
   issue: string;
   diagnosis?: string;
   estimatedCost: number;
@@ -42,6 +45,19 @@ export interface Service {
     address?: string;
     phone?: string;
   };
+  condition?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
+  accessories?: {
+    id: string;
+    accessoryId: string;
+    accessory: {
+      id: string;
+      name: string;
+    };
+  }[];
   images?: ServiceImage[];
   deviceImages?: DeviceImage[];
   partsUsed?: ServicePart[];

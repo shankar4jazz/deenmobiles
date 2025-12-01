@@ -606,6 +606,23 @@ export class ServiceService {
               createdAt: 'desc',
             },
           },
+          condition: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+          accessories: {
+            include: {
+              accessory: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       });
 

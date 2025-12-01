@@ -11,7 +11,7 @@ import InvoiceButton from '@/components/services/InvoiceButton';
 import {
   ArrowLeft, Edit, Save, X, Camera, Package, Clock, User, Phone,
   Mail, Smartphone, FileText, DollarSign, Calendar, CheckCircle, AlertCircle, Trash2,
-  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download,
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Lock, Grid3X3, ClipboardList, Shield,
 } from 'lucide-react';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -368,11 +368,93 @@ export default function ServiceDetail() {
                   <div className="font-medium text-gray-900">{service.deviceIMEI}</div>
                 </div>
               )}
-              {service.devicePassword && (
-                <div className="col-span-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="text-sm text-yellow-800 font-medium">Device Password</div>
-                  <div className="font-mono text-yellow-900">{service.devicePassword}</div>
+            </div>
+          </div>
+
+          {/* Device Intake Information */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" />
+              Device Intake Information
+            </h2>
+
+            {/* Row 1: Password, Pattern, Condition */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {/* Password/PIN */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                  <Lock className="w-4 h-4" />
+                  Password/PIN
                 </div>
+                <div className="font-mono text-gray-900">
+                  {service.devicePassword || <span className="text-gray-400 italic font-normal">Not provided</span>}
+                </div>
+              </div>
+
+              {/* Pattern Lock */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                  <Grid3X3 className="w-4 h-4" />
+                  Pattern Lock
+                </div>
+                <div className="font-mono text-gray-900">
+                  {service.devicePattern ? (
+                    service.devicePattern.split(',').join(' → ')
+                  ) : (
+                    <span className="text-gray-400 italic font-normal">Not provided</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Device Condition */}
+              <div>
+                <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                  <Shield className="w-4 h-4" />
+                  Device Condition
+                </div>
+                <div className="font-medium text-gray-900">
+                  {service.condition?.name || <span className="text-gray-400 italic font-normal">Not provided</span>}
+                </div>
+                {service.condition?.description && (
+                  <div className="text-xs text-gray-500 mt-1">{service.condition.description}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 2: Accessories */}
+            <div className="mb-4">
+              <div className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+                <Package className="w-4 h-4" />
+                Accessories Included
+              </div>
+              {service.accessories && service.accessories.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {service.accessories.map((sa) => (
+                    <span
+                      key={sa.id}
+                      className="inline-flex items-center px-2.5 py-1 rounded-full text-sm bg-gray-100 text-gray-700"
+                    >
+                      {sa.accessory.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-400 italic">No accessories recorded</div>
+              )}
+            </div>
+
+            {/* Row 3: Intake Notes */}
+            <div>
+              <div className="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                <FileText className="w-4 h-4" />
+                Intake Notes
+              </div>
+              {service.intakeNotes ? (
+                <div className="bg-gray-50 rounded-lg p-3 text-gray-700 whitespace-pre-wrap">
+                  {service.intakeNotes}
+                </div>
+              ) : (
+                <div className="text-gray-400 italic">Not provided</div>
               )}
             </div>
           </div>
