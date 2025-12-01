@@ -354,7 +354,7 @@ export const serviceApi = {
     notes?: string
   ): Promise<Service> => {
     const response = await api.put(`/services/${serviceId}/assign`, {
-      technicianId,
+      assignedToId: technicianId,
       notes,
     });
     return response.data.data;
