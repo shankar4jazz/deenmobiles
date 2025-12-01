@@ -9,13 +9,9 @@ import {
   Star,
   Zap,
   CheckCircle,
-  Briefcase,
-  Award,
-  Clock,
   UserPlus,
   AlertCircle,
 } from 'lucide-react';
-import { LevelBadge } from '../common/LevelBadge';
 
 interface TechnicianAssignmentDrawerProps {
   serviceId: string;
@@ -163,157 +159,124 @@ export default function TechnicianAssignmentDrawer({
           </div>
         </div>
 
-        {/* Technicians List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Technicians List - Compact Cards */}
+        <div className="flex-1 overflow-y-auto p-3">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full mb-3" />
-              <p className="text-gray-500">Loading technicians...</p>
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mb-2" />
+              <p className="text-gray-500 text-sm">Loading technicians...</p>
             </div>
           ) : filteredTechnicians.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <UserPlus className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500">
+            <div className="text-center py-8">
+              <UserPlus className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">
                 {technicians.length === 0
-                  ? 'No technicians available in this branch'
+                  ? 'No technicians available'
                   : 'No technicians match your search'}
               </p>
             </div>
           ) : (
-            filteredTechnicians.map((tech: TechnicianForAssignment) => {
-              const isSelected = selectedTechnicianId === tech.id;
-              const isCurrent = currentAssignee?.id === tech.id;
+            <div className="grid grid-cols-2 gap-2">
+              {filteredTechnicians.map((tech: TechnicianForAssignment) => {
+                const isSelected = selectedTechnicianId === tech.id;
+                const isCurrent = currentAssignee?.id === tech.id;
 
-              return (
-                <div
-                  key={tech.id}
-                  onClick={() => !isCurrent && setSelectedTechnicianId(tech.id)}
-                  className={`relative p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : isCurrent
-                      ? 'border-green-500 bg-green-50 cursor-default'
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white'
-                  }`}
-                >
-                  {isCurrent && (
-                    <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-green-500 text-white text-xs font-medium rounded-full">
-                      Current
-                    </div>
-                  )}
-
-                  <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                      {tech.profileImage ? (
-                        <img
-                          src={tech.profileImage}
-                          alt={tech.name}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                          <span className="text-white font-semibold text-lg">
-                            {tech.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                      <span
-                        className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                          tech.profile.isAvailable ? 'bg-green-500' : 'bg-gray-400'
-                        }`}
-                      />
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{tech.name}</h3>
-                          {tech.profile.currentLevel && (
-                            <LevelBadge
-                              name={tech.profile.currentLevel.name}
-                              badgeColor={tech.profile.currentLevel.badgeColor}
-                              size="sm"
-                              showIcon={false}
-                            />
-                          )}
-                        </div>
-                        {isSelected && (
-                          <div className="p-1 bg-blue-500 rounded-full">
-                            <CheckCircle className="w-4 h-4 text-white" />
-                          </div>
-                        )}
+                return (
+                  <div
+                    key={tech.id}
+                    onClick={() => !isCurrent && setSelectedTechnicianId(tech.id)}
+                    className={`relative p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : isCurrent
+                        ? 'border-green-500 bg-green-50 cursor-default'
+                        : 'border-gray-200 hover:border-blue-300 bg-white'
+                    }`}
+                  >
+                    {/* Selection Indicator */}
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 p-0.5 bg-blue-500 rounded-full">
+                        <CheckCircle className="w-3 h-3 text-white" />
                       </div>
-
-                      {/* Stats Row */}
-                      <div className="flex items-center gap-4 mt-2 text-xs">
-                        {tech.profile.averageRating && (
-                          <div className="flex items-center gap-1 text-yellow-600">
-                            <Star className="w-3.5 h-3.5 fill-current" />
-                            <span className="font-medium">{tech.profile.averageRating.toFixed(1)}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1 text-purple-600">
-                          <Zap className="w-3.5 h-3.5" />
-                          <span className="font-medium">{tech.profile.totalPoints.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          <span className="font-medium">{tech.profile.totalServicesCompleted}</span>
-                        </div>
-                        {tech.profile.avgCompletionHours && (
-                          <div className="flex items-center gap-1 text-gray-500">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>{tech.profile.avgCompletionHours.toFixed(1)}h</span>
-                          </div>
-                        )}
+                    )}
+                    {isCurrent && (
+                      <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-medium rounded">
+                        Current
                       </div>
+                    )}
 
-                      {/* Workload Bar */}
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-gray-500">
-                            <Briefcase className="w-3 h-3 inline mr-1" />
-                            Workload
-                          </span>
-                          <span className="font-medium">
-                            {tech.totalWorkload}/{tech.profile.maxConcurrentJobs} jobs
-                          </span>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${getWorkloadColor(tech.workloadPercent)} rounded-full transition-all`}
-                            style={{ width: `${Math.min(100, tech.workloadPercent)}%` }}
+                    {/* Avatar & Status */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="relative flex-shrink-0">
+                        {tech.profileImage ? (
+                          <img
+                            src={tech.profileImage}
+                            alt={tech.name}
+                            className="w-8 h-8 rounded-full object-cover"
                           />
-                        </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                            <span className="text-white font-semibold text-xs">
+                              {tech.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                            tech.profile.isAvailable ? 'bg-green-500' : 'bg-gray-400'
+                          }`}
+                        />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 text-sm truncate">{tech.name}</h3>
+                        {tech.profile.currentLevel && (
+                          <span
+                            className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                            style={{
+                              backgroundColor: `${tech.profile.currentLevel.badgeColor}20`,
+                              color: tech.profile.currentLevel.badgeColor
+                            }}
+                          >
+                            {tech.profile.currentLevel.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                      {/* Skills */}
-                      {tech.skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {tech.skills.slice(0, 4).map((skill) => (
-                            <span
-                              key={skill.categoryId}
-                              className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
-                            >
-                              {skill.categoryName}
-                            </span>
-                          ))}
-                          {tech.skills.length > 4 && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">
-                              +{tech.skills.length - 4} more
-                            </span>
-                          )}
+                    {/* Mini Stats */}
+                    <div className="flex items-center gap-2 text-[10px] mb-2">
+                      {tech.profile.averageRating && (
+                        <div className="flex items-center gap-0.5 text-yellow-600">
+                          <Star className="w-3 h-3 fill-current" />
+                          <span className="font-medium">{tech.profile.averageRating.toFixed(1)}</span>
                         </div>
                       )}
+                      <div className="flex items-center gap-0.5 text-purple-600">
+                        <Zap className="w-3 h-3" />
+                        <span className="font-medium">{tech.profile.totalPoints >= 1000 ? `${(tech.profile.totalPoints/1000).toFixed(1)}k` : tech.profile.totalPoints}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 text-green-600">
+                        <CheckCircle className="w-3 h-3" />
+                        <span className="font-medium">{tech.profile.totalServicesCompleted}</span>
+                      </div>
+                    </div>
+
+                    {/* Workload Mini Bar */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${getWorkloadColor(tech.workloadPercent)} rounded-full`}
+                          style={{ width: `${Math.min(100, tech.workloadPercent)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-500 font-medium">
+                        {tech.totalWorkload}/{tech.profile.maxConcurrentJobs}
+                      </span>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
 
