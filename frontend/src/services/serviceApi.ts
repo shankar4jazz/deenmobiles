@@ -128,6 +128,12 @@ export interface CreateServiceData {
   paymentEntries?: PaymentEntryData[];
   branchId?: string;
   images?: File[];
+  // Intake fields (moved from device level)
+  devicePassword?: string;
+  devicePattern?: string;
+  conditionId?: string;
+  intakeNotes?: string;
+  accessoryIds?: string[];
 }
 
 export interface UpdateServiceData {

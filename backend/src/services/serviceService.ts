@@ -29,6 +29,12 @@ interface CreateServiceData {
   branchId: string;
   companyId: string;
   createdBy: string;
+  // Intake fields (moved from device level)
+  devicePassword?: string;
+  devicePattern?: string;
+  conditionId?: string;
+  intakeNotes?: string;
+  accessoryIds?: string[];
 }
 
 interface UpdateServiceData {
@@ -208,6 +214,10 @@ export class ServiceService {
             serviceCategoryId: data.serviceCategoryId,
             deviceModel: `${customerDevice.brand.name} ${customerDevice.model.name}`,
             deviceIMEI: customerDevice.imei,
+            devicePassword: data.devicePassword,
+            devicePattern: data.devicePattern,
+            conditionId: data.conditionId,
+            intakeNotes: data.intakeNotes,
             issue: data.issue,
             diagnosis: data.diagnosis,
             estimatedCost: data.estimatedCost || 0,
@@ -273,6 +283,18 @@ export class ServiceService {
               data: {
                 serviceId: service.id,
                 serviceIssueId: issueId,
+              },
+            });
+          }
+        }
+
+        // Create service accessory links if accessoryIds provided
+        if (data.accessoryIds && data.accessoryIds.length > 0) {
+          for (const accessoryId of data.accessoryIds) {
+            await tx.serviceAccessory.create({
+              data: {
+                serviceId: service.id,
+                accessoryId: accessoryId,
               },
             });
           }

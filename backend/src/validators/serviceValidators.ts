@@ -43,6 +43,44 @@ export const createServiceValidation: ValidationChain[] = [
     .isLength({ max: 50 })
     .withMessage('Device password must not exceed 50 characters'),
 
+  body('devicePattern')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Device pattern must not exceed 50 characters'),
+
+  body('conditionId')
+    .optional()
+    .trim()
+    .isUUID()
+    .withMessage('Invalid condition ID format'),
+
+  body('intakeNotes')
+    .optional()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage('Intake notes must not exceed 2000 characters'),
+
+  body('accessoryIds')
+    .optional()
+    .isArray()
+    .withMessage('Accessory IDs must be an array'),
+
+  body('accessoryIds.*')
+    .optional()
+    .isUUID()
+    .withMessage('Invalid accessory ID format'),
+
+  body('issueIds')
+    .optional()
+    .isArray()
+    .withMessage('Issue IDs must be an array'),
+
+  body('issueIds.*')
+    .optional()
+    .isUUID()
+    .withMessage('Invalid issue ID format'),
+
   body('issue')
     .trim()
     .notEmpty()

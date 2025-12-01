@@ -10,7 +10,7 @@ import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
 import { ArrowLeft } from 'lucide-react';
 import { CustomerDevice, Customer } from '@/types';
-import { ServiceCategory, ServiceIssue } from '@/types/masters';
+import { ServiceCategory, ServiceIssue, Accessory } from '@/types/masters';
 
 // Components
 import { FormRow } from '@/components/common/FormRow';
@@ -20,6 +20,8 @@ import { SearchableServiceCategorySelect } from '@/components/common/SearchableS
 import { SearchableDeviceConditionSelect } from '@/components/common/SearchableDeviceConditionSelect';
 import { MultiImageUpload } from '@/components/common/MultiImageUpload';
 import { IssueTagInput } from '@/components/common/IssueTagInput';
+import { PatternLockInput } from '@/components/common/PatternLockInput';
+import { AccessoryTagInput } from '@/components/common/AccessoryTagInput';
 import { AddDeviceModal } from './components/AddDeviceModal';
 import AddCustomerModal from '@/components/branch/AddCustomerModal';
 
@@ -29,6 +31,10 @@ const serviceSchema = z.object({
   customerDeviceId: z.string().min(1, 'Please select a device'),
   serviceCategoryId: z.string().min(1, 'Please select a service category'),
   deviceConditionId: z.string().optional(),
+  devicePassword: z.string().optional(),
+  devicePattern: z.string().optional(),
+  accessoryIds: z.array(z.string()).optional(),
+  intakeNotes: z.string().optional(),
   issueIds: z.array(z.string()).min(1, 'Please add at least one issue'),
   issueDescription: z.string().optional(),
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
@@ -74,6 +80,7 @@ export default function CreateService() {
   const [selectedDevice, setSelectedDevice] = useState<CustomerDevice | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<ServiceCategory | null>(null);
   const [selectedIssues, setSelectedIssues] = useState<ServiceIssue[]>([]);
+  const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
 
   const {
     control,
@@ -89,6 +96,10 @@ export default function CreateService() {
       customerDeviceId: '',
       serviceCategoryId: '',
       deviceConditionId: '',
+      devicePassword: '',
+      devicePattern: '',
+      accessoryIds: [],
+      intakeNotes: '',
       issueIds: [],
       issueDescription: '',
       estimatedCost: 0,
@@ -210,6 +221,12 @@ export default function CreateService() {
       paymentEntries,
       branchId: data.branchId,
       images: selectedImages.length > 0 ? selectedImages : undefined,
+      // Intake fields
+      devicePassword: data.devicePassword || undefined,
+      devicePattern: data.devicePattern || undefined,
+      conditionId: data.deviceConditionId || undefined,
+      intakeNotes: data.intakeNotes || undefined,
+      accessoryIds: data.accessoryIds && data.accessoryIds.length > 0 ? data.accessoryIds : undefined,
     };
 
     createServiceMutation.mutate(submitData);
@@ -317,7 +334,75 @@ export default function CreateService() {
             </FormRow>
           </div>
 
-          {/* Row 3: Estimated Cost, Advance Payment, Payment Method */}
+          {/* Row 3: Device Password, Pattern Lock, Accessories */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <FormRow label="Password/PIN">
+              <Controller
+                control={control}
+                name="devicePassword"
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    type="text"
+                    placeholder="Device unlock code..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                )}
+              />
+            </FormRow>
+
+            <FormRow label="Pattern Lock">
+              <Controller
+                control={control}
+                name="devicePattern"
+                render={({ field }) => (
+                  <PatternLockInput
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    label=""
+                    showPattern
+                  />
+                )}
+              />
+            </FormRow>
+
+            <FormRow label="Accessories Included">
+              <Controller
+                control={control}
+                name="accessoryIds"
+                render={({ field }) => (
+                  <AccessoryTagInput
+                    value={field.value || []}
+                    onChange={(ids, accessories) => {
+                      field.onChange(ids);
+                      setSelectedAccessories(accessories);
+                    }}
+                    placeholder="Select accessories..."
+                  />
+                )}
+              />
+            </FormRow>
+          </div>
+
+          {/* Row 4: Intake Notes */}
+          <div className="grid grid-cols-1 gap-3">
+            <FormRow label="Intake Notes">
+              <Controller
+                control={control}
+                name="intakeNotes"
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    rows={2}
+                    placeholder="Notes about device condition at intake (scratches, dents, etc.)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                  />
+                )}
+              />
+            </FormRow>
+          </div>
+
+          {/* Row 5: Estimated Cost, Advance Payment, Payment Method */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
               <Controller
@@ -389,7 +474,7 @@ export default function CreateService() {
             </FormRow>
           </div>
 
-          {/* Row 4: Device Photos & Payment Summary */}
+          {/* Row 6: Device Photos & Payment Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-2">
               <FormRow label="Device Photos">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, X, Check, Database, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { masterDataApi } from '../../services/masterDataApi';
+import { masterDataApi, accessoryApi } from '../../services/masterDataApi';
 import {
   ItemCategory,
   ItemUnit,
@@ -13,6 +13,7 @@ import {
   PaymentMethod,
   ExpenseCategory,
   ServiceIssue,
+  Accessory,
   CreateItemCategoryDto,
   CreateItemUnitDto,
   CreateItemGSTRateDto,
@@ -22,9 +23,10 @@ import {
   CreatePaymentMethodDto,
   CreateExpenseCategoryDto,
   CreateServiceIssueDto,
+  CreateAccessoryDto,
 } from '../../types/masters';
 
-type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'service-category' | 'payment-method' | 'expense-category' | 'service-issue';
+type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'service-category' | 'payment-method' | 'expense-category' | 'service-issue' | 'accessory';
 
 export default function MastersPage() {
   const [activeTab, setActiveTab] = useState<MasterType>('category');
@@ -77,6 +79,11 @@ export default function MastersPage() {
   const serviceIssuesQuery = useQuery({
     queryKey: ['serviceIssues'],
     queryFn: () => masterDataApi.serviceIssues.getAll({ limit: 200, isActive: true }),
+  });
+
+  const accessoriesQuery = useQuery({
+    queryKey: ['accessories'],
+    queryFn: () => accessoryApi.getAll({ limit: 100, isActive: true }),
   });
 
   const handleOpenModal = (item?: any) => {
@@ -265,6 +272,24 @@ export default function MastersPage() {
                 {serviceIssuesQuery.data?.data.length || 0}
               </span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('accessory')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'accessory'
+                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span>Accessories</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'accessory'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {accessoriesQuery.data?.data.length || 0}
+              </span>
+            </button>
           </nav>
         </div>
 
@@ -354,6 +379,15 @@ export default function MastersPage() {
                 onImport={() => setIsImportModalOpen(true)}
               />
             )}
+            {activeTab === 'accessory' && (
+              <AccessorySection
+                data={accessoriesQuery.data?.data || []}
+                isLoading={accessoriesQuery.isLoading}
+                onAdd={() => handleOpenModal()}
+                onEdit={handleOpenModal}
+                onImport={() => setIsImportModalOpen(true)}
+              />
+            )}
           </div>
         </div>
 
@@ -382,7 +416,8 @@ export default function MastersPage() {
                 activeTab === 'service-category' ? 'serviceCategories' :
                 activeTab === 'payment-method' ? 'paymentMethods' :
                 activeTab === 'expense-category' ? 'expenseCategories' :
-                'serviceIssues';
+                activeTab === 'service-issue' ? 'serviceIssues' :
+                'accessories';
               queryClient.invalidateQueries({ queryKey: [queryKey] });
             }}
           />
@@ -1469,6 +1504,131 @@ function ServiceIssueSection({
   );
 }
 
+// Accessory Section Component
+function AccessorySection({
+  data,
+  isLoading,
+  onAdd,
+  onEdit,
+  onImport,
+}: {
+  data: Accessory[];
+  isLoading: boolean;
+  onAdd: () => void;
+  onEdit: (item: Accessory) => void;
+  onImport: () => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => accessoryApi.deactivate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accessories'] });
+    },
+  });
+
+  if (isLoading) {
+    return <div className="text-center py-12 text-gray-500">Loading...</div>;
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 className="text-sm font-semibold text-gray-900">Accessories</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={onImport}
+            className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs"
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </button>
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition-colors text-xs"
+          >
+            <Plus className="h-4 w-4" />
+            Add Accessory
+          </button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Name
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Code
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Description
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Status
+              </th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {data.map((accessory) => (
+              <tr key={accessory.id} className="hover:bg-gray-50">
+                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                  {accessory.name}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                  {accessory.code || '-'}
+                </td>
+                <td className="px-3 py-2 text-xs text-gray-500">
+                  {accessory.description || '-'}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-xs">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      accessory.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {accessory.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
+                  <button
+                    onClick={() => onEdit(accessory)}
+                    className="text-indigo-600 hover:text-indigo-900 mr-3"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to deactivate this accessory?')) {
+                        deleteMutation.mutate(accessory.id);
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-900"
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {data.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No accessories found. Click "Add Accessory" to create one.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Modal Component
 function MasterDataModal({
   type,
@@ -1510,6 +1670,7 @@ function MasterDataModal({
       if (type === 'payment-method') return masterDataApi.paymentMethods.create(data);
       if (type === 'expense-category') return masterDataApi.expenseCategories.create(data);
       if (type === 'service-issue') return masterDataApi.serviceIssues.create(data);
+      if (type === 'accessory') return accessoryApi.create(data);
       throw new Error('Invalid type');
     },
     onSuccess: () => {
@@ -1523,7 +1684,8 @@ function MasterDataModal({
           type === 'service-category' ? 'serviceCategories' :
           type === 'payment-method' ? 'paymentMethods' :
           type === 'expense-category' ? 'expenseCategories' :
-          'serviceIssues'
+          type === 'service-issue' ? 'serviceIssues' :
+          'accessories'
         ],
       });
       onClose();
@@ -1541,6 +1703,7 @@ function MasterDataModal({
       if (type === 'payment-method') return masterDataApi.paymentMethods.update(item.id, data);
       if (type === 'expense-category') return masterDataApi.expenseCategories.update(item.id, data);
       if (type === 'service-issue') return masterDataApi.serviceIssues.update(item.id, data);
+      if (type === 'accessory') return accessoryApi.update(item.id, data);
       throw new Error('Invalid type');
     },
     onSuccess: () => {
@@ -1554,7 +1717,8 @@ function MasterDataModal({
           type === 'service-category' ? 'serviceCategories' :
           type === 'payment-method' ? 'paymentMethods' :
           type === 'expense-category' ? 'expenseCategories' :
-          'serviceIssues'
+          type === 'service-issue' ? 'serviceIssues' :
+          'accessories'
         ],
       });
       onClose();
@@ -1584,7 +1748,8 @@ function MasterDataModal({
              type === 'service-category' ? 'Service Category' :
              type === 'payment-method' ? 'Payment Method' :
              type === 'expense-category' ? 'Expense Category' :
-             'Service Issue'}
+             type === 'service-issue' ? 'Service Issue' :
+             'Accessory'}
           </h3>
           <button
             onClick={onClose}
@@ -1606,7 +1771,7 @@ function MasterDataModal({
               required
             />
           </div>
-          {(type === 'category' || type === 'unit' || type === 'brand' || type === 'model' || type === 'service-category' || type === 'payment-method' || type === 'expense-category') && (
+          {(type === 'category' || type === 'unit' || type === 'brand' || type === 'model' || type === 'service-category' || type === 'payment-method' || type === 'expense-category' || type === 'accessory') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Code {type === 'payment-method' || type === 'unit' ? '*' : ''}
