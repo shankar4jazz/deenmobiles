@@ -293,6 +293,388 @@ async function main() {
 
   console.log('✅ Created', gstRates.length, 'GST rates');
 
+  // Service Issues - Common mobile repair issues
+  const serviceIssues = await Promise.all([
+    // Display/Screen Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Screen Cracked',
+        description: 'Display glass or screen is cracked or shattered',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Display Not Working',
+        description: 'Screen is black or not displaying anything',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Touch Not Responding',
+        description: 'Touch screen not responding or ghost touch issues',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Display Lines/Spots',
+        description: 'Visible lines, dead pixels, or spots on screen',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Screen Flickering',
+        description: 'Display flickering or blinking intermittently',
+        companyId: company.id,
+      },
+    }),
+    // Battery Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Battery Draining Fast',
+        description: 'Battery discharges quickly, poor battery life',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Battery Swollen',
+        description: 'Battery is swollen or bulging',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Not Charging',
+        description: 'Device not charging when connected to charger',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Phone Overheating',
+        description: 'Device gets excessively hot during use or charging',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Battery Not Holding Charge',
+        description: 'Battery percentage drops suddenly or phone shuts off',
+        companyId: company.id,
+      },
+    }),
+    // Charging & Port Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Charging Port Damaged',
+        description: 'Charging port is loose, damaged, or broken',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Slow Charging',
+        description: 'Device charges very slowly',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Charging Intermittent',
+        description: 'Charging works inconsistently, connects and disconnects',
+        companyId: company.id,
+      },
+    }),
+    // Audio Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Speaker Not Working',
+        description: 'No sound from loudspeaker or earpiece',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Microphone Not Working',
+        description: 'Caller cannot hear voice during calls',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Audio Distorted',
+        description: 'Sound is crackling, distorted, or unclear',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Headphone Jack Issue',
+        description: '3.5mm audio jack not working or loose',
+        companyId: company.id,
+      },
+    }),
+    // Camera Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Camera Not Working',
+        description: 'Camera app shows black screen or fails to open',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Camera Blurry',
+        description: 'Photos are blurry or camera cannot focus',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Front Camera Issue',
+        description: 'Selfie camera not working or showing black screen',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Camera Glass Cracked',
+        description: 'Camera lens glass is cracked or broken',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Flash Not Working',
+        description: 'Camera flash or flashlight not functioning',
+        companyId: company.id,
+      },
+    }),
+    // Software Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Phone Hanging/Slow',
+        description: 'Device is slow, lagging, or freezing frequently',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Software Update Required',
+        description: 'OS update needed or stuck in update loop',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Apps Crashing',
+        description: 'Applications crashing or not opening',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Stuck on Logo',
+        description: 'Phone stuck on boot logo, not starting properly',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Factory Reset Required',
+        description: 'Need complete data wipe and fresh setup',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Virus/Malware',
+        description: 'Device infected with virus or unwanted software',
+        companyId: company.id,
+      },
+    }),
+    // Network & Connectivity Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'No Network Signal',
+        description: 'No cellular network or signal strength issues',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'WiFi Not Working',
+        description: 'Cannot connect to WiFi or weak WiFi signal',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Bluetooth Not Working',
+        description: 'Bluetooth not pairing or connecting to devices',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'SIM Card Not Detected',
+        description: 'SIM card not recognized or SIM tray issue',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Mobile Data Not Working',
+        description: 'Internet not working on mobile data',
+        companyId: company.id,
+      },
+    }),
+    // Physical & Button Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Power Button Not Working',
+        description: 'Power/lock button stuck or not responding',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Volume Button Issue',
+        description: 'Volume buttons stuck or not functioning',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Home Button Not Working',
+        description: 'Home button not responding (for phones with physical button)',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Back Panel Damaged',
+        description: 'Back glass or panel is cracked or broken',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Frame/Body Damage',
+        description: 'Phone body frame is bent or damaged',
+        companyId: company.id,
+      },
+    }),
+    // Water & Physical Damage
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Water Damage',
+        description: 'Phone exposed to water or liquid damage',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Phone Not Turning On',
+        description: 'Device completely dead, not powering on',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Restart Loop',
+        description: 'Phone keeps restarting automatically',
+        companyId: company.id,
+      },
+    }),
+    // Sensor & Other Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Fingerprint Sensor Issue',
+        description: 'Fingerprint scanner not working or not recognizing',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Face ID Not Working',
+        description: 'Face recognition/unlock not functioning',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Proximity Sensor Issue',
+        description: 'Screen not turning off during calls',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Vibration Not Working',
+        description: 'Phone not vibrating for calls or notifications',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'GPS Not Working',
+        description: 'Location/GPS not accurate or not working',
+        companyId: company.id,
+      },
+    }),
+    // Storage Issues
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Storage Full',
+        description: 'Internal storage full, need data cleanup or transfer',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'SD Card Not Detected',
+        description: 'Memory card not recognized by device',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Data Recovery',
+        description: 'Need to recover lost or deleted data',
+        companyId: company.id,
+      },
+    }),
+    // General Service
+    prisma.serviceIssue.create({
+      data: {
+        name: 'General Checkup',
+        description: 'Complete device diagnosis and health check',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Screen Protector Installation',
+        description: 'Apply new tempered glass or screen protector',
+        companyId: company.id,
+      },
+    }),
+    prisma.serviceIssue.create({
+      data: {
+        name: 'Other Issue',
+        description: 'Issue not listed above',
+        companyId: company.id,
+      },
+    }),
+  ]);
+
+  console.log('✅ Created', serviceIssues.length, 'service issues');
+
   // Create Permissions
   const permissions = await Promise.all([
     // Branch permissions
