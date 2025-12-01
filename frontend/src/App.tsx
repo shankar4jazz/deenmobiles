@@ -62,6 +62,7 @@ import JobSheetTemplateList from './pages/jobsheet-templates/JobSheetTemplateLis
 import JobSheetTemplateForm from './pages/jobsheet-templates/JobSheetTemplateForm';
 import CategoryManager from './pages/jobsheet-templates/CategoryManager';
 import SettingsMainPage from './pages/settings/SettingsMainPage';
+import TechnicianManagement from './pages/admin/TechnicianManagement';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -109,6 +110,7 @@ function App() {
               <Route path="employees/edit/:id" element={<EditEmployee />} />
               <Route path="petty-cash/transfers" element={<PettyCashTransfersPage />} />
               <Route path="petty-cash/requests" element={<PettyCashRequestsPage />} />
+              <Route path="technicians" element={<TechnicianManagement />} />
             </Route>
           ) : null}
 
@@ -122,6 +124,7 @@ function App() {
               <Route path="services/create" element={<CreateService />} />
               <Route path="services/:id" element={<ServiceDetail />} />
               <Route path="technician-dashboard" element={<TechnicianDashboard />} />
+              <Route path="technicians" element={<TechnicianManagement />} />
               <Route path="invoices" element={<InvoiceList />} />
               <Route path="invoices/create" element={<CreateInvoice />} />
               <Route path="invoices/:id" element={<InvoiceDetail />} />
