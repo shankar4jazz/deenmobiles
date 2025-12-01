@@ -19,11 +19,11 @@ router.use(authenticate);
 /**
  * @route   GET /api/v1/roles/list/simple
  * @desc    Get simplified list of roles for dropdowns
- * @access  Private (Admin, Super Admin)
+ * @access  Private (Admin, Super Admin, Manager)
  */
 router.get(
   '/list/simple',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER),
   RoleController.getRolesList
 );
 
