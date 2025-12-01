@@ -30,7 +30,18 @@ export function SearchableCustomerSelectWithAdd({
   const inputRef = useRef<HTMLInputElement>(null);
   const user = useAuthStore((state) => state.user);
 
-  const { data, isLoading } = useQuery({
+  // Fetch recent 10 customers for default display (backend already orders by createdAt desc)
+  const { data: recentCustomers, isLoading: isLoadingRecent } = useQuery({
+    queryKey: ['customers-recent', user?.activeBranch?.id],
+    queryFn: () =>
+      customerApi.getAllCustomers({
+        limit: 10,
+        branchId: user?.activeBranch?.id,
+      }),
+  });
+
+  // Search customers when typing
+  const { data: searchResults, isLoading: isLoadingSearch } = useQuery({
     queryKey: ['customers-search', searchTerm, user?.activeBranch?.id],
     queryFn: () =>
       customerApi.getAllCustomers({
@@ -41,18 +52,13 @@ export function SearchableCustomerSelectWithAdd({
     enabled: searchTerm.length >= 2,
   });
 
-  // Fetch all customers for initial selection display
-  const { data: allCustomers } = useQuery({
-    queryKey: ['customers-all', user?.activeBranch?.id],
-    queryFn: () =>
-      customerApi.getAllCustomers({
-        limit: 1000,
-        branchId: user?.activeBranch?.id,
-      }),
-  });
-
-  const customers = searchTerm.length >= 2 ? (data?.customers || []) : [];
-  const selectedCustomer = allCustomers?.customers?.find((c) => c.id === value);
+  // Show search results when searching, otherwise show recent customers
+  const customers = searchTerm.length >= 2
+    ? (searchResults?.customers || [])
+    : (recentCustomers?.customers || []);
+  const isLoading = searchTerm.length >= 2 ? isLoadingSearch : isLoadingRecent;
+  const selectedCustomer = recentCustomers?.customers?.find((c) => c.id === value)
+    || searchResults?.customers?.find((c) => c.id === value);
 
   const isPhoneSearch = /^\d+$/.test(searchTerm);
 
@@ -160,20 +166,20 @@ export function SearchableCustomerSelectWithAdd({
           </div>
 
           <div className="max-h-48 overflow-y-auto">
-            {searchTerm.length < 2 ? (
+            {isLoading ? (
               <div className="p-4 text-center text-gray-500 text-sm">
-                Type to search customers
+                {searchTerm.length >= 2 ? 'Searching...' : 'Loading...'}
               </div>
-            ) : isLoading ? (
-              <div className="p-4 text-center text-gray-500 text-sm">Searching...</div>
             ) : customers.length === 0 ? (
               <div className="p-4 text-center">
                 <p className="text-sm text-gray-600 mb-2">
-                  {isPhoneSearch && searchTerm.length === 10
-                    ? `No customer found with phone: ${searchTerm}`
-                    : 'No customers found'}
+                  {searchTerm.length >= 2
+                    ? isPhoneSearch && searchTerm.length === 10
+                      ? `No customer found with phone: ${searchTerm}`
+                      : 'No customers found'
+                    : 'No recent customers'}
                 </p>
-                {onAddNew && (
+                {onAddNew && searchTerm.length >= 2 && (
                   <button
                     type="button"
                     onClick={handleAddNew}
@@ -188,6 +194,11 @@ export function SearchableCustomerSelectWithAdd({
               </div>
             ) : (
               <div className="py-1">
+                {searchTerm.length < 2 && (
+                  <div className="px-3 py-1.5 text-xs text-gray-500 font-medium bg-gray-50">
+                    Recent Customers
+                  </div>
+                )}
                 {customers.map((customer) => (
                   <button
                     key={customer.id}
