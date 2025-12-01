@@ -32,7 +32,7 @@ export function PatternLockInput({
     return val.split(',').map(Number).filter((n) => !isNaN(n) && n >= 0 && n <= 8);
   };
 
-  // When opening the drawer, initialize temp pattern from current value
+  // When opening the modal, initialize temp pattern from current value
   const handleOpen = () => {
     if (disabled) return;
     setTempPattern(parsePattern(value));
@@ -96,6 +96,17 @@ export function PatternLockInput({
     };
   }, []);
 
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleCancel();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen]);
+
   // Calculate dot centers for drawing lines
   const getDotCenter = (index: number, size: number) => {
     const row = Math.floor(index / 3);
@@ -107,8 +118,8 @@ export function PatternLockInput({
     };
   };
 
-  const gridSize = 140; // px
-  const dotSize = 18; // px
+  const gridSize = 180; // px
+  const dotSize = 24; // px
   const currentPattern = parsePattern(value);
 
   return (
@@ -119,170 +130,183 @@ export function PatternLockInput({
         </label>
       )}
 
-      {!isOpen ? (
-        // Collapsed view - show button or pattern sequence
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleOpen}
-            disabled={disabled}
-            className={`
-              inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border
-              ${disabled
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
-              }
-            `}
-          >
-            <Grid3X3 className="h-4 w-4" />
-            {currentPattern.length > 0 ? 'Edit Pattern' : 'Draw Pattern'}
-          </button>
+      {/* Collapsed view - show button or pattern sequence */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleOpen}
+          disabled={disabled}
+          className={`
+            inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border
+            ${disabled
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
+            }
+          `}
+        >
+          <Grid3X3 className="h-4 w-4" />
+          {currentPattern.length > 0 ? 'Edit Pattern' : 'Draw Pattern'}
+        </button>
 
-          {currentPattern.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-md border border-blue-200">
-                {currentPattern.join(' → ')}
-              </span>
-              <button
-                type="button"
-                onClick={() => onChange('')}
-                disabled={disabled}
-                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded disabled:opacity-50"
-                title="Clear pattern"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        // Expanded view - show pattern grid
-        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-start gap-4">
-            {/* Pattern Grid */}
-            <div
-              ref={containerRef}
-              className="relative select-none touch-none cursor-pointer bg-white rounded-lg border border-gray-200 p-2"
-              style={{ width: gridSize + 16, height: gridSize + 16 }}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={() => setIsDrawing(false)}
+        {currentPattern.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-md border border-blue-200">
+              {currentPattern.join(' → ')}
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              disabled={disabled}
+              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded disabled:opacity-50"
+              title="Clear pattern"
             >
-              <div style={{ width: gridSize, height: gridSize, position: 'relative' }}>
-                {/* SVG for drawing lines */}
-                {tempPattern.length > 1 && (
-                  <svg
-                    className="absolute inset-0 pointer-events-none"
-                    width={gridSize}
-                    height={gridSize}
-                  >
-                    <polyline
-                      points={tempPattern
-                        .map((index) => {
-                          const center = getDotCenter(index, gridSize);
-                          return `${center.x},${center.y}`;
-                        })
-                        .join(' ')}
-                      fill="none"
-                      stroke="#3b82f6"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
 
-                {/* Dots Grid */}
-                <div className="grid grid-cols-3 gap-0 h-full">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
-                    const isSelected = tempPattern.includes(index);
-                    const selectionOrder = tempPattern.indexOf(index) + 1;
+      {error && (
+        <p className="text-sm text-red-500">{error}</p>
+      )}
 
-                    return (
-                      <div
-                        key={index}
-                        className="flex items-center justify-center"
-                        onMouseDown={() => handleDotClick(index)}
-                        onMouseEnter={() => handleDotEnter(index)}
-                        onTouchStart={(e) => {
-                          e.preventDefault();
-                          handleDotClick(index);
-                        }}
+      {/* Modal */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 transition-opacity"
+            onClick={handleCancel}
+          />
+
+          {/* Modal Content */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Draw Pattern
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Pattern Grid */}
+              <div className="flex justify-center mb-4">
+                <div
+                  ref={containerRef}
+                  className="relative select-none touch-none cursor-pointer bg-gray-50 rounded-xl p-4"
+                  style={{ width: gridSize + 32, height: gridSize + 32 }}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={() => setIsDrawing(false)}
+                >
+                  <div style={{ width: gridSize, height: gridSize, position: 'relative' }}>
+                    {/* SVG for drawing lines */}
+                    {tempPattern.length > 1 && (
+                      <svg
+                        className="absolute inset-0 pointer-events-none"
+                        width={gridSize}
+                        height={gridSize}
                       >
-                        <div
-                          className={`
-                            relative rounded-full transition-all duration-150
-                            ${isSelected
-                              ? 'bg-blue-500 shadow-md'
-                              : 'bg-gray-300 hover:bg-gray-400'
-                            }
-                            hover:scale-110
-                          `}
-                          style={{ width: dotSize, height: dotSize }}
-                        >
-                          {isSelected && (
-                            <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
-                              {selectionOrder}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        <polyline
+                          points={tempPattern
+                            .map((index) => {
+                              const center = getDotCenter(index, gridSize);
+                              return `${center.x},${center.y}`;
+                            })
+                            .join(' ')}
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+
+                    {/* Dots Grid */}
+                    <div className="grid grid-cols-3 gap-0 h-full">
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
+                        const isSelected = tempPattern.includes(index);
+                        const selectionOrder = tempPattern.indexOf(index) + 1;
+
+                        return (
+                          <div
+                            key={index}
+                            className="flex items-center justify-center"
+                            onMouseDown={() => handleDotClick(index)}
+                            onMouseEnter={() => handleDotEnter(index)}
+                            onTouchStart={(e) => {
+                              e.preventDefault();
+                              handleDotClick(index);
+                            }}
+                          >
+                            <div
+                              className={`
+                                relative rounded-full transition-all duration-150
+                                ${isSelected
+                                  ? 'bg-blue-500 shadow-lg scale-110'
+                                  : 'bg-gray-300 hover:bg-gray-400 hover:scale-110'
+                                }
+                              `}
+                              style={{ width: dotSize, height: dotSize }}
+                            >
+                              {isSelected && (
+                                <span className="absolute inset-0 flex items-center justify-center text-white text-sm font-bold">
+                                  {selectionOrder}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Info and Controls */}
-            <div className="flex flex-col gap-3">
-              <div className="text-sm text-gray-600">
-                {tempPattern.length === 0
-                  ? 'Click and drag to draw pattern'
-                  : `${tempPattern.length} dots selected`}
+              {/* Pattern Info */}
+              <div className="text-center mb-4">
+                {tempPattern.length === 0 ? (
+                  <p className="text-sm text-gray-500">Click and drag to draw pattern</p>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-600">{tempPattern.length} dots selected</p>
+                    <p className="font-mono text-sm bg-gray-100 px-3 py-1 rounded inline-block">
+                      {tempPattern.join(' → ')}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {tempPattern.length > 0 && (
-                <div className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
-                  {tempPattern.join(' → ')}
-                </div>
-              )}
-
-              <div className="flex gap-2 mt-2">
+              {/* Actions */}
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={handleClear}
                   disabled={tempPattern.length === 0}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <RotateCcw className="h-3 w-3" />
+                  <RotateCcw className="h-4 w-4" />
                   Clear
-                </button>
-              </div>
-
-              <div className="flex gap-2 mt-auto pt-2 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded border border-gray-300"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirm}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
                 >
-                  <Check className="h-3.5 w-3.5" />
-                  OK
+                  <Check className="h-4 w-4" />
+                  Confirm
                 </button>
               </div>
             </div>
           </div>
         </div>
-      )}
-
-      {error && (
-        <p className="text-sm text-red-500">{error}</p>
       )}
     </div>
   );
