@@ -37,7 +37,7 @@ export default function TechnicianAssignment({
   const [viewMode, setViewMode] = useState<'compact' | 'detailed'>('compact');
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Fetch technicians for assignment
+  // Fetch technicians for assignment (also fetch when there's an assignee to show their profile)
   const { data: techniciansData, isLoading } = useQuery({
     queryKey: ['technicians-for-assignment', branchId, serviceCategoryId, showAvailableOnly, sortBy],
     queryFn: () =>
@@ -47,7 +47,7 @@ export default function TechnicianAssignment({
         available: showAvailableOnly || undefined,
         sortBy,
       }),
-    enabled: canAssign && !!branchId,
+    enabled: (canAssign || !!currentAssignee) && !!branchId,
   });
 
   // Assign technician mutation
