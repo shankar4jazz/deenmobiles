@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
 import AddPaymentModal from '@/components/services/AddPaymentModal';
+import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
@@ -53,6 +54,7 @@ export default function ServiceDetail() {
   const [deletingDeviceImageId, setDeletingDeviceImageId] = useState<string | null>(null);
   const [showEditEstimatedModal, setShowEditEstimatedModal] = useState(false);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [showStatusChange, setShowStatusChange] = useState(false);
 
   // Photo viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -84,6 +86,11 @@ export default function ServiceDetail() {
       queryClient.invalidateQueries({ queryKey: ['service', id] });
       setSelectedStatus('');
       setStatusNotes('');
+      setShowStatusChange(false);
+      toast.success('Status updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update status');
     },
   });
 
@@ -575,45 +582,81 @@ export default function ServiceDetail() {
 
         {/* Sidebar - Compact */}
         <div className="space-y-4">
-          {/* Status Update */}
-          {canUpdateStatus && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Update Status</h3>
-              <div className="space-y-2">
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value as ServiceStatus)}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          {/* Status Card */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Service Status</h3>
+
+            {/* Current Status Display */}
+            <div className="flex items-center justify-between mb-3">
+              <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${STATUS_COLORS[service.status]}`}>
+                {STATUS_LABELS[service.status]}
+              </span>
+              {canUpdateStatus && !showStatusChange && (
+                <button
+                  onClick={() => setShowStatusChange(true)}
+                  className="text-xs text-purple-600 hover:text-purple-800 font-medium"
                 >
-                  <option value="">Select status</option>
-                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value} disabled={value === service.status}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  Change Status
+                </button>
+              )}
+            </div>
+
+            {/* Status Change Form */}
+            {canUpdateStatus && showStatusChange && (
+              <div className="space-y-3 pt-3 border-t border-gray-100">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">New Status</label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value as ServiceStatus)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    autoFocus
+                  >
+                    <option value="">Select new status</option>
+                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                      <option key={value} value={value} disabled={value === service.status}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {selectedStatus && (
-                  <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
                     <textarea
                       value={statusNotes}
                       onChange={(e) => setStatusNotes(e.target.value)}
-                      placeholder="Notes (optional)"
+                      placeholder="Add notes about this status change..."
                       rows={2}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
-                    <button
-                      onClick={handleStatusUpdate}
-                      disabled={updateStatusMutation.isPending}
-                      className="w-full flex items-center justify-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                    >
-                      <CheckCircle className="w-3 h-3" />
-                      Update
-                    </button>
-                  </>
+                  </div>
                 )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setShowStatusChange(false);
+                      setSelectedStatus('');
+                      setStatusNotes('');
+                    }}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleStatusUpdate}
+                    disabled={!selectedStatus || updateStatusMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Technician Assignment */}
           <TechnicianAssignment
