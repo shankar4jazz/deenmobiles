@@ -138,6 +138,11 @@ export class InvoiceService {
                   name: true,
                 },
               },
+              item: {
+                select: {
+                  itemName: true,
+                },
+              },
             },
           },
           paymentEntries: {
@@ -207,7 +212,7 @@ export class InvoiceService {
         branch: service.branch,
         company: service.company,
         parts: service.partsUsed.map((sp: any) => ({
-          partName: sp.part.name,
+          partName: sp.item?.itemName || sp.part?.name || 'Unknown Part',
           quantity: sp.quantity,
           unitPrice: sp.unitPrice,
           totalPrice: sp.totalPrice,
@@ -473,6 +478,12 @@ export class InvoiceService {
                     select: {
                       name: true,
                       partNumber: true,
+                    },
+                  },
+                  item: {
+                    select: {
+                      itemName: true,
+                      itemCode: true,
                     },
                   },
                 },
@@ -891,7 +902,7 @@ export class InvoiceService {
         branch: service.branch,
         company: service.company,
         parts: service.partsUsed.map((sp: any) => ({
-          partName: sp.part.name,
+          partName: sp.item?.itemName || sp.part?.name || 'Unknown Part',
           quantity: sp.quantity,
           unitPrice: sp.unitPrice,
           totalPrice: sp.totalPrice,
