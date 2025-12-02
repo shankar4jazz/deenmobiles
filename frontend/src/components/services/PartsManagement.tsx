@@ -16,12 +16,13 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
   const [selectedPart, setSelectedPart] = useState<BranchInventoryPart | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-  // Fetch available parts from branch inventory
-  const { data: availableParts = [] } = useQuery({
+  // Fetch available parts from branch inventory (shows most used by default)
+  const { data: availableParts = [], isLoading: isLoadingParts } = useQuery({
     queryKey: ['available-parts', serviceId, searchQuery],
-    queryFn: () => serviceApi.getAvailableParts(serviceId, searchQuery),
-    enabled: showAddPart && searchQuery.length > 0,
+    queryFn: () => serviceApi.getAvailableParts(serviceId, searchQuery || undefined),
+    enabled: showAddPart && !selectedPart,
   });
 
   // Add part mutation
@@ -125,37 +126,58 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search by name, SKU, or barcode..."
+                    placeholder="Search or select from most used items..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setShowDropdown(true)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
-                {/* Search Results Dropdown */}
-                {searchQuery && availableParts.length > 0 && (
+                {/* Parts Dropdown - shows most used by default or search results */}
+                {showDropdown && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {availableParts.map((part) => (
-                      <button
-                        key={part.id}
-                        type="button"
-                        onClick={() => handleSelectPart(part)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                      >
-                        <div className="font-medium text-gray-900">{part.item.itemName}</div>
-                        <div className="text-sm text-gray-500">
-                          {part.item.itemCode && <span className="mr-2">{part.item.itemCode}</span>}
-                          Stock: {Number(part.stockQuantity)} | Price: ₹{Number(part.item.salesPrice) || 0}
-                        </div>
-                      </button>
-                    ))}
+                    {isLoadingParts ? (
+                      <div className="p-4 text-center text-gray-500">Loading...</div>
+                    ) : availableParts.length > 0 ? (
+                      <>
+                        {!searchQuery && (
+                          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase">
+                            Most Used Items
+                          </div>
+                        )}
+                        {availableParts.map((part) => (
+                          <button
+                            key={part.id}
+                            type="button"
+                            onClick={() => {
+                              handleSelectPart(part);
+                              setShowDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                          >
+                            <div className="font-medium text-gray-900">{part.item.itemName}</div>
+                            <div className="text-sm text-gray-500">
+                              {part.item.itemCode && <span className="mr-2">{part.item.itemCode}</span>}
+                              Stock: {Number(part.stockQuantity)} | Price: ₹{Number(part.item.salesPrice) || 0}
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">
+                        {searchQuery ? 'No parts found in branch inventory' : 'No items available'}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {searchQuery && availableParts.length === 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
-                    No parts found in branch inventory
-                  </div>
+                {/* Click outside to close dropdown */}
+                {showDropdown && (
+                  <div
+                    className="fixed inset-0 z-0"
+                    onClick={() => setShowDropdown(false)}
+                  />
                 )}
               </div>
             ) : (

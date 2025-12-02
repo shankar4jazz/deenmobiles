@@ -1004,6 +1004,7 @@ export class ServiceService {
 
   /**
    * Get available parts from branch inventory for a service
+   * If no search term, returns the 10 most frequently used items
    */
   static async getAvailablePartsForService(
     serviceId: string,
@@ -1021,24 +1022,114 @@ export class ServiceService {
         throw new AppError(404, 'Service not found');
       }
 
-      // Build where clause for branch inventory
+      // If no search term, return most frequently used items
+      if (!search || !search.trim()) {
+        // Get most used items from ServicePart records for this branch
+        const mostUsedItems = await prisma.servicePart.groupBy({
+          by: ['itemId'],
+          where: {
+            itemId: { not: null },
+            service: {
+              branchId: service.branchId,
+              companyId,
+            },
+          },
+          _count: { itemId: true },
+          orderBy: { _count: { itemId: 'desc' } },
+          take: 10,
+        });
+
+        const mostUsedItemIds = mostUsedItems
+          .map(item => item.itemId)
+          .filter((id): id is string => id !== null);
+
+        // Get branch inventories for these items
+        if (mostUsedItemIds.length > 0) {
+          const inventories = await prisma.branchInventory.findMany({
+            where: {
+              branchId: service.branchId,
+              companyId,
+              isActive: true,
+              stockQuantity: { gt: 0 },
+              itemId: { in: mostUsedItemIds },
+            },
+            select: {
+              id: true,
+              stockQuantity: true,
+              item: {
+                select: {
+                  id: true,
+                  itemCode: true,
+                  itemName: true,
+                  salesPrice: true,
+                  purchasePrice: true,
+                  barcode: true,
+                  itemUnit: {
+                    select: { name: true, symbol: true },
+                  },
+                  itemCategory: {
+                    select: { name: true },
+                  },
+                },
+              },
+            },
+          });
+
+          // Sort by usage frequency
+          return inventories.sort((a, b) => {
+            const aIndex = mostUsedItemIds.indexOf(a.item.id);
+            const bIndex = mostUsedItemIds.indexOf(b.item.id);
+            return aIndex - bIndex;
+          });
+        }
+
+        // If no usage history, return first 10 items alphabetically
+        return prisma.branchInventory.findMany({
+          where: {
+            branchId: service.branchId,
+            companyId,
+            isActive: true,
+            stockQuantity: { gt: 0 },
+          },
+          take: 10,
+          select: {
+            id: true,
+            stockQuantity: true,
+            item: {
+              select: {
+                id: true,
+                itemCode: true,
+                itemName: true,
+                salesPrice: true,
+                purchasePrice: true,
+                barcode: true,
+                itemUnit: {
+                  select: { name: true, symbol: true },
+                },
+                itemCategory: {
+                  select: { name: true },
+                },
+              },
+            },
+          },
+          orderBy: { item: { itemName: 'asc' } },
+        });
+      }
+
+      // Build where clause for search
       const where: any = {
         branchId: service.branchId,
         companyId,
         isActive: true,
         stockQuantity: { gt: 0 },
-      };
-
-      // Add search filter
-      if (search && search.trim()) {
-        where.item = {
+        item: {
           OR: [
             { itemName: { contains: search, mode: 'insensitive' } },
             { itemCode: { contains: search, mode: 'insensitive' } },
             { barcode: { contains: search, mode: 'insensitive' } },
           ],
-        };
-      }
+        },
+      };
 
       // Get branch inventory items
       const inventories = await prisma.branchInventory.findMany({
