@@ -1167,6 +1167,7 @@ export class ServiceService {
 
   /**
    * Add service part (with BranchInventory integration)
+   * If part already exists in service, increases quantity instead of creating new
    */
   static async addServicePart(data: AddServicePartData) {
     try {
@@ -1208,9 +1209,16 @@ export class ServiceService {
           throw new AppError(400, `Insufficient stock. Available: ${currentStock}, Required: ${quantity}`);
         }
 
-        // Calculate new stock and total price
+        // Check if this part already exists in this service
+        const existingPart = await tx.servicePart.findFirst({
+          where: {
+            serviceId,
+            branchInventoryId,
+          },
+        });
+
+        // Calculate new stock
         const newStock = currentStock - quantity;
-        const totalPrice = unitPrice * quantity;
 
         // Update branch inventory stock
         await tx.branchInventory.update({
@@ -1235,50 +1243,105 @@ export class ServiceService {
           },
         });
 
-        // Create service part record
-        const servicePart = await tx.servicePart.create({
-          data: {
-            serviceId,
-            branchInventoryId,
-            itemId: branchInventory.item.id,
-            quantity,
-            unitPrice,
-            totalPrice,
-          },
-          include: {
-            branchInventory: {
-              include: {
-                item: {
-                  select: {
-                    id: true,
-                    itemName: true,
-                    itemCode: true,
+        let servicePart;
+        let totalPrice: number;
+        let action: string;
+
+        if (existingPart) {
+          // Update existing part - increase quantity
+          const newQuantity = existingPart.quantity + quantity;
+          totalPrice = unitPrice * newQuantity;
+
+          servicePart = await tx.servicePart.update({
+            where: { id: existingPart.id },
+            data: {
+              quantity: newQuantity,
+              unitPrice, // Update to new price if different
+              totalPrice,
+            },
+            include: {
+              branchInventory: {
+                include: {
+                  item: {
+                    select: {
+                      id: true,
+                      itemName: true,
+                      itemCode: true,
+                    },
                   },
                 },
               },
-            },
-            item: {
-              select: {
-                id: true,
-                itemName: true,
-                itemCode: true,
+              item: {
+                select: {
+                  id: true,
+                  itemName: true,
+                  itemCode: true,
+                },
               },
             },
-          },
-        });
+          });
 
-        // Update service actual cost
-        const currentActualCost = service.actualCost || 0;
-        await tx.service.update({
-          where: { id: serviceId },
-          data: { actualCost: currentActualCost + totalPrice },
-        });
+          // Update service actual cost (add only the new quantity's price)
+          const addedPrice = unitPrice * quantity;
+          const currentActualCost = service.actualCost || 0;
+          // Recalculate: remove old total, add new total
+          const oldTotalPrice = existingPart.totalPrice;
+          await tx.service.update({
+            where: { id: serviceId },
+            data: { actualCost: currentActualCost - oldTotalPrice + totalPrice },
+          });
+
+          action = 'SERVICE_PART_QUANTITY_INCREASED';
+        } else {
+          // Create new service part record
+          totalPrice = unitPrice * quantity;
+
+          servicePart = await tx.servicePart.create({
+            data: {
+              serviceId,
+              branchInventoryId,
+              itemId: branchInventory.item.id,
+              quantity,
+              unitPrice,
+              totalPrice,
+            },
+            include: {
+              branchInventory: {
+                include: {
+                  item: {
+                    select: {
+                      id: true,
+                      itemName: true,
+                      itemCode: true,
+                    },
+                  },
+                },
+              },
+              item: {
+                select: {
+                  id: true,
+                  itemName: true,
+                  itemCode: true,
+                },
+              },
+            },
+          });
+
+          // Update service actual cost
+          const currentActualCost = service.actualCost || 0;
+          await tx.service.update({
+            where: { id: serviceId },
+            data: { actualCost: currentActualCost + totalPrice },
+          });
+
+          action = 'SERVICE_PART_ADDED';
+        }
 
         // Create activity log
         await tx.activityLog.create({
           data: {
             userId,
-            action: 'SERVICE_PART_ADDED',
+            action,
             entity: 'service',
             entityId: serviceId,
             details: JSON.stringify({
@@ -1291,6 +1354,7 @@ export class ServiceService {
               previousStock: currentStock,
               newStock,
               stockMovementId: stockMovement.id,
+              merged: !!existingPart,
             }),
           },
         });
@@ -1309,6 +1373,145 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error adding service part', { error, data });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to add service part');
+    }
+  }
+
+  /**
+   * Update service part (quantity and/or unit price)
+   */
+  static async updateServicePart(
+    servicePartId: string,
+    serviceId: string,
+    userId: string,
+    companyId: string,
+    updates: { quantity?: number; unitPrice?: number }
+  ) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // Get existing service part
+        const servicePart = await tx.servicePart.findFirst({
+          where: {
+            id: servicePartId,
+            serviceId,
+            service: { companyId },
+          },
+          include: {
+            service: { select: { branchId: true, actualCost: true } },
+            branchInventory: true,
+          },
+        });
+
+        if (!servicePart) {
+          throw new AppError(404, 'Service part not found');
+        }
+
+        const oldQuantity = servicePart.quantity;
+        const oldUnitPrice = servicePart.unitPrice;
+        const oldTotalPrice = servicePart.totalPrice;
+
+        const newQuantity = updates.quantity ?? oldQuantity;
+        const newUnitPrice = updates.unitPrice ?? oldUnitPrice;
+        const newTotalPrice = newQuantity * newUnitPrice;
+
+        // Handle stock adjustment if quantity changed
+        if (updates.quantity !== undefined && updates.quantity !== oldQuantity && servicePart.branchInventoryId) {
+          const branchInventoryId = servicePart.branchInventoryId;
+          const branchInventory = await tx.branchInventory.findUnique({
+            where: { id: branchInventoryId },
+          });
+
+          if (branchInventory) {
+            const currentStock = Number(branchInventory.stockQuantity);
+            const quantityDiff = newQuantity - oldQuantity;
+
+            // If increasing quantity, check stock availability
+            if (quantityDiff > 0 && currentStock < quantityDiff) {
+              throw new AppError(400, `Insufficient stock. Available: ${currentStock}, Required: ${quantityDiff}`);
+            }
+
+            // Update stock (decrease if adding more, increase if reducing)
+            const adjustedStock = currentStock - quantityDiff;
+            await tx.branchInventory.update({
+              where: { id: branchInventoryId },
+              data: { stockQuantity: adjustedStock },
+            });
+
+            // Create stock movement
+            await tx.stockMovement.create({
+              data: {
+                branchInventoryId,
+                movementType: quantityDiff > 0 ? StockMovementType.SERVICE_USE : StockMovementType.RETURN,
+                quantity: Math.abs(quantityDiff),
+                previousQty: currentStock,
+                newQty: adjustedStock,
+                referenceType: 'SERVICE_PART_UPDATE',
+                referenceId: servicePartId,
+                notes: `Quantity adjusted from ${oldQuantity} to ${newQuantity}`,
+                userId,
+                branchId: servicePart.service.branchId,
+                companyId,
+              },
+            });
+          }
+        }
+
+        // Update service part
+        const updatedPart = await tx.servicePart.update({
+          where: { id: servicePartId },
+          data: {
+            quantity: newQuantity,
+            unitPrice: newUnitPrice,
+            totalPrice: newTotalPrice,
+          },
+          include: {
+            branchInventory: {
+              include: {
+                item: {
+                  select: { id: true, itemName: true, itemCode: true },
+                },
+              },
+            },
+            item: {
+              select: { id: true, itemName: true, itemCode: true },
+            },
+          },
+        });
+
+        // Update service actual cost
+        const currentActualCost = servicePart.service.actualCost || 0;
+        const costDiff = newTotalPrice - oldTotalPrice;
+        await tx.service.update({
+          where: { id: serviceId },
+          data: { actualCost: Math.max(0, currentActualCost + costDiff) },
+        });
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'SERVICE_PART_UPDATED',
+            entity: 'service',
+            entityId: serviceId,
+            details: JSON.stringify({
+              servicePartId,
+              oldQuantity,
+              newQuantity,
+              oldUnitPrice,
+              newUnitPrice,
+              oldTotalPrice,
+              newTotalPrice,
+            }),
+          },
+        });
+
+        return updatedPart;
+      });
+
+      Logger.info('Service part updated successfully', { servicePartId, updates });
+      return result;
+    } catch (error) {
+      Logger.error('Error updating service part', { error, servicePartId, updates });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to update service part');
     }
   }
 

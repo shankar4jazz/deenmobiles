@@ -243,6 +243,27 @@ export class ServiceController {
   });
 
   /**
+   * PUT /api/v1/services/:id/parts/:partId
+   * Update service part (quantity and/or unit price)
+   */
+  static updateServicePart = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id, partId } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { quantity, unitPrice } = req.body;
+
+    const servicePart = await ServiceService.updateServicePart(
+      partId,
+      id,
+      userId,
+      companyId,
+      { quantity, unitPrice }
+    );
+
+    return ApiResponse.success(res, servicePart, 'Service part updated successfully');
+  });
+
+  /**
    * PUT /api/v1/services/:id/status
    * Update service status
    */

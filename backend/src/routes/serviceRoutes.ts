@@ -245,6 +245,23 @@ router.delete(
 );
 
 /**
+ * @route   PUT /api/v1/services/:id/parts/:partId
+ * @desc    Update service part (quantity and/or unit price)
+ * @access  Private (Technician, Manager, Admin)
+ */
+router.put(
+  '/:id/parts/:partId',
+  authorize(
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate([...serviceIdValidation, ...partIdValidation]),
+  ServiceController.updateServicePart
+);
+
+/**
  * @route   PUT /api/v1/services/:id/status
  * @desc    Update service status
  * @access  Private (Technician, Manager, Admin)

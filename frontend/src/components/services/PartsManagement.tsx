@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceApi, BranchInventoryPart } from '@/services/serviceApi';
-import { Package, Plus, Trash2, AlertCircle, Search, X } from 'lucide-react';
+import { Package, Plus, Trash2, AlertCircle, Search, X, Minus, Pencil, Check } from 'lucide-react';
 
 interface PartsManagementProps {
   serviceId: string;
@@ -17,6 +17,11 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Edit state
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
+  const [editQuantity, setEditQuantity] = useState(0);
+  const [editUnitPrice, setEditUnitPrice] = useState(0);
 
   // Fetch available parts from branch inventory (shows most used by default)
   const { data: availableParts = [], isLoading: isLoadingParts } = useQuery({
@@ -47,6 +52,16 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
     },
   });
 
+  // Update part mutation
+  const updatePartMutation = useMutation({
+    mutationFn: ({ partId, data }: { partId: string; data: { quantity?: number; unitPrice?: number } }) =>
+      serviceApi.updateServicePart(serviceId, partId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      setEditingPartId(null);
+    },
+  });
+
   const handleSelectPart = (part: BranchInventoryPart) => {
     setSelectedPart(part);
     setUnitPrice(Number(part.item.salesPrice) || 0);
@@ -61,6 +76,37 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
       quantity,
       unitPrice,
     });
+  };
+
+  // Handle quantity +/- buttons
+  const handleQuantityChange = (partId: string, currentQty: number, delta: number) => {
+    const newQty = currentQty + delta;
+    if (newQty < 1) return;
+
+    updatePartMutation.mutate({
+      partId,
+      data: { quantity: newQty },
+    });
+  };
+
+  // Start editing a part
+  const startEditing = (part: any) => {
+    setEditingPartId(part.id);
+    setEditQuantity(part.quantity);
+    setEditUnitPrice(part.unitPrice);
+  };
+
+  // Save edit
+  const saveEdit = (partId: string) => {
+    updatePartMutation.mutate({
+      partId,
+      data: { quantity: editQuantity, unitPrice: editUnitPrice },
+    });
+  };
+
+  // Cancel edit
+  const cancelEdit = () => {
+    setEditingPartId(null);
   };
 
   // Helper function to get part name (handles both new and legacy data)
@@ -276,7 +322,7 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Part Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                     Quantity
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -286,8 +332,8 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                     Total Price
                   </th>
                   {canEdit && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Action
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                      Actions
                     </th>
                   )}
                 </tr>
@@ -303,26 +349,106 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{part.quantity}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      ₹{part.unitPrice.toFixed(2)}
+                      {editingPartId === part.id ? (
+                        <input
+                          type="number"
+                          min="1"
+                          value={editQuantity}
+                          onChange={(e) => setEditQuantity(parseInt(e.target.value) || 1)}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-center"
+                        />
+                      ) : canEdit ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleQuantityChange(part.id, part.quantity, -1)}
+                            disabled={part.quantity <= 1 || updatePartMutation.isPending}
+                            className="p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-8 text-center font-medium">{part.quantity}</span>
+                          <button
+                            onClick={() => handleQuantityChange(part.id, part.quantity, 1)}
+                            disabled={updatePartMutation.isPending}
+                            className="p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded disabled:opacity-30"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-center block">{part.quantity}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {editingPartId === part.id ? (
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editUnitPrice}
+                            onChange={(e) => setEditUnitPrice(parseFloat(e.target.value) || 0)}
+                            className="w-24 pl-5 pr-2 py-1 border border-gray-300 rounded"
+                          />
+                        </div>
+                      ) : (
+                        <span>₹{part.unitPrice.toFixed(2)}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                      ₹{part.totalPrice.toFixed(2)}
+                      {editingPartId === part.id ? (
+                        <span>₹{(editQuantity * editUnitPrice).toFixed(2)}</span>
+                      ) : (
+                        <span>₹{part.totalPrice.toFixed(2)}</span>
+                      )}
                     </td>
                     {canEdit && (
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to remove this part?')) {
-                              removePartMutation.mutate(part.id);
-                            }
-                          }}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                          disabled={removePartMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          {editingPartId === part.id ? (
+                            <>
+                              <button
+                                onClick={() => saveEdit(part.id)}
+                                disabled={updatePartMutation.isPending}
+                                className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                                title="Save"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                                title="Cancel"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => startEditing(part)}
+                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to remove this part?')) {
+                                    removePartMutation.mutate(part.id);
+                                  }
+                                }}
+                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                disabled={removePartMutation.isPending}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -343,11 +469,15 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
         </>
       )}
 
-      {/* Stock Warning */}
-      {addPartMutation.isError && (
+      {/* Error Messages */}
+      {(addPartMutation.isError || updatePartMutation.isError) && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
           <AlertCircle className="h-4 w-4" />
-          <span>{(addPartMutation.error as any)?.response?.data?.message || 'Failed to add part'}</span>
+          <span>
+            {(addPartMutation.error as any)?.response?.data?.message ||
+             (updatePartMutation.error as any)?.response?.data?.message ||
+             'Failed to update part'}
+          </span>
         </div>
       )}
     </div>

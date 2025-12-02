@@ -412,6 +412,18 @@ export const serviceApi = {
   },
 
   /**
+   * Update service part (quantity and/or unit price)
+   */
+  updateServicePart: async (
+    serviceId: string,
+    partId: string,
+    data: { quantity?: number; unitPrice?: number }
+  ): Promise<ServicePart> => {
+    const response = await api.put(`/services/${serviceId}/parts/${partId}`, data);
+    return response.data.data;
+  },
+
+  /**
    * Update service status
    */
   updateServiceStatus: async (
