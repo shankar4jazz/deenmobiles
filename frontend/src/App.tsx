@@ -63,6 +63,7 @@ import JobSheetTemplateForm from './pages/jobsheet-templates/JobSheetTemplateFor
 import CategoryManager from './pages/jobsheet-templates/CategoryManager';
 import SettingsMainPage from './pages/settings/SettingsMainPage';
 import TechnicianManagement from './pages/admin/TechnicianManagement';
+import PointsHistoryPage from './pages/technician/PointsHistoryPage';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -124,6 +125,7 @@ function App() {
               <Route path="services/create" element={<CreateService />} />
               <Route path="services/:id" element={<ServiceDetail />} />
               <Route path="technician-dashboard" element={<TechnicianDashboard />} />
+              <Route path="points-history" element={<PointsHistoryPage />} />
               <Route path="technicians" element={<TechnicianManagement />} />
               <Route path="invoices" element={<InvoiceList />} />
               <Route path="invoices/create" element={<CreateInvoice />} />

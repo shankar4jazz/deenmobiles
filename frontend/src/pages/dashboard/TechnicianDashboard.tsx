@@ -160,10 +160,11 @@ export default function TechnicianDashboard() {
                   </div>
                 )}
                 <div className="flex items-center gap-4 text-sm opacity-90">
-                  <span className="flex items-center gap-1">
+                  <Link to="/branch/points-history" className="flex items-center gap-1 hover:underline">
                     <Zap className="w-4 h-4" />
                     {techStats.profile.totalPoints.toLocaleString()} Total Points
-                  </span>
+                    <ChevronRight className="w-3 h-3" />
+                  </Link>
                   {techStats.thisMonth.averageRating && (
                     <span className="flex items-center gap-1">
                       <Star className="w-4 h-4 text-yellow-300" />
@@ -239,17 +240,23 @@ export default function TechnicianDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Zap className="w-5 h-5 text-purple-600" />
+          <Link
+            to="/branch/points-history"
+            className="bg-white rounded-xl p-4 border border-gray-200 hover:border-purple-400 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                  <Zap className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Points Earned This Month</p>
+                  <p className="text-xl font-bold text-gray-900">{techStats.thisMonth.totalPoints.toLocaleString()}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Points Earned This Month</p>
-                <p className="text-xl font-bold text-gray-900">{techStats.thisMonth.totalPoints.toLocaleString()}</p>
-              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
             </div>
-          </div>
+          </Link>
           <div className="bg-white rounded-xl p-4 border border-gray-200">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">

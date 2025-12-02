@@ -1,10 +1,33 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Users, ClipboardCheck, ArrowRight } from 'lucide-react';
+import { AlertCircle, Users, ClipboardCheck, ArrowRight, UserPlus } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import StatCard from '@/components/dashboard/StatCard';
+import TechnicianAssignmentDrawer from '@/components/services/TechnicianAssignmentDrawer';
+import { Link } from 'react-router-dom';
+
+interface ServiceForAssignment {
+  id: string;
+  ticketNumber: string;
+  status: string;
+  branchId: string;
+  serviceCategoryId?: string;
+  customer?: {
+    name: string;
+    phone: string;
+  };
+  assignedTo?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+}
 
 export default function TechnicianManagerDashboard() {
+  const [selectedService, setSelectedService] = useState<ServiceForAssignment | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ['technicianManagerDashboard'],
     queryFn: dashboardApi.getTechnicianManagerDashboard,
@@ -22,6 +45,16 @@ export default function TechnicianManagerDashboard() {
   }
 
   const { stats, unassignedServices, technicians, allServices, statusDistribution } = data;
+
+  const handleAssignClick = (service: ServiceForAssignment) => {
+    setSelectedService(service);
+    setIsDrawerOpen(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false);
+    setSelectedService(null);
+  };
 
   const statusColors: Record<string, string> = {
     PENDING: '#f59e0b',
@@ -106,9 +139,12 @@ export default function TechnicianManagerDashboard() {
                       <p className="text-sm text-gray-600">{service.customer?.name}</p>
                       <p className="text-xs text-gray-500">{service.customer?.phone}</p>
                     </div>
-                    <button className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
+                    <button
+                      onClick={() => handleAssignClick(service)}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+                    >
+                      <UserPlus className="w-4 h-4" />
                       Assign
-                      <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 ))
@@ -228,6 +264,18 @@ export default function TechnicianManagerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Technician Assignment Drawer */}
+      {selectedService && (
+        <TechnicianAssignmentDrawer
+          serviceId={selectedService.id}
+          branchId={selectedService.branchId}
+          serviceCategoryId={selectedService.serviceCategoryId}
+          currentAssignee={selectedService.assignedTo}
+          isOpen={isDrawerOpen}
+          onClose={handleCloseDrawer}
+        />
+      )}
     </DashboardLayout>
   );
 }

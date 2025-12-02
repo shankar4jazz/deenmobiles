@@ -4,9 +4,11 @@ import {
   technicianApi,
   TechnicianProfile,
   TechnicianLevel,
+  TechnicianSkill,
   PromotionCandidate,
 } from '@/services/technicianApi';
 import { branchApi } from '@/services/branchApi';
+import { serviceCategoryApi } from '@/services/masterDataApi';
 import { LevelBadge } from '@/components/common/LevelBadge';
 import {
   Users,
@@ -24,10 +26,13 @@ import {
   AlertCircle,
   CheckCircle,
   X,
+  Wrench,
+  BadgeCheck,
+  Gauge,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type TabType = 'technicians' | 'levels' | 'promotions';
+type TabType = 'technicians' | 'levels' | 'promotions' | 'skills';
 
 export default function TechnicianManagement() {
   const queryClient = useQueryClient();
@@ -42,6 +47,9 @@ export default function TechnicianManagement() {
   const [editingLevel, setEditingLevel] = useState<TechnicianLevel | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<TechnicianProfile | null>(null);
   const [pointsAdjustment, setPointsAdjustment] = useState({ points: 0, reason: '' });
+  const [showAddSkillModal, setShowAddSkillModal] = useState(false);
+  const [skillTechnician, setSkillTechnician] = useState<TechnicianProfile | null>(null);
+  const [editingSkill, setEditingSkill] = useState<TechnicianSkill | null>(null);
 
   // Fetch technicians
   const { data: techniciansData, isLoading: techniciansLoading } = useQuery({
@@ -77,6 +85,28 @@ export default function TechnicianManagement() {
     queryKey: ['promotion-candidates'],
     queryFn: technicianApi.getPromotionCandidates,
     enabled: activeTab === 'promotions',
+  });
+
+  // Fetch technicians with skills for skills tab
+  const { data: techsWithSkillsData, isLoading: skillsLoading } = useQuery({
+    queryKey: ['technicians-with-skills', branchFilter, searchQuery],
+    queryFn: () =>
+      technicianApi.getAllTechnicians(
+        {
+          branchId: branchFilter || undefined,
+          search: searchQuery || undefined,
+        },
+        1,
+        100
+      ),
+    enabled: activeTab === 'skills',
+  });
+
+  // Fetch service categories for skill options
+  const { data: serviceCategoriesData } = useQuery({
+    queryKey: ['service-categories'],
+    queryFn: () => serviceCategoryApi.getAll({ isActive: true, limit: 100 }),
+    enabled: activeTab === 'skills' || showAddSkillModal,
   });
 
   // Create level mutation
@@ -163,6 +193,50 @@ export default function TechnicianManagement() {
     },
   });
 
+  // Add skill mutation
+  const addSkillMutation = useMutation({
+    mutationFn: ({ userId, data }: { userId: string; data: { serviceCategoryId: string; proficiencyLevel?: number } }) =>
+      technicianApi.addSkill(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['technicians-with-skills'] });
+      queryClient.invalidateQueries({ queryKey: ['technicians'] });
+      setShowAddSkillModal(false);
+      setSkillTechnician(null);
+      toast.success('Skill added successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to add skill');
+    },
+  });
+
+  // Update skill mutation
+  const updateSkillMutation = useMutation({
+    mutationFn: ({ skillId, data }: { skillId: string; data: { proficiencyLevel?: number; isVerified?: boolean } }) =>
+      technicianApi.updateSkill(skillId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['technicians-with-skills'] });
+      queryClient.invalidateQueries({ queryKey: ['technicians'] });
+      setEditingSkill(null);
+      toast.success('Skill updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update skill');
+    },
+  });
+
+  // Remove skill mutation
+  const removeSkillMutation = useMutation({
+    mutationFn: technicianApi.removeSkill,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['technicians-with-skills'] });
+      queryClient.invalidateQueries({ queryKey: ['technicians'] });
+      toast.success('Skill removed successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to remove skill');
+    },
+  });
+
   const handleLevelSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -220,6 +294,7 @@ export default function TechnicianManagement() {
     { id: 'technicians', label: 'Technicians', icon: <Users className="w-4 h-4" /> },
     { id: 'levels', label: 'Levels', icon: <Award className="w-4 h-4" /> },
     { id: 'promotions', label: 'Promotions', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'skills', label: 'Skills', icon: <Wrench className="w-4 h-4" /> },
   ];
 
   return (
@@ -745,6 +820,182 @@ export default function TechnicianManagement() {
         </div>
       )}
 
+      {/* Skills Tab */}
+      {activeTab === 'skills' && (
+        <div className="space-y-6">
+          {/* Info */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+            <Wrench className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-green-700">
+              <p className="font-medium">Skills Management</p>
+              <p className="mt-1">
+                Manage technician skills based on service categories. Skills help in assigning the right technician to the right job.
+              </p>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search technicians..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="">All Branches</option>
+                {branchesData?.branches?.map((branch: any) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Technicians with Skills */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            {skillsLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+              </div>
+            ) : !techsWithSkillsData?.technicians || techsWithSkillsData.technicians.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <Users className="h-16 w-16 mb-4 text-gray-300" />
+                <p className="text-lg font-medium">No technicians found</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {techsWithSkillsData.technicians.map((tech: TechnicianProfile) => (
+                  <div key={tech.id} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-shrink-0 h-12 w-12">
+                          {tech.user.profileImage ? (
+                            <img
+                              src={tech.user.profileImage}
+                              alt={tech.user.name}
+                              className="h-12 w-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-12 w-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
+                              <span className="text-white font-semibold text-lg">
+                                {tech.user.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-lg font-medium text-gray-900">
+                            {tech.user.name}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {tech.currentLevel && (
+                              <LevelBadge
+                                name={tech.currentLevel.name}
+                                badgeColor={tech.currentLevel.badgeColor}
+                                size="sm"
+                              />
+                            )}
+                            {tech.branch && (
+                              <span className="text-sm text-gray-500">{tech.branch.name}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSkillTechnician(tech);
+                          setShowAddSkillModal(true);
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Skill
+                      </button>
+                    </div>
+
+                    {/* Skills */}
+                    <div className="mt-4">
+                      {tech.skills && tech.skills.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {tech.skills.map((skill: TechnicianSkill) => (
+                            <div
+                              key={skill.id}
+                              className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg group"
+                            >
+                              <Wrench className="w-4 h-4 text-gray-500" />
+                              <span className="text-sm font-medium text-gray-700">
+                                {skill.serviceCategory?.name || 'Unknown'}
+                              </span>
+
+                              {/* Proficiency Level */}
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((level) => (
+                                  <div
+                                    key={level}
+                                    className={`w-2 h-2 rounded-full ${
+                                      level <= (skill.proficiencyLevel || 3)
+                                        ? 'bg-green-500'
+                                        : 'bg-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              {/* Verified Badge */}
+                              {skill.isVerified && (
+                                <BadgeCheck className="w-4 h-4 text-blue-500" title="Verified" />
+                              )}
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => setEditingSkill(skill)}
+                                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                  title="Edit skill"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Remove this skill?')) {
+                                      removeSkillMutation.mutate(skill.id);
+                                    }
+                                  }}
+                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                  title="Remove skill"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">No skills assigned yet</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Level Modal */}
       {showLevelModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -1020,6 +1271,238 @@ export default function TechnicianManagement() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Skill Modal */}
+      {showAddSkillModal && skillTechnician && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/50" onClick={() => {
+              setShowAddSkillModal(false);
+              setSkillTechnician(null);
+            }} />
+            <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add Skill</h2>
+                <button
+                  onClick={() => {
+                    setShowAddSkillModal(false);
+                    setSkillTechnician(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 font-semibold">
+                      {skillTechnician.user.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">{skillTechnician.user.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {skillTechnician.skills?.length || 0} skills
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  addSkillMutation.mutate({
+                    userId: skillTechnician.userId,
+                    data: {
+                      serviceCategoryId: formData.get('serviceCategoryId') as string,
+                      proficiencyLevel: parseInt(formData.get('proficiencyLevel') as string) || 3,
+                    },
+                  });
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Service Category (Skill)
+                  </label>
+                  <select
+                    name="serviceCategoryId"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="">Select a service category</option>
+                    {serviceCategoriesData?.items
+                      ?.filter((cat: any) => !skillTechnician.skills?.find((s: TechnicianSkill) => s.serviceCategoryId === cat.id))
+                      .map((category: any) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proficiency Level
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      name="proficiencyLevel"
+                      min="1"
+                      max="5"
+                      defaultValue="3"
+                      className="flex-1 accent-green-600"
+                    />
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <Gauge key={level} className="w-4 h-4 text-gray-300" />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    1 = Beginner, 3 = Intermediate, 5 = Expert
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddSkillModal(false);
+                      setSkillTechnician(null);
+                    }}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addSkillMutation.isPending}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {addSkillMutation.isPending ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                        Adding...
+                      </div>
+                    ) : (
+                      'Add Skill'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Skill Modal */}
+      {editingSkill && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/50" onClick={() => setEditingSkill(null)} />
+            <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Edit Skill</h2>
+                <button
+                  onClick={() => setEditingSkill(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Wrench className="w-5 h-5 text-gray-600" />
+                  <span className="font-medium text-gray-900">
+                    {editingSkill.serviceCategory?.name || 'Unknown Skill'}
+                  </span>
+                </div>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  updateSkillMutation.mutate({
+                    skillId: editingSkill.id,
+                    data: {
+                      proficiencyLevel: parseInt(formData.get('proficiencyLevel') as string) || 3,
+                      isVerified: formData.get('isVerified') === 'on',
+                    },
+                  });
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proficiency Level
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      name="proficiencyLevel"
+                      min="1"
+                      max="5"
+                      defaultValue={editingSkill.proficiencyLevel || 3}
+                      className="flex-1 accent-green-600"
+                    />
+                    <span className="text-sm font-medium text-gray-700 w-8 text-center">
+                      {editingSkill.proficiencyLevel || 3}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="isVerified"
+                      defaultChecked={editingSkill.isVerified}
+                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Verified Skill</span>
+                      <p className="text-sm text-gray-500">
+                        Mark this skill as verified by admin
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingSkill(null)}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updateSkillMutation.isPending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {updateSkillMutation.isPending ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                        Saving...
+                      </div>
+                    ) : (
+                      'Update Skill'
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
