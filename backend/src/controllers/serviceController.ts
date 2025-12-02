@@ -247,9 +247,9 @@ export class ServiceController {
     const { id } = req.params;
     const companyId = req.user!.companyId;
     const userId = req.user!.userId;
-    const { technicianId, notes } = req.body;
+    const { assignedToId, notes } = req.body;
 
-    const service = await ServiceService.assignTechnician(id, technicianId, notes, userId, companyId);
+    const service = await ServiceService.assignTechnician(id, assignedToId, notes, userId, companyId);
 
     return ApiResponse.success(res, service, 'Service assigned to technician successfully');
   });
