@@ -281,4 +281,27 @@ export class ServiceController {
 
     return ApiResponse.success(res, history, 'Service status history retrieved successfully');
   });
+
+  /**
+   * POST /api/v1/services/:id/payment-entries
+   * Add a payment entry to an existing service
+   */
+  static addPaymentEntry = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { amount, paymentMethodId, notes, transactionId } = req.body;
+
+    const result = await ServiceService.addPaymentEntry({
+      serviceId: id,
+      amount,
+      paymentMethodId,
+      notes,
+      transactionId,
+      userId,
+      companyId,
+    });
+
+    return ApiResponse.created(res, result, 'Payment entry added successfully');
+  });
 }

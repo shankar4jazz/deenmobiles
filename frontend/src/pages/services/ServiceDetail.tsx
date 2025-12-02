@@ -13,7 +13,10 @@ import {
   ArrowLeft, Edit, Save, X, Camera, Clock,
   Smartphone, FileText, DollarSign, CheckCircle, Trash2,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download,
+  Pencil, Plus,
 } from 'lucide-react';
+import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
+import AddPaymentModal from '@/components/services/AddPaymentModal';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
@@ -48,6 +51,8 @@ export default function ServiceDetail() {
   const [uploadingDeviceImages, setUploadingDeviceImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [deletingDeviceImageId, setDeletingDeviceImageId] = useState<string | null>(null);
+  const [showEditEstimatedModal, setShowEditEstimatedModal] = useState(false);
+  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
 
   // Photo viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -625,9 +630,21 @@ export default function ServiceDetail() {
               Pricing
             </h3>
             <div className="text-sm space-y-1">
-              <div className="flex justify-between">
+              {/* Estimated - with edit button */}
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">Estimated</span>
-                <span>₹{service.estimatedCost.toFixed(2)}</span>
+                <div className="flex items-center gap-1">
+                  <span>₹{service.estimatedCost.toFixed(2)}</span>
+                  {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TECHNICIAN') && (
+                    <button
+                      onClick={() => setShowEditEstimatedModal(true)}
+                      className="p-1 hover:bg-gray-100 rounded"
+                      title="Edit estimated cost"
+                    >
+                      <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                    </button>
+                  )}
+                </div>
               </div>
               {service.actualCost && (
                 <div className="flex justify-between">
@@ -635,15 +652,47 @@ export default function ServiceDetail() {
                   <span>₹{service.actualCost.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-green-600">
+              {/* Advance with add button */}
+              <div className="flex justify-between items-center text-green-600">
                 <span>Advance</span>
-                <span>₹{service.advancePayment.toFixed(2)}</span>
+                <div className="flex items-center gap-1">
+                  <span>₹{service.advancePayment.toFixed(2)}</span>
+                  {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
+                    <button
+                      onClick={() => setShowAddPaymentModal(true)}
+                      className="p-1 hover:bg-green-100 rounded"
+                      title="Add advance payment"
+                    >
+                      <Plus className="w-3 h-3 text-green-500 hover:text-green-700" />
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between font-semibold pt-1 border-t">
                 <span>Balance</span>
                 <span>₹{((service.actualCost || service.estimatedCost) - service.advancePayment).toFixed(2)}</span>
               </div>
             </div>
+
+            {/* Payment History */}
+            {service.paymentEntries && service.paymentEntries.length > 0 && (
+              <div className="mt-3 pt-3 border-t">
+                <h4 className="text-xs font-medium text-gray-500 mb-2">Payment History</h4>
+                <div className="space-y-1.5 text-xs max-h-32 overflow-y-auto">
+                  {service.paymentEntries.map((entry) => (
+                    <div key={entry.id} className="flex justify-between items-center text-gray-600">
+                      <div>
+                        <span className="font-medium text-green-600">₹{entry.amount.toFixed(2)}</span>
+                        <span className="text-gray-400 ml-1">via {entry.paymentMethod?.name || 'N/A'}</span>
+                      </div>
+                      <span className="text-gray-400">
+                        {new Date(entry.paymentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Parts Management */}
@@ -787,6 +836,21 @@ export default function ServiceDetail() {
           )}
         </div>
       )}
+
+      {/* Edit Estimated Cost Modal */}
+      <EditEstimatedCostModal
+        isOpen={showEditEstimatedModal}
+        onClose={() => setShowEditEstimatedModal(false)}
+        serviceId={service.id}
+        currentValue={service.estimatedCost}
+      />
+
+      {/* Add Payment Modal */}
+      <AddPaymentModal
+        isOpen={showAddPaymentModal}
+        onClose={() => setShowAddPaymentModal(false)}
+        serviceId={service.id}
+      />
     </div>
   );
 }

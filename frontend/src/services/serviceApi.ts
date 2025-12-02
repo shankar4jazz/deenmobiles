@@ -64,6 +64,7 @@ export interface Service {
   deviceImages?: DeviceImage[];
   partsUsed?: ServicePart[];
   statusHistory?: ServiceStatusHistory[];
+  paymentEntries?: PaymentEntry[];
   _count?: {
     images: number;
     deviceImages: number;
@@ -132,6 +133,27 @@ export interface PaymentEntryData {
   notes?: string;
   transactionId?: string;
   paymentDate?: Date;
+}
+
+export interface PaymentEntry {
+  id: string;
+  amount: number;
+  paymentMethodId: string;
+  paymentMethod: {
+    id: string;
+    name: string;
+  };
+  notes?: string;
+  transactionId?: string;
+  paymentDate: string;
+  createdAt: string;
+}
+
+export interface AddPaymentEntryData {
+  amount: number;
+  paymentMethodId: string;
+  notes?: string;
+  transactionId?: string;
 }
 
 export interface CreateServiceData {
@@ -380,6 +402,25 @@ export const serviceApi = {
    */
   getStatusHistory: async (serviceId: string): Promise<ServiceStatusHistory[]> => {
     const response = await api.get(`/services/${serviceId}/history`);
+    return response.data.data;
+  },
+
+  /**
+   * Add a payment entry to an existing service
+   */
+  addPaymentEntry: async (
+    serviceId: string,
+    data: AddPaymentEntryData
+  ): Promise<{ paymentEntry: PaymentEntry; service: Service }> => {
+    const response = await api.post(`/services/${serviceId}/payment-entries`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Update estimated cost only
+   */
+  updateEstimatedCost: async (serviceId: string, estimatedCost: number): Promise<Service> => {
+    const response = await api.put(`/services/${serviceId}`, { estimatedCost });
     return response.data.data;
   },
 };

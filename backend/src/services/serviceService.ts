@@ -632,6 +632,19 @@ export class ServiceService {
               },
             },
           },
+          paymentEntries: {
+            include: {
+              paymentMethod: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: {
+              paymentDate: 'desc',
+            },
+          },
         },
       });
 
@@ -1536,6 +1549,89 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error deleting service', { error, serviceId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to delete service');
+    }
+  }
+
+  /**
+   * Add a payment entry to an existing service
+   * This creates a new PaymentEntry record and updates the service's advancePayment total
+   */
+  static async addPaymentEntry(data: {
+    serviceId: string;
+    amount: number;
+    paymentMethodId: string;
+    notes?: string;
+    transactionId?: string;
+    userId: string;
+    companyId: string;
+  }) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // Verify service exists and belongs to company
+        const service = await tx.service.findFirst({
+          where: { id: data.serviceId, companyId: data.companyId },
+        });
+
+        if (!service) {
+          throw new AppError(404, 'Service not found');
+        }
+
+        // Create payment entry
+        const paymentEntry = await tx.paymentEntry.create({
+          data: {
+            amount: data.amount,
+            paymentMethodId: data.paymentMethodId,
+            notes: data.notes,
+            transactionId: data.transactionId,
+            paymentDate: new Date(),
+            serviceId: data.serviceId,
+            companyId: data.companyId,
+          },
+          include: {
+            paymentMethod: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        // Update service advancePayment total
+        const updatedService = await tx.service.update({
+          where: { id: data.serviceId },
+          data: {
+            advancePayment: { increment: data.amount },
+          },
+        });
+
+        // Log the activity
+        await tx.activityLog.create({
+          data: {
+            userId: data.userId,
+            action: 'CREATE',
+            entity: 'payment_entry',
+            entityId: paymentEntry.id,
+            details: JSON.stringify({
+              serviceId: data.serviceId,
+              ticketNumber: service.ticketNumber,
+              amount: data.amount,
+              paymentMethod: paymentEntry.paymentMethod.name,
+            }),
+          },
+        });
+
+        Logger.info('Payment entry added successfully', {
+          serviceId: data.serviceId,
+          paymentEntryId: paymentEntry.id,
+          amount: data.amount,
+        });
+
+        return { paymentEntry, service: updatedService };
+      });
+    } catch (error) {
+      Logger.error('Error adding payment entry', { error, serviceId: data.serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to add payment entry');
     }
   }
 }

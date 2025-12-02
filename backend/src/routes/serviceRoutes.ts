@@ -365,6 +365,23 @@ router.post(
   InvoiceController.generateInvoiceFromService
 );
 
+/**
+ * @route   POST /api/v1/services/:id/payment-entries
+ * @desc    Add a payment entry to an existing service
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.post(
+  '/:id/payment-entries',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.addPaymentEntry
+);
+
 export default router;
 
 // Route update
