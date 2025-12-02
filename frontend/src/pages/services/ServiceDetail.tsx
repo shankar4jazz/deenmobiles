@@ -473,6 +473,13 @@ export default function ServiceDetail() {
             )}
           </div>
 
+          {/* Parts Used */}
+          <PartsManagement
+            serviceId={service.id}
+            parts={service.partsUsed || []}
+            canEdit={user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
+          />
+
           {/* Photos - Combined */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
@@ -737,13 +744,6 @@ export default function ServiceDetail() {
               </div>
             )}
           </div>
-
-          {/* Parts Management */}
-          <PartsManagement
-            serviceId={service.id}
-            parts={service.partsUsed || []}
-            canEdit={user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
-          />
 
           {/* Service History Timeline */}
           <ServiceHistoryTimeline serviceId={service.id} />
