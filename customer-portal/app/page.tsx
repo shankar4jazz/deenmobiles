@@ -48,7 +48,7 @@ export default function HomePage() {
 
         {/* Footer */}
         <div className="mt-16 text-center text-sm text-gray-400">
-          <p>&copy; 2024 Deen Mobiles. All rights reserved.</p>
+          <p>&copy; 2025 Deen Mobiles. All rights reserved.</p>
         </div>
       </div>
     </main>
