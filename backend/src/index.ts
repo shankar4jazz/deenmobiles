@@ -38,6 +38,7 @@ import customerDeviceRoutes from './routes/customerDeviceRoutes';
 import jobSheetTemplateRoutes from './routes/jobSheetTemplateRoutes';
 import jobSheetTemplateCategoryRoutes from './routes/jobSheetTemplateCategoryRoutes';
 import technicianRoutes from './routes/technicianRoutes';
+import publicRoutes from './routes/publicRoutes';
 
 const app: Application = express();
 
@@ -106,6 +107,9 @@ app.use(`/api/${config.apiVersion}/customer-devices`, customerDeviceRoutes);
 app.use(`/api/${config.apiVersion}/job-sheet-templates`, jobSheetTemplateRoutes);
 app.use(`/api/${config.apiVersion}/job-sheet-template-categories`, jobSheetTemplateCategoryRoutes);
 app.use(`/api/${config.apiVersion}/technicians`, technicianRoutes);
+
+// Public routes (no authentication required)
+app.use(`/api/${config.apiVersion}/public`, publicRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
