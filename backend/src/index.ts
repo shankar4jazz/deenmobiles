@@ -53,10 +53,16 @@ app.use(helmet({
 }));
 
 // CORS configuration
-const corsOrigins = config.cors.origin.split(',').map(origin => origin.trim());
+const corsOrigins = config.cors.origin.split(',').map(origin => origin.trim()).filter(Boolean);
 app.use(cors({
-  origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
-  credentials: true
+  origin: corsOrigins.length === 0
+    ? true  // Allow all origins if none specified
+    : corsOrigins.length === 1
+      ? corsOrigins[0]
+      : corsOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 app.use(compression());
