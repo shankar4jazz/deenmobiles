@@ -144,9 +144,14 @@ interface EstimateData {
 export class PDFGenerationService {
   private uploadDir: string;
   private baseUrl: string;
+  private isServerless: boolean;
 
   constructor() {
-    this.uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    // Use /tmp on serverless environments (Vercel)
+    this.isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+    this.uploadDir = this.isServerless
+      ? '/tmp/uploads'
+      : path.join(process.cwd(), 'public', 'uploads');
     this.baseUrl = process.env.BASE_URL || 'http://localhost:5000';
     this.ensureDirectoriesExist();
   }
@@ -160,8 +165,13 @@ export class PDFGenerationService {
     const estimatesDir = path.join(this.uploadDir, 'estimates');
 
     [jobSheetsDir, invoicesDir, estimatesDir].forEach((dir) => {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      try {
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+      } catch (error) {
+        // Silently fail on read-only filesystems
+        console.warn(`Could not create directory ${dir}:`, error);
       }
     });
   }
