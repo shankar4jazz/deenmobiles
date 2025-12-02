@@ -652,27 +652,27 @@ export default function ServiceDetail() {
                   <span>₹{service.actualCost.toFixed(2)}</span>
                 </div>
               )}
-              {/* Advance with add button */}
-              <div className="flex justify-between items-center text-green-600">
+              {/* Advance */}
+              <div className="flex justify-between text-green-600">
                 <span>Advance</span>
-                <div className="flex items-center gap-1">
-                  <span>₹{service.advancePayment.toFixed(2)}</span>
-                  {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
-                    <button
-                      onClick={() => setShowAddPaymentModal(true)}
-                      className="p-1 hover:bg-green-100 rounded"
-                      title="Add advance payment"
-                    >
-                      <Plus className="w-3 h-3 text-green-500 hover:text-green-700" />
-                    </button>
-                  )}
-                </div>
+                <span>₹{service.advancePayment.toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-semibold pt-1 border-t">
                 <span>Balance</span>
                 <span>₹{((service.actualCost || service.estimatedCost) - service.advancePayment).toFixed(2)}</span>
               </div>
             </div>
+
+            {/* Add Payment Button */}
+            {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
+              <button
+                onClick={() => setShowAddPaymentModal(true)}
+                className="w-full mt-3 py-2 px-3 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg border border-green-200 flex items-center justify-center gap-2 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Payment
+              </button>
+            )}
 
             {/* Payment History */}
             {service.paymentEntries && service.paymentEntries.length > 0 && (
