@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { serviceApi } from '@/services/serviceApi';
-import { Inventory } from '@/types';
+import { serviceApi, BranchInventoryPart } from '@/services/serviceApi';
 import { Package, Plus, Trash2, AlertCircle, Search, X } from 'lucide-react';
-import { api } from '@/services/api';
 
 interface PartsManagementProps {
   serviceId: string;
@@ -15,23 +13,20 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
   const queryClient = useQueryClient();
   const [showAddPart, setShowAddPart] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPart, setSelectedPart] = useState<Inventory | null>(null);
+  const [selectedPart, setSelectedPart] = useState<BranchInventoryPart | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
 
-  // Fetch available inventory
-  const { data: inventoryData } = useQuery({
-    queryKey: ['inventory', searchQuery],
-    queryFn: async () => {
-      const response = await api.get(`/inventory?search=${searchQuery}&limit=10`);
-      return response.data.data;
-    },
+  // Fetch available parts from branch inventory
+  const { data: availableParts = [] } = useQuery({
+    queryKey: ['available-parts', serviceId, searchQuery],
+    queryFn: () => serviceApi.getAvailableParts(serviceId, searchQuery),
     enabled: showAddPart && searchQuery.length > 0,
   });
 
   // Add part mutation
   const addPartMutation = useMutation({
-    mutationFn: (data: { partId: string; quantity: number; unitPrice: number }) =>
+    mutationFn: (data: { branchInventoryId: string; quantity: number; unitPrice: number }) =>
       serviceApi.addServicePart(serviceId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
@@ -51,9 +46,9 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
     },
   });
 
-  const handleSelectPart = (part: Inventory) => {
+  const handleSelectPart = (part: BranchInventoryPart) => {
     setSelectedPart(part);
-    setUnitPrice(part.sellingPrice || 0);
+    setUnitPrice(Number(part.item.salesPrice) || 0);
     setSearchQuery('');
   };
 
@@ -61,13 +56,28 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
     if (!selectedPart) return;
 
     addPartMutation.mutate({
-      partId: selectedPart.id,
+      branchInventoryId: selectedPart.id,
       quantity,
       unitPrice,
     });
   };
 
+  // Helper function to get part name (handles both new and legacy data)
+  const getPartName = (part: any) => {
+    if (part.item?.itemName) return part.item.itemName;
+    if (part.part?.name) return part.part.name;
+    return 'Unknown Part';
+  };
+
+  // Helper function to get part code (handles both new and legacy data)
+  const getPartCode = (part: any) => {
+    if (part.item?.itemCode) return part.item.itemCode;
+    if (part.part?.partNumber) return part.part.partNumber;
+    return null;
+  };
+
   const totalPartsValue = parts.reduce((sum, part) => sum + part.totalPrice, 0);
+  const stockQuantity = selectedPart ? Number(selectedPart.stockQuantity) : 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -123,21 +133,28 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                 </div>
 
                 {/* Search Results Dropdown */}
-                {searchQuery && inventoryData?.inventories?.length > 0 && (
+                {searchQuery && availableParts.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {inventoryData.inventories.map((item: Inventory) => (
+                    {availableParts.map((part) => (
                       <button
-                        key={item.id}
+                        key={part.id}
                         type="button"
-                        onClick={() => handleSelectPart(item)}
+                        onClick={() => handleSelectPart(part)}
                         className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0"
                       >
-                        <div className="font-medium text-gray-900">{item.item?.name}</div>
+                        <div className="font-medium text-gray-900">{part.item.itemName}</div>
                         <div className="text-sm text-gray-500">
-                          Stock: {item.quantity} | Price: ₹{item.sellingPrice}
+                          {part.item.itemCode && <span className="mr-2">{part.item.itemCode}</span>}
+                          Stock: {Number(part.stockQuantity)} | Price: ₹{Number(part.item.salesPrice) || 0}
                         </div>
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {searchQuery && availableParts.length === 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
+                    No parts found in branch inventory
                   </div>
                 )}
               </div>
@@ -145,9 +162,10 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
               <div className="p-4 bg-white border border-purple-200 rounded-lg">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="font-semibold text-gray-900">{selectedPart.item?.name}</div>
+                    <div className="font-semibold text-gray-900">{selectedPart.item.itemName}</div>
                     <div className="text-sm text-gray-600 mt-1">
-                      Available Stock: {selectedPart.quantity}
+                      {selectedPart.item.itemCode && <span className="mr-2">{selectedPart.item.itemCode}</span>}
+                      Available Stock: {stockQuantity}
                     </div>
                   </div>
                   <button
@@ -166,14 +184,14 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                     <input
                       type="number"
                       min="1"
-                      max={selectedPart.quantity}
+                      max={stockQuantity}
                       value={quantity}
                       onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
-                    {quantity > selectedPart.quantity && (
+                    {quantity > stockQuantity && (
                       <p className="text-xs text-red-600 mt-1">
-                        Insufficient stock! Only {selectedPart.quantity} available.
+                        Insufficient stock! Only {stockQuantity} available.
                       </p>
                     )}
                   </div>
@@ -207,7 +225,7 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
 
                 <button
                   onClick={handleAddPart}
-                  disabled={addPartMutation.isPending || quantity > selectedPart.quantity || quantity < 1}
+                  disabled={addPartMutation.isPending || quantity > stockQuantity || quantity < 1}
                   className="w-full mt-4 bg-purple-600 text-white py-2 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {addPartMutation.isPending ? 'Adding Part...' : 'Add Part to Service'}
@@ -256,10 +274,10 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                 {parts.map((part) => (
                   <tr key={part.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                      {part.part?.name}
-                      {part.part?.partNumber && (
+                      {getPartName(part)}
+                      {getPartCode(part) && (
                         <span className="text-xs text-gray-500 block">
-                          {part.part.partNumber}
+                          {getPartCode(part)}
                         </span>
                       )}
                     </td>

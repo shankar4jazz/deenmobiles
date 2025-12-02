@@ -194,6 +194,23 @@ router.delete(
 );
 
 /**
+ * @route   GET /api/v1/services/:id/available-parts
+ * @desc    Get available parts from branch inventory for adding to service
+ * @access  Private (Technician, Manager, Admin)
+ */
+router.get(
+  '/:id/available-parts',
+  authorize(
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.getAvailableParts
+);
+
+/**
  * @route   POST /api/v1/services/:id/parts
  * @desc    Add service part
  * @access  Private (Technician, Manager, Admin)

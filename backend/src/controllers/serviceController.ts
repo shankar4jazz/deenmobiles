@@ -189,6 +189,24 @@ export class ServiceController {
   });
 
   /**
+   * GET /api/v1/services/:id/available-parts
+   * Get available parts from branch inventory for adding to service
+   */
+  static getAvailableParts = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const { search } = req.query;
+
+    const parts = await ServiceService.getAvailablePartsForService(
+      id,
+      companyId,
+      search as string | undefined
+    );
+
+    return ApiResponse.success(res, parts, 'Available parts retrieved successfully');
+  });
+
+  /**
    * POST /api/v1/services/:id/parts
    * Add service part
    */
@@ -196,11 +214,11 @@ export class ServiceController {
     const { id } = req.params;
     const companyId = req.user!.companyId;
     const userId = req.user!.userId;
-    const { partId, quantity, unitPrice } = req.body;
+    const { branchInventoryId, quantity, unitPrice } = req.body;
 
     const servicePart = await ServiceService.addServicePart({
       serviceId: id,
-      partId,
+      branchInventoryId,
       quantity,
       unitPrice,
       userId,

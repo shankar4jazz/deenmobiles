@@ -91,15 +91,46 @@ export interface DeviceImage {
 export interface ServicePart {
   id: string;
   serviceId: string;
-  partId: string;
+  partId?: string;             // Legacy
+  branchInventoryId?: string;  // New
+  itemId?: string;             // New
   quantity: number;
   unitPrice: number;
   totalPrice: number;
   createdAt: string;
-  part: {
+  part?: {                     // Legacy
     id: string;
     name: string;
     partNumber?: string;
+  };
+  branchInventory?: {          // New
+    id: string;
+    stockQuantity: number;
+  };
+  item?: {                     // New
+    id: string;
+    itemName: string;
+    itemCode: string;
+  };
+}
+
+export interface BranchInventoryPart {
+  id: string;
+  stockQuantity: number;
+  item: {
+    id: string;
+    itemCode: string;
+    itemName: string;
+    salesPrice: number | null;
+    purchasePrice: number | null;
+    barcode: string | null;
+    itemUnit: {
+      name: string;
+      symbol: string | null;
+    } | null;
+    itemCategory: {
+      name: string;
+    } | null;
   };
 }
 
@@ -232,7 +263,7 @@ export interface ServiceStats {
 }
 
 export interface AddServicePartData {
-  partId: string;
+  branchInventoryId: string;  // Changed from partId
   quantity: number;
   unitPrice: number;
 }
@@ -352,6 +383,17 @@ export const serviceApi = {
    */
   deleteDeviceImage: async (serviceId: string, imageId: string): Promise<void> => {
     await api.delete(`/services/${serviceId}/device-images/${imageId}`);
+  },
+
+  /**
+   * Get available parts from branch inventory for a service
+   */
+  getAvailableParts: async (serviceId: string, search?: string): Promise<BranchInventoryPart[]> => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+
+    const response = await api.get(`/services/${serviceId}/available-parts?${params.toString()}`);
+    return response.data.data;
   },
 
   /**

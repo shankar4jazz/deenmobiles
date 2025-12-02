@@ -1,7 +1,7 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { Logger } from '../utils/logger';
-import { ServiceStatus } from '@prisma/client';
+import { ServiceStatus, StockMovementType } from '@prisma/client';
 import { StockMovementService } from './stockMovementService';
 import JobSheetService from './jobSheetService';
 import { S3Service } from './s3Service';
@@ -72,7 +72,7 @@ interface ServiceFilters {
 
 interface AddServicePartData {
   serviceId: string;
-  partId: string;
+  branchInventoryId: string;  // Changed from partId - now uses branch inventory
   quantity: number;
   unitPrice: number;
   userId: string;
@@ -608,6 +608,19 @@ export class ServiceService {
                   partNumber: true,
                 },
               },
+              branchInventory: {
+                select: {
+                  id: true,
+                  stockQuantity: true,
+                },
+              },
+              item: {
+                select: {
+                  id: true,
+                  itemName: true,
+                  itemCode: true,
+                },
+              },
             },
           },
           statusHistory: {
@@ -990,86 +1003,176 @@ export class ServiceService {
   }
 
   /**
-   * Add service part (with inventory integration)
+   * Get available parts from branch inventory for a service
+   */
+  static async getAvailablePartsForService(
+    serviceId: string,
+    companyId: string,
+    search?: string
+  ) {
+    try {
+      // Get service to find its branch
+      const service = await prisma.service.findFirst({
+        where: { id: serviceId, companyId },
+        select: { branchId: true },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      // Build where clause for branch inventory
+      const where: any = {
+        branchId: service.branchId,
+        companyId,
+        isActive: true,
+        stockQuantity: { gt: 0 },
+      };
+
+      // Add search filter
+      if (search && search.trim()) {
+        where.item = {
+          OR: [
+            { itemName: { contains: search, mode: 'insensitive' } },
+            { itemCode: { contains: search, mode: 'insensitive' } },
+            { barcode: { contains: search, mode: 'insensitive' } },
+          ],
+        };
+      }
+
+      // Get branch inventory items
+      const inventories = await prisma.branchInventory.findMany({
+        where,
+        take: 20,
+        select: {
+          id: true,
+          stockQuantity: true,
+          item: {
+            select: {
+              id: true,
+              itemCode: true,
+              itemName: true,
+              salesPrice: true,
+              purchasePrice: true,
+              barcode: true,
+              itemUnit: {
+                select: { name: true, symbol: true },
+              },
+              itemCategory: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+        orderBy: { item: { itemName: 'asc' } },
+      });
+
+      return inventories;
+    } catch (error) {
+      Logger.error('Error getting available parts for service', { error, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to get available parts');
+    }
+  }
+
+  /**
+   * Add service part (with BranchInventory integration)
    */
   static async addServicePart(data: AddServicePartData) {
     try {
-      const { serviceId, partId, quantity, unitPrice, userId, companyId } = data;
+      const { serviceId, branchInventoryId, quantity, unitPrice, userId, companyId } = data;
 
-      // Use transaction for atomic operation
       const result = await prisma.$transaction(async (tx) => {
-        // Verify service exists
+        // Verify service exists and get its branch
         const service = await tx.service.findFirst({
-          where: {
-            id: serviceId,
-            companyId,
-          },
+          where: { id: serviceId, companyId },
+          select: { id: true, branchId: true, actualCost: true },
         });
 
         if (!service) {
           throw new AppError(404, 'Service not found');
         }
 
-        // Verify part exists and has sufficient stock
-        const part = await tx.part.findFirst({
+        // Verify branch inventory exists and belongs to the same branch
+        const branchInventory = await tx.branchInventory.findFirst({
           where: {
-            id: partId,
+            id: branchInventoryId,
+            branchId: service.branchId,
             companyId,
+            isActive: true,
+          },
+          include: {
+            item: {
+              select: { id: true, itemName: true, itemCode: true },
+            },
           },
         });
 
-        if (!part) {
-          throw new AppError(404, 'Part not found');
+        if (!branchInventory) {
+          throw new AppError(404, 'Part not found in branch inventory');
         }
 
-        if (part.quantity < quantity) {
-          throw new AppError(400, `Insufficient stock. Available: ${part.quantity}, Required: ${quantity}`);
+        // Check stock availability
+        const currentStock = Number(branchInventory.stockQuantity);
+        if (currentStock < quantity) {
+          throw new AppError(400, `Insufficient stock. Available: ${currentStock}, Required: ${quantity}`);
         }
 
-        // Calculate total price
+        // Calculate new stock and total price
+        const newStock = currentStock - quantity;
         const totalPrice = unitPrice * quantity;
+
+        // Update branch inventory stock
+        await tx.branchInventory.update({
+          where: { id: branchInventoryId },
+          data: { stockQuantity: newStock },
+        });
+
+        // Create stock movement record
+        const stockMovement = await tx.stockMovement.create({
+          data: {
+            branchInventoryId,
+            movementType: StockMovementType.SERVICE_USE,
+            quantity: quantity,
+            previousQty: currentStock,
+            newQty: newStock,
+            referenceType: 'SERVICE',
+            referenceId: serviceId,
+            notes: `Used in service ${serviceId}`,
+            userId,
+            branchId: service.branchId,
+            companyId,
+          },
+        });
 
         // Create service part record
         const servicePart = await tx.servicePart.create({
           data: {
             serviceId,
-            partId,
+            branchInventoryId,
+            itemId: branchInventory.item.id,
             quantity,
             unitPrice,
             totalPrice,
           },
           include: {
-            part: true,
-          },
-        });
-
-        // Update part stock
-        const previousQty = part.quantity;
-        const newQty = previousQty - quantity;
-
-        await tx.part.update({
-          where: { id: partId },
-          data: { quantity: newQty },
-        });
-
-        // Log stock movement (using the stock movement service pattern)
-        // Note: This would ideally use BranchInventory instead of Part
-        // For now, we'll create an activity log
-        await tx.activityLog.create({
-          data: {
-            userId,
-            action: 'SERVICE_PART_ADDED',
-            entity: 'service',
-            entityId: serviceId,
-            details: JSON.stringify({
-              partId,
-              partName: part.name,
-              quantity,
-              unitPrice,
-              totalPrice,
-              previousQty,
-              newQty,
-            }),
+            branchInventory: {
+              include: {
+                item: {
+                  select: {
+                    id: true,
+                    itemName: true,
+                    itemCode: true,
+                  },
+                },
+              },
+            },
+            item: {
+              select: {
+                id: true,
+                itemName: true,
+                itemCode: true,
+              },
+            },
           },
         });
 
@@ -1077,8 +1180,27 @@ export class ServiceService {
         const currentActualCost = service.actualCost || 0;
         await tx.service.update({
           where: { id: serviceId },
+          data: { actualCost: currentActualCost + totalPrice },
+        });
+
+        // Create activity log
+        await tx.activityLog.create({
           data: {
-            actualCost: currentActualCost + totalPrice,
+            userId,
+            action: 'SERVICE_PART_ADDED',
+            entity: 'service',
+            entityId: serviceId,
+            details: JSON.stringify({
+              branchInventoryId,
+              itemId: branchInventory.item.id,
+              itemName: branchInventory.item.itemName,
+              quantity,
+              unitPrice,
+              totalPrice,
+              previousStock: currentStock,
+              newStock,
+              stockMovementId: stockMovement.id,
+            }),
           },
         });
 
@@ -1087,7 +1209,7 @@ export class ServiceService {
 
       Logger.info('Service part added successfully', {
         serviceId,
-        partId,
+        branchInventoryId,
         quantity,
         totalPrice: unitPrice * quantity,
       });
@@ -1100,22 +1222,26 @@ export class ServiceService {
   }
 
   /**
-   * Remove service part (restore stock)
+   * Remove service part (restore stock with movement record)
    */
   static async removeServicePart(servicePartId: string, serviceId: string, userId: string, companyId: string) {
     try {
       const result = await prisma.$transaction(async (tx) => {
-        // Get service part details
+        // Get service part details with both new and legacy relations
         const servicePart = await tx.servicePart.findFirst({
           where: {
             id: servicePartId,
             serviceId,
-            service: {
-              companyId,
-            },
+            service: { companyId },
           },
           include: {
-            part: true,
+            branchInventory: {
+              include: {
+                item: { select: { itemName: true } },
+              },
+            },
+            item: { select: { itemName: true } },
+            part: true, // For backward compatibility
           },
         });
 
@@ -1123,14 +1249,69 @@ export class ServiceService {
           throw new AppError(404, 'Service part not found');
         }
 
-        // Restore part stock
-        const previousQty = servicePart.part.quantity;
-        const newQty = previousQty + servicePart.quantity;
-
-        await tx.part.update({
-          where: { id: servicePart.partId },
-          data: { quantity: newQty },
+        // Get service for branch info
+        const service = await tx.service.findUnique({
+          where: { id: serviceId },
+          select: { branchId: true, actualCost: true },
         });
+
+        if (!service) {
+          throw new AppError(404, 'Service not found');
+        }
+
+        let itemName = 'Unknown Part';
+
+        // Handle new BranchInventory-based parts
+        if (servicePart.branchInventoryId) {
+          const branchInventoryId = servicePart.branchInventoryId;
+          const branchInventory = await tx.branchInventory.findUnique({
+            where: { id: branchInventoryId },
+          });
+
+          if (branchInventory) {
+            const currentStock = Number(branchInventory.stockQuantity);
+            const newStock = currentStock + servicePart.quantity;
+
+            // Restore stock
+            await tx.branchInventory.update({
+              where: { id: branchInventoryId },
+              data: { stockQuantity: newStock },
+            });
+
+            // Create reverse stock movement
+            await tx.stockMovement.create({
+              data: {
+                branchInventoryId: branchInventoryId,
+                movementType: StockMovementType.RETURN,
+                quantity: servicePart.quantity,
+                previousQty: currentStock,
+                newQty: newStock,
+                referenceType: 'SERVICE_PART_REMOVED',
+                referenceId: servicePartId,
+                notes: `Part removed from service ${serviceId}`,
+                userId,
+                branchId: service.branchId,
+                companyId,
+              },
+            });
+
+            itemName = servicePart.branchInventory?.item?.itemName || servicePart.item?.itemName || 'Unknown Part';
+          }
+        }
+        // Handle legacy Part-based records (backward compatibility)
+        else if (servicePart.partId && servicePart.part) {
+          const partId = servicePart.partId;
+          const part = servicePart.part;
+          const previousQty = part.quantity;
+          const newQty = previousQty + servicePart.quantity;
+
+          await tx.part.update({
+            where: { id: partId },
+            data: { quantity: newQty },
+          });
+
+          itemName = part.name;
+        }
 
         // Delete service part
         await tx.servicePart.delete({
@@ -1138,19 +1319,13 @@ export class ServiceService {
         });
 
         // Update service actual cost
-        const service = await tx.service.findUnique({
+        const currentActualCost = service.actualCost || 0;
+        await tx.service.update({
           where: { id: serviceId },
+          data: {
+            actualCost: Math.max(0, currentActualCost - servicePart.totalPrice),
+          },
         });
-
-        if (service) {
-          const currentActualCost = service.actualCost || 0;
-          await tx.service.update({
-            where: { id: serviceId },
-            data: {
-              actualCost: Math.max(0, currentActualCost - servicePart.totalPrice),
-            },
-          });
-        }
 
         // Create activity log
         await tx.activityLog.create({
@@ -1160,12 +1335,12 @@ export class ServiceService {
             entity: 'service',
             entityId: serviceId,
             details: JSON.stringify({
+              servicePartId,
+              branchInventoryId: servicePart.branchInventoryId,
               partId: servicePart.partId,
-              partName: servicePart.part.name,
+              itemName,
               quantity: servicePart.quantity,
               totalPrice: servicePart.totalPrice,
-              previousQty,
-              newQty,
             }),
           },
         });
@@ -1490,6 +1665,7 @@ export class ServiceService {
           partsUsed: {
             include: {
               part: true,
+              branchInventory: true,
             },
           },
         },
@@ -1505,14 +1681,34 @@ export class ServiceService {
       }
 
       await prisma.$transaction(async (tx) => {
-        // Restore stock for all used parts
+        // Restore stock for all used parts (handle both legacy and new parts)
         for (const servicePart of service.partsUsed) {
-          await tx.part.update({
-            where: { id: servicePart.partId },
-            data: {
-              quantity: servicePart.part.quantity + servicePart.quantity,
-            },
-          });
+          // Handle new BranchInventory-based parts
+          if (servicePart.branchInventoryId) {
+            const branchInventoryId = servicePart.branchInventoryId;
+            const branchInventory = await tx.branchInventory.findUnique({
+              where: { id: branchInventoryId },
+            });
+            if (branchInventory) {
+              await tx.branchInventory.update({
+                where: { id: branchInventoryId },
+                data: {
+                  stockQuantity: Number(branchInventory.stockQuantity) + servicePart.quantity,
+                },
+              });
+            }
+          }
+          // Handle legacy Part-based records
+          else if (servicePart.partId && servicePart.part) {
+            const partId = servicePart.partId;
+            const partQuantity = servicePart.part.quantity;
+            await tx.part.update({
+              where: { id: partId },
+              data: {
+                quantity: partQuantity + servicePart.quantity,
+              },
+            });
+          }
         }
 
         // Delete service images from disk

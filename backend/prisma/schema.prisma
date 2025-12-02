@@ -344,18 +344,25 @@ model Part {
 }
 
 model ServicePart {
-  id         String   @id @default(uuid())
-  serviceId  String
-  partId     String
-  quantity   Int
-  unitPrice  Float
-  totalPrice Float
-  createdAt  DateTime @default(now())
-  part       Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
-  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  id                String           @id @default(uuid())
+  serviceId         String
+  partId            String?          // Legacy - kept for backward compatibility
+  branchInventoryId String?          // New: reference to branch inventory
+  itemId            String?          // New: reference to item
+  quantity          Int
+  unitPrice         Float
+  totalPrice        Float
+  createdAt         DateTime         @default(now())
+
+  part              Part?            @relation(fields: [partId], references: [id], onDelete: Cascade)
+  branchInventory   BranchInventory? @relation(fields: [branchInventoryId], references: [id], onDelete: SetNull)
+  item              Item?            @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  service           Service          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([serviceId])
   @@index([partId])
+  @@index([branchInventoryId])
+  @@index([itemId])
   @@map("service_parts")
 }
 
@@ -1060,6 +1067,7 @@ model Item {
   itemModel          ItemModel?          @relation("ItemModelItems", fields: [modelId], references: [id])
   branchInventories  BranchInventory[]
   purchaseOrderItems PurchaseOrderItem[]
+  serviceParts       ServicePart[]       // Parts used in services
 
   @@index([companyId])
   @@index([itemCode])
@@ -1093,6 +1101,7 @@ model BranchInventory {
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   supplier       Supplier?       @relation(fields: [supplierId], references: [id])
   stockMovements StockMovement[]
+  serviceParts   ServicePart[]   // Parts used in services from this inventory
 
   @@unique([itemId, branchId])
   @@index([itemId])

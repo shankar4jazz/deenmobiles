@@ -237,12 +237,12 @@ export const updateDiagnosisValidation: ValidationChain[] = [
  * Validation rules for adding service part
  */
 export const addServicePartValidation: ValidationChain[] = [
-  body('partId')
+  body('branchInventoryId')
     .trim()
     .notEmpty()
-    .withMessage('Part ID is required')
+    .withMessage('Branch inventory ID is required')
     .isUUID()
-    .withMessage('Invalid part ID format'),
+    .withMessage('Invalid branch inventory ID format'),
 
   body('quantity')
     .notEmpty()
