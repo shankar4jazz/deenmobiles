@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
 import AddPaymentModal from '@/components/services/AddPaymentModal';
+import TechnicianNotes from '@/components/services/TechnicianNotes';
 import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -479,6 +480,9 @@ export default function ServiceDetail() {
             parts={service.partsUsed || []}
             canEdit={user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
           />
+
+          {/* Technician Notes */}
+          <TechnicianNotes serviceId={service.id} />
 
           {/* Photos - Combined */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">

@@ -1634,4 +1634,134 @@ export class ServiceService {
       throw error instanceof AppError ? error : new AppError(500, 'Failed to add payment entry');
     }
   }
+
+  /**
+   * Add a note to a service
+   */
+  static async addNote(data: {
+    serviceId: string;
+    note: string;
+    userId: string;
+    companyId: string;
+  }) {
+    try {
+      // Verify service exists and belongs to company
+      const service = await prisma.service.findFirst({
+        where: { id: data.serviceId, companyId: data.companyId },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      // Create note
+      const serviceNote = await prisma.serviceNote.create({
+        data: {
+          serviceId: data.serviceId,
+          note: data.note,
+          createdBy: data.userId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      Logger.info('Service note added successfully', {
+        serviceId: data.serviceId,
+        noteId: serviceNote.id,
+      });
+
+      return serviceNote;
+    } catch (error) {
+      Logger.error('Error adding service note', { error, serviceId: data.serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to add note');
+    }
+  }
+
+  /**
+   * Get all notes for a service
+   */
+  static async getNotes(serviceId: string, companyId: string) {
+    try {
+      // Verify service exists and belongs to company
+      const service = await prisma.service.findFirst({
+        where: { id: serviceId, companyId },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      const notes = await prisma.serviceNote.findMany({
+        where: { serviceId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return notes;
+    } catch (error) {
+      Logger.error('Error fetching service notes', { error, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to fetch notes');
+    }
+  }
+
+  /**
+   * Delete a note from a service
+   */
+  static async deleteNote(noteId: string, userId: string, companyId: string) {
+    try {
+      // Find the note and verify ownership
+      const note = await prisma.serviceNote.findFirst({
+        where: { id: noteId },
+        include: {
+          service: {
+            select: { companyId: true },
+          },
+        },
+      });
+
+      if (!note) {
+        throw new AppError(404, 'Note not found');
+      }
+
+      if (note.service.companyId !== companyId) {
+        throw new AppError(403, 'Access denied');
+      }
+
+      // Only allow creator or admin/manager to delete
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+
+      if (note.createdBy !== userId && user?.role !== 'ADMIN' && user?.role !== 'MANAGER' && user?.role !== 'SUPER_ADMIN') {
+        throw new AppError(403, 'You can only delete your own notes');
+      }
+
+      await prisma.serviceNote.delete({
+        where: { id: noteId },
+      });
+
+      Logger.info('Service note deleted successfully', { noteId });
+
+      return { success: true };
+    } catch (error) {
+      Logger.error('Error deleting service note', { error, noteId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to delete note');
+    }
+  }
 }

@@ -304,4 +304,51 @@ export class ServiceController {
 
     return ApiResponse.created(res, result, 'Payment entry added successfully');
   });
+
+  /**
+   * GET /api/v1/services/:id/notes
+   * Get all notes for a service
+   */
+  static getNotes = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    const notes = await ServiceService.getNotes(id, companyId);
+
+    return ApiResponse.success(res, notes, 'Notes retrieved successfully');
+  });
+
+  /**
+   * POST /api/v1/services/:id/notes
+   * Add a note to a service
+   */
+  static addNote = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { note } = req.body;
+
+    const serviceNote = await ServiceService.addNote({
+      serviceId: id,
+      note,
+      userId,
+      companyId,
+    });
+
+    return ApiResponse.created(res, serviceNote, 'Note added successfully');
+  });
+
+  /**
+   * DELETE /api/v1/services/:id/notes/:noteId
+   * Delete a note from a service
+   */
+  static deleteNote = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { noteId } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+
+    const result = await ServiceService.deleteNote(noteId, userId, companyId);
+
+    return ApiResponse.success(res, result, 'Note deleted successfully');
+  });
 }

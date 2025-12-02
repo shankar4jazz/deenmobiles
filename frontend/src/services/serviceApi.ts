@@ -156,6 +156,20 @@ export interface AddPaymentEntryData {
   transactionId?: string;
 }
 
+export interface ServiceNote {
+  id: string;
+  serviceId: string;
+  note: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    name: string;
+    role: string;
+  };
+}
+
 export interface CreateServiceData {
   customerId: string;
   customerDeviceId: string;
@@ -421,6 +435,30 @@ export const serviceApi = {
    */
   updateEstimatedCost: async (serviceId: string, estimatedCost: number): Promise<Service> => {
     const response = await api.put(`/services/${serviceId}`, { estimatedCost });
+    return response.data.data;
+  },
+
+  /**
+   * Get all notes for a service
+   */
+  getNotes: async (serviceId: string): Promise<ServiceNote[]> => {
+    const response = await api.get(`/services/${serviceId}/notes`);
+    return response.data.data;
+  },
+
+  /**
+   * Add a note to a service
+   */
+  addNote: async (serviceId: string, note: string): Promise<ServiceNote> => {
+    const response = await api.post(`/services/${serviceId}/notes`, { note });
+    return response.data.data;
+  },
+
+  /**
+   * Delete a note from a service
+   */
+  deleteNote: async (serviceId: string, noteId: string): Promise<{ success: boolean }> => {
+    const response = await api.delete(`/services/${serviceId}/notes/${noteId}`);
     return response.data.data;
   },
 };

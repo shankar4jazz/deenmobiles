@@ -382,6 +382,57 @@ router.post(
   ServiceController.addPaymentEntry
 );
 
+/**
+ * @route   GET /api/v1/services/:id/notes
+ * @desc    Get all notes for a service
+ * @access  Private (All authenticated users)
+ */
+router.get(
+  '/:id/notes',
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.getNotes
+);
+
+/**
+ * @route   POST /api/v1/services/:id/notes
+ * @desc    Add a note to a service
+ * @access  Private (Technician, Manager, Admin)
+ */
+router.post(
+  '/:id/notes',
+  authorize(
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.addNote
+);
+
+/**
+ * @route   DELETE /api/v1/services/:id/notes/:noteId
+ * @desc    Delete a note from a service
+ * @access  Private (Note creator, Manager, Admin)
+ */
+router.delete(
+  '/:id/notes/:noteId',
+  authorize(
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  ServiceController.deleteNote
+);
+
 export default router;
 
 // Route update

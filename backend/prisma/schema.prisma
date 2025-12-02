@@ -149,6 +149,7 @@ model User {
   createdJobSheetTemplates   JobSheetTemplate[]         @relation("UserCreatedJobSheetTemplates")
   technicianProfile          TechnicianProfile?
   technicianNotifications    TechnicianNotification[]
+  serviceNotes               ServiceNote[]              @relation("ServiceNotesByUser")
 
   @@index([companyId])
   @@index([branchId])
@@ -293,6 +294,7 @@ model Service {
   serviceIssues     ServiceIssueOnService[]
   accessories       ServiceAccessory[]
   pointsHistory     TechnicianPointsHistory[]
+  notes             ServiceNote[]
 
   @@index([companyId])
   @@index([branchId])
@@ -303,6 +305,22 @@ model Service {
   @@index([ticketNumber])
   @@index([status])
   @@map("services")
+}
+
+model ServiceNote {
+  id        String   @id @default(uuid())
+  serviceId String
+  note      String   @db.Text
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  user      User     @relation("ServiceNotesByUser", fields: [createdBy], references: [id])
+
+  @@index([serviceId])
+  @@index([createdBy])
+  @@map("service_notes")
 }
 
 model Part {
