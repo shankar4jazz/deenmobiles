@@ -190,6 +190,36 @@ export class ServiceService {
           throw new AppError(404, 'One or more faults not found or inactive');
         }
 
+        // Verify damage conditions exist if provided
+        if (data.damageConditionIds && data.damageConditionIds.length > 0) {
+          const damageConditions = await tx.damageCondition.findMany({
+            where: {
+              id: { in: data.damageConditionIds },
+              companyId: data.companyId,
+              isActive: true,
+            },
+          });
+
+          if (damageConditions.length !== data.damageConditionIds.length) {
+            throw new AppError(404, 'One or more damage conditions not found or inactive');
+          }
+        }
+
+        // Verify accessories exist if provided
+        if (data.accessoryIds && data.accessoryIds.length > 0) {
+          const accessories = await tx.accessory.findMany({
+            where: {
+              id: { in: data.accessoryIds },
+              companyId: data.companyId,
+              isActive: true,
+            },
+          });
+
+          if (accessories.length !== data.accessoryIds.length) {
+            throw new AppError(404, 'One or more accessories not found or inactive');
+          }
+        }
+
         // Verify branch exists
         const branch = await tx.branch.findUnique({
           where: { id: data.branchId },
