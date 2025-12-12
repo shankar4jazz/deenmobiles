@@ -19,8 +19,9 @@ export function PatternLockInput({
   onChange,
   disabled = false,
   error,
-  label = 'Pattern Lock',
-}: PatternLockInputProps) {
+  label,
+  showPattern = false,
+}: PatternLockInputProps & { showPattern?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [tempPattern, setTempPattern] = useState<number[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -123,7 +124,7 @@ export function PatternLockInput({
   const currentPattern = parsePattern(value);
 
   return (
-    <div className="space-y-2">
+    <div className={label ? 'space-y-1' : ''}>
       {label && (
         <label className="block text-sm font-medium text-gray-700">
           {label}
@@ -131,13 +132,13 @@ export function PatternLockInput({
       )}
 
       {/* Collapsed view - show button or pattern sequence */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={handleOpen}
           disabled={disabled}
           className={`
-            inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border
+            inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border
             ${disabled
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
               : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
@@ -145,29 +146,29 @@ export function PatternLockInput({
           `}
         >
           <Grid3X3 className="h-4 w-4" />
-          {currentPattern.length > 0 ? 'Edit Pattern' : 'Draw Pattern'}
+          {currentPattern.length > 0 ? 'Edit' : 'Draw'}
         </button>
 
         {currentPattern.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-md border border-blue-200">
-              {currentPattern.join(' → ')}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <span className="font-mono text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200 truncate">
+              {currentPattern.join('→')}
             </span>
             <button
               type="button"
               onClick={() => onChange('')}
               disabled={disabled}
-              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded disabled:opacity-50"
+              className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded flex-shrink-0 disabled:opacity-50"
               title="Clear pattern"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
         )}
       </div>
 
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-xs text-red-500 mt-1">{error}</p>
       )}
 
       {/* Modal */}

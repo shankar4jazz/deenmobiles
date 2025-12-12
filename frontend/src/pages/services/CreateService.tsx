@@ -254,10 +254,10 @@ export default function CreateService() {
       </div>
 
       {/* Form Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
           {/* Row 1: Customer, Device, Service Category */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
             <FormRow label="Customer" required error={errors.customerId?.message}>
               <SearchableCustomerSelectWithAdd
                 value={customerId}
@@ -291,7 +291,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 2: Device Condition, Issue, Issue Description */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
             <FormRow label="Device Condition">
               <SearchableDeviceConditionSelect
                 value={watch('deviceConditionId') || ''}
@@ -335,7 +335,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 3: Device Password, Pattern Lock, Accessories */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
             <FormRow label="Password/PIN">
               <Controller
                 control={control}
@@ -385,7 +385,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 4: Intake Notes */}
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-x-3 gap-y-2">
             <FormRow label="Intake Notes">
               <Controller
                 control={control}
@@ -403,7 +403,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 5: Estimated Cost, Advance Payment, Payment Method */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
             <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
               <Controller
                 control={control}
@@ -475,7 +475,7 @@ export default function CreateService() {
           </div>
 
           {/* Row 6: Device Photos & Payment Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
             <div className="md:col-span-2">
               <FormRow label="Device Photos">
                 <MultiImageUpload
@@ -515,7 +515,7 @@ export default function CreateService() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200">
             <button
               type="button"
               onClick={() => navigate(-1)}

@@ -15,11 +15,11 @@ export const FormRow: React.FC<FormRowProps> = ({
   children,
   className = '',
 }) => (
-  <div className={`space-y-1 ${className}`}>
-    <label className="block text-sm font-medium text-gray-700">
+  <div className={className}>
+    <label className="block text-xs font-medium text-gray-700 mb-1">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
     {children}
-    {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
   </div>
 );
