@@ -97,12 +97,12 @@ export default function AddCustomerModal({
     mutationFn: customerApi.createCustomer,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      resetForm();
       if (onSuccess) {
         onSuccess(data);
+      } else {
+        onClose();
       }
-      onClose();
-      resetForm();
-      alert('Customer created successfully');
     },
     onError: (error: any) => {
       const responseData = error.response?.data;

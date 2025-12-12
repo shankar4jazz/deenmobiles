@@ -181,6 +181,9 @@ export default function CreateService() {
     setValue('customerId', customer.id);
     setSelectedCustomer(customer);
     setShowAddCustomerModal(false);
+    // Invalidate customer queries so the new customer appears in the dropdown
+    queryClient.invalidateQueries({ queryKey: ['customers-recent'] });
+    queryClient.invalidateQueries({ queryKey: ['customers-search'] });
     toast.success('Customer created and selected');
   };
 
@@ -265,6 +268,7 @@ export default function CreateService() {
                 onAddNew={handleAddCustomer}
                 error={errors.customerId?.message}
                 placeholder="Search customer..."
+                selectedCustomerOverride={selectedCustomer}
               />
             </FormRow>
 

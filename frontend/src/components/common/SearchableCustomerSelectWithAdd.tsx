@@ -23,7 +23,8 @@ export function SearchableCustomerSelectWithAdd({
   error,
   placeholder = 'Select customer...',
   className = '',
-}: SearchableCustomerSelectWithAddProps) {
+  selectedCustomerOverride,
+}: SearchableCustomerSelectWithAddProps & { selectedCustomerOverride?: Customer | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,7 +58,10 @@ export function SearchableCustomerSelectWithAdd({
     ? (searchResults?.customers || [])
     : (recentCustomers?.customers || []);
   const isLoading = searchTerm.length >= 2 ? isLoadingSearch : isLoadingRecent;
-  const selectedCustomer = recentCustomers?.customers?.find((c) => c.id === value)
+
+  // Use override if provided (for newly created customers), otherwise find in fetched data
+  const selectedCustomer = selectedCustomerOverride
+    || recentCustomers?.customers?.find((c) => c.id === value)
     || searchResults?.customers?.find((c) => c.id === value);
 
   const isPhoneSearch = /^\d+$/.test(searchTerm);
