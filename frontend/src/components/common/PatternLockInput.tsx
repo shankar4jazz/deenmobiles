@@ -257,11 +257,9 @@ export function PatternLockInput({
                               `}
                               style={{ width: dotSize, height: dotSize }}
                             >
-                              {isSelected && (
-                                <span className="absolute inset-0 flex items-center justify-center text-white text-sm font-bold">
-                                  {selectionOrder}
-                                </span>
-                              )}
+                              <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${isSelected ? 'text-white' : 'text-gray-600'}`}>
+                                {index + 1}
+                              </span>
                             </div>
                           </div>
                         );
