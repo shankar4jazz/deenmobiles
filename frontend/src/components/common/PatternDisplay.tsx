@@ -58,7 +58,6 @@ export function PatternDisplay({ pattern, size = 60 }: PatternDisplayProps) {
       <div className="grid grid-cols-3 gap-0 h-full">
         {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
           const isSelected = patternDots.includes(index);
-          const selectionOrder = patternDots.indexOf(index) + 1;
 
           return (
             <div key={index} className="flex items-center justify-center">
@@ -69,14 +68,12 @@ export function PatternDisplay({ pattern, size = 60 }: PatternDisplayProps) {
                 `}
                 style={{ width: dotSize, height: dotSize }}
               >
-                {isSelected && (
-                  <span
-                    className="absolute inset-0 flex items-center justify-center text-white font-bold"
-                    style={{ fontSize: dotSize * 0.6 }}
-                  >
-                    {selectionOrder}
-                  </span>
-                )}
+                <span
+                  className={`absolute inset-0 flex items-center justify-center font-bold ${isSelected ? 'text-white' : 'text-gray-600'}`}
+                  style={{ fontSize: dotSize * 0.6 }}
+                >
+                  {index + 1}
+                </span>
               </div>
             </div>
           );
