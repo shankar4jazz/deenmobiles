@@ -81,8 +81,8 @@ interface UpdateModelData {
   isActive?: boolean;
 }
 
-// ==================== Service Category Interfaces ====================
-interface CreateServiceCategoryData {
+// ==================== Fault Interfaces ====================
+interface CreateFaultData {
   name: string;
   code?: string;
   description?: string;
@@ -91,7 +91,7 @@ interface CreateServiceCategoryData {
   companyId: string;
 }
 
-interface UpdateServiceCategoryData {
+interface UpdateFaultData {
   name?: string;
   code?: string;
   description?: string;
@@ -1267,7 +1267,7 @@ export class MasterDataService {
   /**
    * Get all service categories
    */
-  static async getAllServiceCategories(filters: MasterDataFilters) {
+  static async getAllFaults(filters: MasterDataFilters) {
     try {
       const {
         companyId,
@@ -1295,18 +1295,18 @@ export class MasterDataService {
         ];
       }
 
-      const [serviceCategories, total] = await Promise.all([
-        prisma.serviceCategory.findMany({
+      const [faults, total] = await Promise.all([
+        prisma.fault.findMany({
           where,
           skip,
           take: limit,
           orderBy: { name: 'asc' },
         }),
-        prisma.serviceCategory.count({ where }),
+        prisma.fault.count({ where }),
       ]);
 
       return {
-        data: serviceCategories,
+        data: faults,
         pagination: {
           page,
           limit,
@@ -1315,36 +1315,36 @@ export class MasterDataService {
         },
       };
     } catch (error) {
-      Logger.error('Error fetching service categories', { error, filters });
-      throw new AppError(500, 'Failed to fetch service categories');
+      Logger.error('Error fetching faults', { error, filters });
+      throw new AppError(500, 'Failed to fetch faults');
     }
   }
 
   /**
-   * Get a single service category by ID
+   * Get a single fault by ID
    */
-  static async getServiceCategoryById(id: string, companyId: string) {
+  static async getFaultById(id: string, companyId: string) {
     try {
-      const serviceCategory = await prisma.serviceCategory.findFirst({
+      const fault = await prisma.fault.findFirst({
         where: { id, companyId },
       });
 
-      if (!serviceCategory) {
-        throw new AppError(404, 'Service category not found');
+      if (!fault) {
+        throw new AppError(404, 'Fault not found');
       }
 
-      return serviceCategory;
+      return fault;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error fetching service category', { error, id, companyId });
-      throw new AppError(500, 'Failed to fetch service category');
+      Logger.error('Error fetching fault', { error, id, companyId });
+      throw new AppError(500, 'Failed to fetch fault');
     }
   }
 
   /**
-   * Create a new service category
+   * Create a new fault
    */
-  static async createServiceCategory(data: CreateServiceCategoryData) {
+  static async createFault(data: CreateFaultData) {
     try {
       // Validate defaultPrice if provided
       if (data.defaultPrice !== undefined && data.defaultPrice < 0) {
@@ -1358,7 +1358,7 @@ export class MasterDataService {
 
       // Check if code already exists for this company (only if code is provided)
       if (data.code) {
-        const existing = await prisma.serviceCategory.findFirst({
+        const existing = await prisma.fault.findFirst({
           where: {
             code: {
               equals: data.code,
@@ -1369,11 +1369,11 @@ export class MasterDataService {
         });
 
         if (existing) {
-          throw new AppError(400, 'Service category code already exists');
+          throw new AppError(400, 'Fault code already exists');
         }
       }
 
-      const serviceCategory = await prisma.serviceCategory.create({
+      const fault = await prisma.fault.create({
         data: {
           name: data.name,
           code: data.code ? data.code.toUpperCase() : undefined,
@@ -1384,19 +1384,19 @@ export class MasterDataService {
         },
       });
 
-      Logger.info('Service category created', { serviceCategoryId: serviceCategory.id, name: serviceCategory.name });
-      return serviceCategory;
+      Logger.info('Fault created', { faultId: fault.id, name: fault.name });
+      return fault;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error creating service category', { error, data });
-      throw new AppError(500, 'Failed to create service category');
+      Logger.error('Error creating fault', { error, data });
+      throw new AppError(500, 'Failed to create fault');
     }
   }
 
   /**
-   * Update a service category
+   * Update a fault
    */
-  static async updateServiceCategory(id: string, companyId: string, data: UpdateServiceCategoryData) {
+  static async updateFault(id: string, companyId: string, data: UpdateFaultData) {
     try {
       // Validate defaultPrice if provided
       if (data.defaultPrice !== undefined && data.defaultPrice < 0) {
@@ -1408,18 +1408,18 @@ export class MasterDataService {
         throw new AppError(400, 'Technician points must be greater than or equal to 0');
       }
 
-      // Check if service category exists
-      const existing = await prisma.serviceCategory.findFirst({
+      // Check if fault exists
+      const existing = await prisma.fault.findFirst({
         where: { id, companyId },
       });
 
       if (!existing) {
-        throw new AppError(404, 'Service category not found');
+        throw new AppError(404, 'Fault not found');
       }
 
       // If updating code, check for duplicates (case-insensitive)
       if (data.code && data.code.toUpperCase() !== existing.code?.toUpperCase()) {
-        const duplicate = await prisma.serviceCategory.findFirst({
+        const duplicate = await prisma.fault.findFirst({
           where: {
             code: {
               equals: data.code,
@@ -1431,11 +1431,11 @@ export class MasterDataService {
         });
 
         if (duplicate) {
-          throw new AppError(400, 'Service category code already exists');
+          throw new AppError(400, 'Fault code already exists');
         }
       }
 
-      const serviceCategory = await prisma.serviceCategory.update({
+      const fault = await prisma.fault.update({
         where: { id },
         data: {
           ...(data.name && { name: data.name }),
@@ -1447,40 +1447,40 @@ export class MasterDataService {
         },
       });
 
-      Logger.info('Service category updated', { serviceCategoryId: id });
-      return serviceCategory;
+      Logger.info('Fault updated', { faultId: id });
+      return fault;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error updating service category', { error, id, data });
-      throw new AppError(500, 'Failed to update service category');
+      Logger.error('Error updating fault', { error, id, data });
+      throw new AppError(500, 'Failed to update fault');
     }
   }
 
   /**
-   * Deactivate a service category (soft delete)
+   * Deactivate a fault (soft delete)
    */
-  static async deactivateServiceCategory(id: string, companyId: string) {
+  static async deactivateFault(id: string, companyId: string) {
     try {
-      // Check if service category exists
-      const existing = await prisma.serviceCategory.findFirst({
+      // Check if fault exists
+      const existing = await prisma.fault.findFirst({
         where: { id, companyId },
       });
 
       if (!existing) {
-        throw new AppError(404, 'Service category not found');
+        throw new AppError(404, 'Fault not found');
       }
 
-      const serviceCategory = await prisma.serviceCategory.update({
+      const fault = await prisma.fault.update({
         where: { id },
         data: { isActive: false },
       });
 
-      Logger.info('Service category deactivated', { serviceCategoryId: id });
-      return serviceCategory;
+      Logger.info('Fault deactivated', { faultId: id });
+      return fault;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error deactivating service category', { error, id });
-      throw new AppError(500, 'Failed to deactivate service category');
+      Logger.error('Error deactivating fault', { error, id });
+      throw new AppError(500, 'Failed to deactivate fault');
     }
   }
 

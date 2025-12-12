@@ -17,11 +17,13 @@ export const createServiceValidation: ValidationChain[] = [
     .isUUID()
     .withMessage('Invalid customer device ID format'),
 
-  body('serviceCategoryId')
-    .optional()
-    .trim()
+  body('faultIds')
+    .isArray({ min: 1 })
+    .withMessage('At least one fault is required'),
+
+  body('faultIds.*')
     .isUUID()
-    .withMessage('Invalid service category ID format'),
+    .withMessage('Invalid fault ID format'),
 
   body('deviceModel')
     .optional()

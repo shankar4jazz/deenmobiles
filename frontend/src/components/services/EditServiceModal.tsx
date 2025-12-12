@@ -7,12 +7,12 @@ import { toast } from 'sonner';
 import { serviceApi, UpdateServiceData } from '@/services/serviceApi';
 import { X, Loader2 } from 'lucide-react';
 import { CustomerDevice, Customer } from '@/types';
-import { ServiceCategory, Accessory } from '@/types/masters';
+import { Fault, Accessory } from '@/types/masters';
 
 // Components
 import { FormRow } from '@/components/common/FormRow';
 import { SearchableDeviceSelect } from '@/components/common/SearchableDeviceSelect';
-import { SearchableServiceCategorySelect } from '@/components/common/SearchableServiceCategorySelect';
+import { FaultTagInput } from '@/components/common/FaultTagInput';
 import { SearchableDeviceConditionSelect } from '@/components/common/SearchableDeviceConditionSelect';
 import { PatternLockInput } from '@/components/common/PatternLockInput';
 import { AccessoryTagInput } from '@/components/common/AccessoryTagInput';
@@ -20,7 +20,7 @@ import { AccessoryTagInput } from '@/components/common/AccessoryTagInput';
 // Validation schema
 const editServiceSchema = z.object({
   customerDeviceId: z.string().min(1, 'Please select a device'),
-  serviceCategoryId: z.string().min(1, 'Please select a service category'),
+  faultIds: z.array(z.string()).min(1, 'Please select at least one fault'),
   deviceConditionId: z.string().optional(),
   devicePassword: z.string().optional(),
   devicePattern: z.string().optional(),
@@ -48,7 +48,7 @@ export default function EditServiceModal({
 }: EditServiceModalProps) {
   const queryClient = useQueryClient();
   const [selectedDevice, setSelectedDevice] = useState<CustomerDevice | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<ServiceCategory | null>(null);
+  const [selectedFaults, setSelectedFaults] = useState<Fault[]>([]);
   const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
 
   // Fetch service details
@@ -69,7 +69,7 @@ export default function EditServiceModal({
     resolver: zodResolver(editServiceSchema),
     defaultValues: {
       customerDeviceId: '',
-      serviceCategoryId: '',
+      faultIds: [],
       deviceConditionId: '',
       devicePassword: '',
       devicePattern: '',
@@ -88,7 +88,7 @@ export default function EditServiceModal({
     if (service) {
       reset({
         customerDeviceId: service.customerDeviceId || '',
-        serviceCategoryId: service.serviceCategoryId || '',
+        faultIds: service.faults?.map((f) => f.faultId) || [],
         deviceConditionId: service.conditionId || '',
         devicePassword: service.devicePassword || '',
         devicePattern: service.devicePattern || '',
@@ -100,6 +100,11 @@ export default function EditServiceModal({
         actualCost: service.actualCost || 0,
         advancePayment: service.advancePayment || 0,
       });
+
+      // Set selected faults for display
+      if (service.faults) {
+        setSelectedFaults(service.faults.map((f) => f.fault as Fault));
+      }
 
       // Set selected accessories for display
       if (service.accessories) {
@@ -127,9 +132,13 @@ export default function EditServiceModal({
     setSelectedDevice(device || null);
   };
 
-  const handleCategoryChange = (id: string, category?: ServiceCategory) => {
-    setValue('serviceCategoryId', id);
-    setSelectedCategory(category || null);
+  const handleFaultsChange = (ids: string[], faults: Fault[], totalPrice: number) => {
+    setValue('faultIds', ids);
+    setSelectedFaults(faults);
+    // Auto-fill estimated cost from sum of fault prices
+    if (totalPrice > 0) {
+      setValue('estimatedCost', totalPrice);
+    }
   };
 
   const handleConditionChange = (id: string) => {
@@ -139,7 +148,7 @@ export default function EditServiceModal({
   const onSubmit = async (data: EditServiceFormData) => {
     const submitData: UpdateServiceData = {
       customerDeviceId: data.customerDeviceId,
-      serviceCategoryId: data.serviceCategoryId,
+      faultIds: data.faultIds,
       issue: data.issue,
       diagnosis: data.diagnosis || undefined,
       estimatedCost: data.estimatedCost || 0,
@@ -220,12 +229,18 @@ export default function EditServiceModal({
                     />
                   </FormRow>
 
-                  <FormRow label="Service Category" required error={errors.serviceCategoryId?.message}>
-                    <SearchableServiceCategorySelect
-                      value={watch('serviceCategoryId')}
-                      onChange={handleCategoryChange}
-                      error={errors.serviceCategoryId?.message}
-                      placeholder="Select category..."
+                  <FormRow label="Fault(s)" required error={errors.faultIds?.message}>
+                    <Controller
+                      control={control}
+                      name="faultIds"
+                      render={({ field }) => (
+                        <FaultTagInput
+                          value={field.value}
+                          onChange={handleFaultsChange}
+                          error={errors.faultIds?.message}
+                          placeholder="Select faults..."
+                        />
+                      )}
                     />
                   </FormRow>
                 </div>

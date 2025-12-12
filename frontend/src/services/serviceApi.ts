@@ -6,7 +6,6 @@ export interface Service {
   ticketNumber: string;
   customerId: string;
   customerDeviceId?: string;
-  serviceCategoryId?: string;
   deviceModel: string;
   deviceIMEI?: string;
   devicePassword?: string;
@@ -58,6 +57,16 @@ export interface Service {
     accessory: {
       id: string;
       name: string;
+    };
+  }[];
+  faults?: {
+    id: string;
+    faultId: string;
+    fault: {
+      id: string;
+      name: string;
+      code?: string;
+      defaultPrice: number;
     };
   }[];
   images?: ServiceImage[];
@@ -204,7 +213,7 @@ export interface ServiceNote {
 export interface CreateServiceData {
   customerId: string;
   customerDeviceId: string;
-  serviceCategoryId: string;
+  faultIds: string[];
   issue: string;
   issueIds?: string[];
   diagnosis?: string;
@@ -223,7 +232,7 @@ export interface CreateServiceData {
 
 export interface UpdateServiceData {
   customerDeviceId?: string;
-  serviceCategoryId?: string;
+  faultIds?: string[];
   issue?: string;
   diagnosis?: string;
   estimatedCost?: number;

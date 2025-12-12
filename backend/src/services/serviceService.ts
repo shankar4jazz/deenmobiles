@@ -21,7 +21,7 @@ interface PaymentEntryData {
 interface CreateServiceData {
   customerId: string;
   customerDeviceId: string;
-  serviceCategoryId: string;
+  faultIds: string[];
   issue: string;
   issueIds?: string[];
   diagnosis?: string;
@@ -41,7 +41,7 @@ interface CreateServiceData {
 
 interface UpdateServiceData {
   customerDeviceId?: string;
-  serviceCategoryId?: string;
+  faultIds?: string[];
   issue?: string;
   diagnosis?: string;
   estimatedCost?: number;
@@ -169,17 +169,21 @@ export class ServiceService {
           throw new AppError(404, 'Customer device not found or does not belong to this customer');
         }
 
-        // Verify service category exists
-        const serviceCategory = await tx.serviceCategory.findFirst({
+        // Verify faults exist
+        if (!data.faultIds || data.faultIds.length === 0) {
+          throw new AppError(400, 'At least one fault is required');
+        }
+
+        const faults = await tx.fault.findMany({
           where: {
-            id: data.serviceCategoryId,
+            id: { in: data.faultIds },
             companyId: data.companyId,
             isActive: true,
           },
         });
 
-        if (!serviceCategory) {
-          throw new AppError(404, 'Service category not found or inactive');
+        if (faults.length !== data.faultIds.length) {
+          throw new AppError(404, 'One or more faults not found or inactive');
         }
 
         // Verify branch exists
@@ -220,7 +224,6 @@ export class ServiceService {
             ticketNumber,
             customerId: data.customerId,
             customerDeviceId: data.customerDeviceId,
-            serviceCategoryId: data.serviceCategoryId,
             deviceModel: `${customerDevice.brand.name} ${customerDevice.model.name}`,
             deviceIMEI: customerDevice.imei,
             devicePassword: data.devicePassword,
@@ -235,6 +238,12 @@ export class ServiceService {
             status: ServiceStatus.PENDING,
             branchId: data.branchId,
             companyId: data.companyId,
+            // Create fault connections
+            faults: {
+              create: data.faultIds.map((faultId) => ({
+                faultId,
+              })),
+            },
           },
           include: {
             customer: {
@@ -251,11 +260,16 @@ export class ServiceService {
                 model: { select: { id: true, name: true, code: true } },
               },
             },
-            serviceCategory: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
+            faults: {
+              include: {
+                fault: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    defaultPrice: true,
+                  },
+                },
               },
             },
             branch: {
@@ -331,7 +345,7 @@ export class ServiceService {
               customerName: customer.name,
               deviceBrand: customerDevice.brand.name,
               deviceModel: customerDevice.model.name,
-              serviceCategory: serviceCategory.name,
+              faults: faults.map(f => f.name).join(', '),
               estimatedCost: data.estimatedCost,
               advancePayment: totalAdvancePayment,
               paymentEntriesCount: data.paymentEntries?.length || 0,

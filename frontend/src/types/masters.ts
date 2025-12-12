@@ -143,8 +143,8 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-// Service Category
-export interface ServiceCategory extends MasterDataBase {
+// Fault
+export interface Fault extends MasterDataBase {
   name: string;
   code?: string;
   description?: string;
@@ -152,7 +152,7 @@ export interface ServiceCategory extends MasterDataBase {
   technicianPoints: number;
 }
 
-export interface CreateServiceCategoryDto {
+export interface CreateFaultDto {
   name: string;
   code?: string;
   description?: string;
@@ -160,7 +160,7 @@ export interface CreateServiceCategoryDto {
   technicianPoints?: number;
 }
 
-export interface UpdateServiceCategoryDto {
+export interface UpdateFaultDto {
   name?: string;
   code?: string;
   description?: string;

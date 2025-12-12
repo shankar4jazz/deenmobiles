@@ -35,7 +35,7 @@ model Company {
   itemGSTRates        ItemGSTRate[]
   itemBrands          ItemBrand[]
   itemModels          ItemModel[]
-  serviceCategories   ServiceCategory[]
+  faults              Fault[]
   deviceConditions    DeviceCondition[]
   customerDevices     CustomerDevice[]
   items               Item[]
@@ -254,7 +254,6 @@ model Service {
   ticketNumber      String                 @unique
   customerId        String
   customerDeviceId  String?
-  serviceCategoryId String?
   deviceModel       String
   deviceIMEI        String?
   devicePassword    String?
@@ -288,19 +287,18 @@ model Service {
   company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer          Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
   customerDevice    CustomerDevice?        @relation(fields: [customerDeviceId], references: [id], onDelete: SetNull)
-  serviceCategory   ServiceCategory?       @relation(fields: [serviceCategoryId], references: [id], onDelete: SetNull)
   condition         DeviceCondition?       @relation(fields: [conditionId], references: [id], onDelete: SetNull)
   paymentEntries    PaymentEntry[]         @relation("ServicePaymentEntries")
   serviceIssues     ServiceIssueOnService[]
   accessories       ServiceAccessory[]
   pointsHistory     TechnicianPointsHistory[]
   notes             ServiceNote[]
+  faults            FaultOnService[]
 
   @@index([companyId])
   @@index([branchId])
   @@index([customerId])
   @@index([assignedToId])
-  @@index([serviceCategoryId])
   @@index([conditionId])
   @@index([ticketNumber])
   @@index([status])
@@ -894,25 +892,40 @@ model ItemModel {
   @@map("item_models")
 }
 
-model ServiceCategory {
-  id               String    @id @default(uuid())
+model Fault {
+  id               String           @id @default(uuid())
   name             String
   code             String?
   description      String?
-  defaultPrice     Decimal   @default(0) @db.Decimal(10, 2)
-  technicianPoints Int       @default(0)
-  isActive         Boolean   @default(true)
+  defaultPrice     Decimal          @default(0) @db.Decimal(10, 2)
+  technicianPoints Int              @default(0)
+  isActive         Boolean          @default(true)
   companyId        String
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  services         Service[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  services         FaultOnService[]
   technicianSkills TechnicianSkill[]
 
   @@unique([name, companyId])
   @@index([companyId])
   @@index([isActive])
-  @@map("service_categories")
+  @@map("faults")
+}
+
+// Junction table for Service and Fault (many-to-many)
+model FaultOnService {
+  id        String   @id @default(uuid())
+  serviceId String
+  faultId   String
+  createdAt DateTime @default(now())
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  fault     Fault    @relation(fields: [faultId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, faultId])
+  @@index([serviceId])
+  @@index([faultId])
+  @@map("fault_on_services")
 }
 
 model ServiceIssue {
@@ -1748,8 +1761,8 @@ model TechnicianSkill {
   technicianProfileId String
   technicianProfile   TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
 
-  serviceCategoryId String
-  serviceCategory   ServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+  faultId String
+  fault   Fault @relation(fields: [faultId], references: [id], onDelete: Cascade)
 
   proficiencyLevel Int      @default(1) // 1-5 skill level
   isVerified       Boolean  @default(false)
@@ -1758,8 +1771,8 @@ model TechnicianSkill {
 
   createdAt DateTime @default(now())
 
-  @@unique([technicianProfileId, serviceCategoryId])
-  @@index([serviceCategoryId])
+  @@unique([technicianProfileId, faultId])
+  @@index([faultId])
   @@map("technician_skills")
 }
 

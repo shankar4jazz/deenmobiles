@@ -281,56 +281,56 @@ router.delete(
   MasterDataController.deactivateModel
 );
 
-// ==================== SERVICE CATEGORY ROUTES ====================
+// ==================== FAULT ROUTES ====================
 
 /**
- * @route   GET /api/v1/master-data/service-categories
- * @desc    Get all service categories
+ * @route   GET /api/v1/master-data/faults
+ * @desc    Get all faults
  * @access  Private (Admin, Branch Admin, Manager)
  */
-router.get('/service-categories', authorize(...authorizedRoles), MasterDataController.getAllServiceCategories);
+router.get('/faults', authorize(...authorizedRoles), MasterDataController.getAllFaults);
 
 /**
- * @route   GET /api/v1/master-data/service-categories/:id
- * @desc    Get service category by ID
+ * @route   GET /api/v1/master-data/faults/:id
+ * @desc    Get fault by ID
  * @access  Private (Admin, Branch Admin, Manager)
  */
 router.get(
-  '/service-categories/:id',
+  '/faults/:id',
   authorize(...authorizedRoles),
   validate(idValidation),
-  MasterDataController.getServiceCategoryById
+  MasterDataController.getFaultById
 );
 
 /**
- * @route   POST /api/v1/master-data/service-categories
- * @desc    Create a new service category
+ * @route   POST /api/v1/master-data/faults
+ * @desc    Create a new fault
  * @access  Private (Admin, Branch Admin, Manager)
  */
-router.post('/service-categories', authorize(...authorizedRoles), MasterDataController.createServiceCategory);
+router.post('/faults', authorize(...authorizedRoles), MasterDataController.createFault);
 
 /**
- * @route   PUT /api/v1/master-data/service-categories/:id
- * @desc    Update service category
+ * @route   PUT /api/v1/master-data/faults/:id
+ * @desc    Update fault
  * @access  Private (Admin, Branch Admin, Manager)
  */
 router.put(
-  '/service-categories/:id',
+  '/faults/:id',
   authorize(...authorizedRoles),
   validate(idValidation),
-  MasterDataController.updateServiceCategory
+  MasterDataController.updateFault
 );
 
 /**
- * @route   DELETE /api/v1/master-data/service-categories/:id
- * @desc    Deactivate service category (soft delete)
+ * @route   DELETE /api/v1/master-data/faults/:id
+ * @desc    Deactivate fault (soft delete)
  * @access  Private (Admin, Branch Admin, Manager)
  */
 router.delete(
-  '/service-categories/:id',
+  '/faults/:id',
   authorize(...authorizedRoles),
   validate(idValidation),
-  MasterDataController.deactivateServiceCategory
+  MasterDataController.deactivateFault
 );
 
 // ==================== PAYMENT METHOD ROUTES ====================

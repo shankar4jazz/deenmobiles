@@ -5,7 +5,7 @@ import {
   ItemGSTRate,
   ItemBrand,
   ItemModel,
-  ServiceCategory,
+  Fault,
   PaymentMethod,
   ExpenseCategory,
   DeviceCondition,
@@ -16,7 +16,7 @@ import {
   CreateItemGSTRateDto,
   CreateItemBrandDto,
   CreateItemModelDto,
-  CreateServiceCategoryDto,
+  CreateFaultDto,
   CreatePaymentMethodDto,
   CreateExpenseCategoryDto,
   CreateDeviceConditionDto,
@@ -27,7 +27,7 @@ import {
   UpdateItemGSTRateDto,
   UpdateItemBrandDto,
   UpdateItemModelDto,
-  UpdateServiceCategoryDto,
+  UpdateFaultDto,
   UpdatePaymentMethodDto,
   UpdateExpenseCategoryDto,
   UpdateDeviceConditionDto,
@@ -298,12 +298,12 @@ export const modelApi = {
   },
 };
 
-// ==================== SERVICE CATEGORY API ====================
-export const serviceCategoryApi = {
+// ==================== FAULT API ====================
+export const faultApi = {
   /**
-   * Get all service categories
+   * Get all faults
    */
-  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<ServiceCategory>> => {
+  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<Fault>> => {
     const params = new URLSearchParams();
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
@@ -311,39 +311,39 @@ export const serviceCategoryApi = {
     if (filters?.isActive !== undefined)
       params.append('isActive', filters.isActive.toString());
 
-    const response = await api.get(`/master-data/service-categories?${params.toString()}`);
+    const response = await api.get(`/master-data/faults?${params.toString()}`);
     return response.data.data;
   },
 
   /**
-   * Get service category by ID
+   * Get fault by ID
    */
-  getById: async (id: string): Promise<ServiceCategory> => {
-    const response = await api.get(`/master-data/service-categories/${id}`);
+  getById: async (id: string): Promise<Fault> => {
+    const response = await api.get(`/master-data/faults/${id}`);
     return response.data.data;
   },
 
   /**
-   * Create a new service category
+   * Create a new fault
    */
-  create: async (data: CreateServiceCategoryDto): Promise<ServiceCategory> => {
-    const response = await api.post('/master-data/service-categories', data);
+  create: async (data: CreateFaultDto): Promise<Fault> => {
+    const response = await api.post('/master-data/faults', data);
     return response.data.data;
   },
 
   /**
-   * Update a service category
+   * Update a fault
    */
-  update: async (id: string, data: UpdateServiceCategoryDto): Promise<ServiceCategory> => {
-    const response = await api.put(`/master-data/service-categories/${id}`, data);
+  update: async (id: string, data: UpdateFaultDto): Promise<Fault> => {
+    const response = await api.put(`/master-data/faults/${id}`, data);
     return response.data.data;
   },
 
   /**
-   * Deactivate a service category
+   * Deactivate a fault
    */
-  deactivate: async (id: string): Promise<ServiceCategory> => {
-    const response = await api.delete(`/master-data/service-categories/${id}`);
+  deactivate: async (id: string): Promise<Fault> => {
+    const response = await api.delete(`/master-data/faults/${id}`);
     return response.data.data;
   },
 };
@@ -605,7 +605,7 @@ export const masterDataApi = {
   gstRates: gstRateApi,
   brands: brandApi,
   models: modelApi,
-  serviceCategories: serviceCategoryApi,
+  faults: faultApi,
   paymentMethods: paymentMethodApi,
   expenseCategories: expenseCategoryApi,
   deviceConditions: deviceConditionApi,
@@ -617,7 +617,7 @@ export const masterDataApi = {
   getAllGSTRates: gstRateApi.getAll,
   getAllBrands: brandApi.getAll,
   getAllModels: modelApi.getAll,
-  getAllServiceCategories: serviceCategoryApi.getAll,
+  getAllFaults: faultApi.getAll,
   getAllPaymentMethods: paymentMethodApi.getAll,
   getAllExpenseCategories: expenseCategoryApi.getAll,
   getAllDeviceConditions: deviceConditionApi.getAll,

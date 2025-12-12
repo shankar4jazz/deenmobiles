@@ -423,13 +423,13 @@ export class MasterDataController {
     return ApiResponse.success(res, model, 'Model deactivated successfully');
   });
 
-  // ==================== SERVICE CATEGORY ENDPOINTS ====================
+  // ==================== FAULT ENDPOINTS ====================
 
   /**
-   * GET /api/v1/master-data/service-categories
-   * Get all service categories
+   * GET /api/v1/master-data/faults
+   * Get all faults
    */
-  static getAllServiceCategories = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static getAllFaults = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 100;
@@ -442,33 +442,33 @@ export class MasterDataController {
       limit,
     };
 
-    const result = await MasterDataService.getAllServiceCategories(filters);
+    const result = await MasterDataService.getAllFaults(filters);
 
-    return ApiResponse.success(res, result, 'Service categories retrieved successfully');
+    return ApiResponse.success(res, result, 'Faults retrieved successfully');
   });
 
   /**
-   * GET /api/v1/master-data/service-categories/:id
-   * Get service category by ID
+   * GET /api/v1/master-data/faults/:id
+   * Get fault by ID
    */
-  static getServiceCategoryById = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static getFaultById = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const companyId = req.user!.companyId;
 
-    const serviceCategory = await MasterDataService.getServiceCategoryById(id, companyId);
+    const fault = await MasterDataService.getFaultById(id, companyId);
 
-    return ApiResponse.success(res, serviceCategory, 'Service category retrieved successfully');
+    return ApiResponse.success(res, fault, 'Fault retrieved successfully');
   });
 
   /**
-   * POST /api/v1/master-data/service-categories
-   * Create a new service category
+   * POST /api/v1/master-data/faults
+   * Create a new fault
    */
-  static createServiceCategory = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static createFault = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { name, code, description, defaultPrice, technicianPoints } = req.body;
     const companyId = req.user!.companyId;
 
-    const serviceCategory = await MasterDataService.createServiceCategory({
+    const fault = await MasterDataService.createFault({
       name,
       code,
       description,
@@ -477,14 +477,14 @@ export class MasterDataController {
       companyId,
     });
 
-    return ApiResponse.created(res, serviceCategory, 'Service category created successfully');
+    return ApiResponse.created(res, fault, 'Fault created successfully');
   });
 
   /**
-   * PUT /api/v1/master-data/service-categories/:id
-   * Update service category
+   * PUT /api/v1/master-data/faults/:id
+   * Update fault
    */
-  static updateServiceCategory = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static updateFault = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const companyId = req.user!.companyId;
     const updateData = req.body;
@@ -497,22 +497,22 @@ export class MasterDataController {
       updateData.technicianPoints = parseInt(updateData.technicianPoints);
     }
 
-    const serviceCategory = await MasterDataService.updateServiceCategory(id, companyId, updateData);
+    const fault = await MasterDataService.updateFault(id, companyId, updateData);
 
-    return ApiResponse.success(res, serviceCategory, 'Service category updated successfully');
+    return ApiResponse.success(res, fault, 'Fault updated successfully');
   });
 
   /**
-   * DELETE /api/v1/master-data/service-categories/:id
-   * Deactivate service category (soft delete)
+   * DELETE /api/v1/master-data/faults/:id
+   * Deactivate fault (soft delete)
    */
-  static deactivateServiceCategory = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static deactivateFault = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const companyId = req.user!.companyId;
 
-    const serviceCategory = await MasterDataService.deactivateServiceCategory(id, companyId);
+    const fault = await MasterDataService.deactivateFault(id, companyId);
 
-    return ApiResponse.success(res, serviceCategory, 'Service category deactivated successfully');
+    return ApiResponse.success(res, fault, 'Fault deactivated successfully');
   });
 
   // ==================== PAYMENT METHOD ENDPOINTS ====================

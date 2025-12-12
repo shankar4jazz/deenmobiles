@@ -9,7 +9,7 @@ import {
   ItemGSTRate,
   ItemBrand,
   ItemModel,
-  ServiceCategory,
+  Fault,
   PaymentMethod,
   ExpenseCategory,
   ServiceIssue,
@@ -19,14 +19,14 @@ import {
   CreateItemGSTRateDto,
   CreateItemBrandDto,
   CreateItemModelDto,
-  CreateServiceCategoryDto,
+  CreateFaultDto,
   CreatePaymentMethodDto,
   CreateExpenseCategoryDto,
   CreateServiceIssueDto,
   CreateAccessoryDto,
 } from '../../types/masters';
 
-type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'service-category' | 'payment-method' | 'expense-category' | 'service-issue' | 'accessory';
+type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'fault' | 'payment-method' | 'expense-category' | 'service-issue' | 'accessory';
 
 export default function MastersPage() {
   const [activeTab, setActiveTab] = useState<MasterType>('category');
@@ -61,9 +61,9 @@ export default function MastersPage() {
     queryFn: () => masterDataApi.models.getAll({ limit: 100, isActive: true }),
   });
 
-  const serviceCategoriesQuery = useQuery({
-    queryKey: ['serviceCategories'],
-    queryFn: () => masterDataApi.serviceCategories.getAll({ limit: 100, isActive: true }),
+  const faultsQuery = useQuery({
+    queryKey: ['faults'],
+    queryFn: () => masterDataApi.faults.getAll({ limit: 100, isActive: true }),
   });
 
   const paymentMethodsQuery = useQuery({
@@ -202,20 +202,20 @@ export default function MastersPage() {
             </button>
 
             <button
-              onClick={() => setActiveTab('service-category')}
+              onClick={() => setActiveTab('fault')}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'service-category'
+                activeTab === 'fault'
                   ? 'bg-purple-50 text-purple-700 border border-purple-200'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <span>Service Categories</span>
+              <span>Faults</span>
               <span className={`px-2 py-0.5 rounded-full text-xs ${
-                activeTab === 'service-category'
+                activeTab === 'fault'
                   ? 'bg-purple-100 text-purple-700'
                   : 'bg-gray-100 text-gray-600'
               }`}>
-                {serviceCategoriesQuery.data?.data.length || 0}
+                {faultsQuery.data?.data.length || 0}
               </span>
             </button>
 
@@ -343,10 +343,10 @@ export default function MastersPage() {
                 brands={brandsQuery.data?.data || []}
               />
             )}
-            {activeTab === 'service-category' && (
-              <ServiceCategorySection
-                data={serviceCategoriesQuery.data?.data || []}
-                isLoading={serviceCategoriesQuery.isLoading}
+            {activeTab === 'fault' && (
+              <FaultSection
+                data={faultsQuery.data?.data || []}
+                isLoading={faultsQuery.isLoading}
                 onAdd={() => handleOpenModal()}
                 onEdit={handleOpenModal}
                 onImport={() => setIsImportModalOpen(true)}
@@ -413,7 +413,7 @@ export default function MastersPage() {
                 activeTab === 'gst-rate' ? 'gstRates' :
                 activeTab === 'brand' ? 'brands' :
                 activeTab === 'model' ? 'models' :
-                activeTab === 'service-category' ? 'serviceCategories' :
+                activeTab === 'fault' ? 'faults' :
                 activeTab === 'payment-method' ? 'paymentMethods' :
                 activeTab === 'expense-category' ? 'expenseCategories' :
                 activeTab === 'service-issue' ? 'serviceIssues' :
@@ -1009,24 +1009,24 @@ function ModelSection({
   );
 }
 
-// Service Category Section Component
-function ServiceCategorySection({
+// Fault Section Component
+function FaultSection({
   data,
   isLoading,
   onAdd,
   onEdit,
 }: {
-  data: ServiceCategory[];
+  data: Fault[];
   isLoading: boolean;
   onAdd: () => void;
-  onEdit: (item: ServiceCategory) => void;
+  onEdit: (item: Fault) => void;
 }) {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => masterDataApi.serviceCategories.deactivate(id),
+    mutationFn: (id: string) => masterDataApi.faults.deactivate(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['serviceCategories'] });
+      queryClient.invalidateQueries({ queryKey: ['faults'] });
     },
   });
 
@@ -1037,13 +1037,13 @@ function ServiceCategorySection({
   return (
     <div className="bg-white rounded-lg shadow-sm">
       <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-        <h2 className="text-sm font-semibold text-gray-900">Service Categories</h2>
+        <h2 className="text-sm font-semibold text-gray-900">Faults</h2>
         <button
           onClick={onAdd}
           className="flex items-center gap-1.5 bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition-colors text-xs"
         >
           <Plus className="h-4 w-4" />
-          Add Service Category
+          Add Fault
         </button>
       </div>
       <div className="overflow-x-auto">
@@ -1111,7 +1111,7 @@ function ServiceCategorySection({
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm('Are you sure you want to deactivate this service category?')) {
+                      if (window.confirm('Are you sure you want to deactivate this fault?')) {
                         deleteMutation.mutate(category.id);
                       }
                     }}
@@ -1127,7 +1127,7 @@ function ServiceCategorySection({
         </table>
         {data.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No service categories found. Click "Add Service Category" to create one.
+            No faults found. Click "Add Fault" to create one.
           </div>
         )}
       </div>
@@ -1666,7 +1666,7 @@ function MasterDataModal({
       if (type === 'gst-rate') return masterDataApi.gstRates.create(data);
       if (type === 'brand') return masterDataApi.brands.create(data);
       if (type === 'model') return masterDataApi.models.create(data);
-      if (type === 'service-category') return masterDataApi.serviceCategories.create(data);
+      if (type === 'fault') return masterDataApi.faults.create(data);
       if (type === 'payment-method') return masterDataApi.paymentMethods.create(data);
       if (type === 'expense-category') return masterDataApi.expenseCategories.create(data);
       if (type === 'service-issue') return masterDataApi.serviceIssues.create(data);
@@ -1681,7 +1681,7 @@ function MasterDataModal({
           type === 'gst-rate' ? 'gstRates' :
           type === 'brand' ? 'brands' :
           type === 'model' ? 'models' :
-          type === 'service-category' ? 'serviceCategories' :
+          type === 'fault' ? 'faults' :
           type === 'payment-method' ? 'paymentMethods' :
           type === 'expense-category' ? 'expenseCategories' :
           type === 'service-issue' ? 'serviceIssues' :
@@ -1699,7 +1699,7 @@ function MasterDataModal({
       if (type === 'gst-rate') return masterDataApi.gstRates.update(item.id, data);
       if (type === 'brand') return masterDataApi.brands.update(item.id, data);
       if (type === 'model') return masterDataApi.models.update(item.id, data);
-      if (type === 'service-category') return masterDataApi.serviceCategories.update(item.id, data);
+      if (type === 'fault') return masterDataApi.faults.update(item.id, data);
       if (type === 'payment-method') return masterDataApi.paymentMethods.update(item.id, data);
       if (type === 'expense-category') return masterDataApi.expenseCategories.update(item.id, data);
       if (type === 'service-issue') return masterDataApi.serviceIssues.update(item.id, data);
@@ -1714,7 +1714,7 @@ function MasterDataModal({
           type === 'gst-rate' ? 'gstRates' :
           type === 'brand' ? 'brands' :
           type === 'model' ? 'models' :
-          type === 'service-category' ? 'serviceCategories' :
+          type === 'fault' ? 'faults' :
           type === 'payment-method' ? 'paymentMethods' :
           type === 'expense-category' ? 'expenseCategories' :
           type === 'service-issue' ? 'serviceIssues' :
@@ -1745,7 +1745,7 @@ function MasterDataModal({
              type === 'gst-rate' ? 'GST Rate' :
              type === 'brand' ? 'Brand' :
              type === 'model' ? 'Model' :
-             type === 'service-category' ? 'Service Category' :
+             type === 'fault' ? 'Fault' :
              type === 'payment-method' ? 'Payment Method' :
              type === 'expense-category' ? 'Expense Category' :
              type === 'service-issue' ? 'Service Issue' :
@@ -1771,7 +1771,7 @@ function MasterDataModal({
               required
             />
           </div>
-          {(type === 'category' || type === 'unit' || type === 'brand' || type === 'model' || type === 'service-category' || type === 'payment-method' || type === 'expense-category' || type === 'accessory') && (
+          {(type === 'category' || type === 'unit' || type === 'brand' || type === 'model' || type === 'fault' || type === 'payment-method' || type === 'expense-category' || type === 'accessory') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Code {type === 'payment-method' || type === 'unit' ? '*' : ''}
@@ -1832,7 +1832,7 @@ function MasterDataModal({
               />
             </div>
           )}
-          {type === 'service-category' && (
+          {type === 'fault' && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2052,8 +2052,8 @@ function ImportModal({
               await masterDataApi.brands.create(row);
             } else if (type === 'model') {
               await masterDataApi.models.create(row);
-            } else if (type === 'service-category') {
-              await masterDataApi.serviceCategories.create({
+            } else if (type === 'fault') {
+              await masterDataApi.faults.create({
                 ...row,
                 defaultPrice: parseFloat(row.defaultPrice || 0),
                 technicianPoints: parseInt(row.technicianPoints || 0),
@@ -2088,7 +2088,7 @@ function ImportModal({
       'gst-rate': 'name,rate,description\nGST 5%,5,5% GST rate\nGST 18%,18,18% GST rate',
       'brand': 'name,code,description\nSamsung,SAM,Samsung Electronics\nApple,APP,Apple Inc.',
       'model': 'name,code,brandId,description\niPhone 15,IP15,,Latest iPhone model\nGalaxy S24,GS24,,Latest Samsung Galaxy',
-      'service-category': 'name,code,defaultPrice,technicianPoints,description\nScreen Replacement,SCR_REP,1500,10,Screen replacement service\nBattery Replacement,BAT_REP,800,5,Battery replacement service',
+      'fault': 'name,code,defaultPrice,technicianPoints,description\nScreen Replacement,SCR_REP,1500,10,Screen replacement service\nBattery Replacement,BAT_REP,800,5,Battery replacement service',
       'payment-method': 'name,code,description\nCash,CASH,Cash payment\nUPI,UPI,UPI payment\nCard,CARD,Card payment',
       'expense-category': 'name,code,description\nRent,RENT,Office rent\nUtilities,UTIL,Electricity and water\nSalaries,SAL,Employee salaries',
       'service-issue': 'name,description\nScreen Cracked,Display glass or screen is cracked\nBattery Draining Fast,Battery discharges quickly\nNot Charging,Device not charging when connected',
@@ -2151,7 +2151,7 @@ function ImportModal({
           ['OnePlus 12', 'OP12', '', 'Latest OnePlus flagship'],
         ],
       },
-      'service-category': {
+      'fault': {
         headers: ['name', 'code', 'defaultPrice', 'technicianPoints', 'description'],
         samples: [
           ['Screen Replacement', 'SCR_REP', '1500', '10', 'Screen replacement service'],
@@ -2211,7 +2211,7 @@ function ImportModal({
              type === 'gst-rate' ? 'GST Rates' :
              type === 'brand' ? 'Brands' :
              type === 'model' ? 'Models' :
-             type === 'service-category' ? 'Service Categories' :
+             type === 'fault' ? 'Faults' :
              type === 'payment-method' ? 'Payment Methods' :
              type === 'expense-category' ? 'Expense Categories' :
              'Service Issues'}

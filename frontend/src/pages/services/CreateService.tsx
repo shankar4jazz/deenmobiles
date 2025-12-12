@@ -10,13 +10,13 @@ import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
 import { ArrowLeft } from 'lucide-react';
 import { CustomerDevice, Customer } from '@/types';
-import { ServiceCategory, ServiceIssue, Accessory } from '@/types/masters';
+import { Fault, ServiceIssue, Accessory } from '@/types/masters';
 
 // Components
 import { FormRow } from '@/components/common/FormRow';
 import { SearchableCustomerSelectWithAdd } from '@/components/common/SearchableCustomerSelectWithAdd';
 import { SearchableDeviceSelect } from '@/components/common/SearchableDeviceSelect';
-import { SearchableServiceCategorySelect } from '@/components/common/SearchableServiceCategorySelect';
+import { FaultTagInput } from '@/components/common/FaultTagInput';
 import { SearchableDeviceConditionSelect } from '@/components/common/SearchableDeviceConditionSelect';
 import { MultiImageUpload } from '@/components/common/MultiImageUpload';
 import { IssueTagInput } from '@/components/common/IssueTagInput';
@@ -29,7 +29,7 @@ import AddCustomerModal from '@/components/branch/AddCustomerModal';
 const serviceSchema = z.object({
   customerId: z.string().min(1, 'Please select a customer'),
   customerDeviceId: z.string().min(1, 'Please select a device'),
-  serviceCategoryId: z.string().min(1, 'Please select a service category'),
+  faultIds: z.array(z.string()).min(1, 'Please select at least one fault'),
   deviceConditionId: z.string().optional(),
   devicePassword: z.string().optional(),
   devicePattern: z.string().optional(),
@@ -78,7 +78,7 @@ export default function CreateService() {
   // Selected entities for display
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<CustomerDevice | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<ServiceCategory | null>(null);
+  const [selectedFaults, setSelectedFaults] = useState<Fault[]>([]);
   const [selectedIssues, setSelectedIssues] = useState<ServiceIssue[]>([]);
   const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
 
@@ -94,7 +94,7 @@ export default function CreateService() {
     defaultValues: {
       customerId: '',
       customerDeviceId: '',
-      serviceCategoryId: '',
+      faultIds: [],
       deviceConditionId: '',
       devicePassword: '',
       devicePattern: '',
@@ -159,12 +159,12 @@ export default function CreateService() {
     setSelectedDevice(device || null);
   };
 
-  const handleCategoryChange = (id: string, category?: ServiceCategory) => {
-    setValue('serviceCategoryId', id);
-    setSelectedCategory(category || null);
-    // Auto-fill estimated cost from category default price
-    if (category?.defaultPrice) {
-      setValue('estimatedCost', Number(category.defaultPrice));
+  const handleFaultsChange = (ids: string[], faults: Fault[], totalPrice: number) => {
+    setValue('faultIds', ids);
+    setSelectedFaults(faults);
+    // Auto-fill estimated cost from sum of fault prices
+    if (totalPrice > 0) {
+      setValue('estimatedCost', totalPrice);
     }
   };
 
@@ -217,7 +217,7 @@ export default function CreateService() {
     const submitData: CreateServiceData = {
       customerId: data.customerId,
       customerDeviceId: data.customerDeviceId,
-      serviceCategoryId: data.serviceCategoryId,
+      faultIds: data.faultIds,
       issue: issueText,
       issueIds: data.issueIds,
       estimatedCost: data.estimatedCost || 0,
@@ -284,12 +284,18 @@ export default function CreateService() {
               />
             </FormRow>
 
-            <FormRow label="Service Category" required error={errors.serviceCategoryId?.message}>
-              <SearchableServiceCategorySelect
-                value={watch('serviceCategoryId')}
-                onChange={handleCategoryChange}
-                error={errors.serviceCategoryId?.message}
-                placeholder="Select category..."
+            <FormRow label="Fault(s)" required error={errors.faultIds?.message}>
+              <Controller
+                control={control}
+                name="faultIds"
+                render={({ field }) => (
+                  <FaultTagInput
+                    value={field.value}
+                    onChange={handleFaultsChange}
+                    error={errors.faultIds?.message}
+                    placeholder="Select faults..."
+                  />
+                )}
               />
             </FormRow>
           </div>
