@@ -37,6 +37,9 @@ interface CreateServiceData {
   conditionId?: string;
   intakeNotes?: string;
   accessoryIds?: string[];
+  // New fields
+  dataWarrantyAccepted?: boolean;
+  sendNotificationOnAssign?: boolean;
 }
 
 interface UpdateServiceData {
@@ -67,6 +70,7 @@ interface ServiceFilters {
   endDate?: Date;
   page?: number;
   limit?: number;
+  unassigned?: boolean;
   includeStats?: boolean;
 }
 
@@ -238,6 +242,9 @@ export class ServiceService {
             status: ServiceStatus.PENDING,
             branchId: data.branchId,
             companyId: data.companyId,
+            createdById: data.createdBy,
+            dataWarrantyAccepted: data.dataWarrantyAccepted ?? false,
+            sendNotificationOnAssign: data.sendNotificationOnAssign ?? true,
             // Create fault connections
             faults: {
               create: data.faultIds.map((faultId) => ({
@@ -400,6 +407,7 @@ export class ServiceService {
         endDate,
         page = 1,
         limit = 20,
+        unassigned,
       } = filters;
 
       const skip = (page - 1) * limit;
@@ -412,6 +420,7 @@ export class ServiceService {
       if (branchId) where.branchId = branchId;
       if (customerId) where.customerId = customerId;
       if (assignedToId) where.assignedToId = assignedToId;
+      if (unassigned) where.assignedToId = null;
       if (status) where.status = status;
       if (ticketNumber) where.ticketNumber = { contains: ticketNumber };
 
@@ -456,6 +465,12 @@ export class ServiceService {
               name: true,
               email: true,
               role: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
             },
           },
           branch: {
@@ -1841,16 +1856,18 @@ export class ServiceService {
 
       Logger.info('Service assigned to technician', { serviceId, technicianId });
 
-      // Send notification to technician (async, don't block response)
-      TechnicianNotificationService.notifyServiceAssigned(
-        technicianId,
-        serviceId,
-        updatedService.ticketNumber,
-        service.deviceModel,
-        service.damageCondition
-      ).catch((err) => {
-        Logger.error('Failed to send assignment notification', { error: err, serviceId });
-      });
+      // Send notification to technician (async, don't block response) if enabled
+      if (service.sendNotificationOnAssign !== false) {
+        TechnicianNotificationService.notifyServiceAssigned(
+          technicianId,
+          serviceId,
+          updatedService.ticketNumber,
+          service.deviceModel,
+          service.damageCondition
+        ).catch((err) => {
+          Logger.error('Failed to send assignment notification', { error: err, serviceId });
+        });
+      }
 
       return updatedService;
     } catch (error) {

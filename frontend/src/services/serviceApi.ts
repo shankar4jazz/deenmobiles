@@ -25,12 +25,19 @@ export interface Service {
   updatedAt: string;
   completedAt?: string;
   deliveredAt?: string;
+  dataWarrantyAccepted?: boolean;
+  sendNotificationOnAssign?: boolean;
+  createdById?: string;
   customer?: {
     id: string;
     name: string;
     phone: string;
     email?: string;
     address?: string;
+  };
+  createdBy?: {
+    id: string;
+    name: string;
   };
   assignedTo?: {
     id: string;
@@ -228,6 +235,9 @@ export interface CreateServiceData {
   conditionId?: string;
   intakeNotes?: string;
   accessoryIds?: string[];
+  // New fields
+  dataWarrantyAccepted?: boolean;
+  sendNotificationOnAssign?: boolean;
 }
 
 export interface UpdateServiceData {
@@ -258,6 +268,7 @@ export interface ServiceFilters {
   startDate?: string;
   endDate?: string;
   includeStats?: boolean;
+  unassigned?: boolean;
 }
 
 export interface ServiceStats {
@@ -314,6 +325,7 @@ export const serviceApi = {
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
     if (filters?.includeStats) params.append('includeStats', 'true');
+    if (filters?.unassigned) params.append('unassigned', 'true');
 
     const response = await api.get(`/services?${params.toString()}`);
     return {

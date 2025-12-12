@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
 import { api } from '@/services/api';
 import { toast } from 'sonner';
@@ -28,14 +28,20 @@ const STATUS_LABELS: Record<ServiceStatus, string> = {
 export default function ServiceList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize filters from URL params
+  const initialStatus = searchParams.get('status') as ServiceStatus | '' || '';
+  const initialUnassigned = searchParams.get('unassigned') === 'true';
 
   const [filters, setFilters] = useState({
     page: 1,
     limit: 20,
     search: '',
-    status: '' as ServiceStatus | '',
+    status: initialStatus,
     startDate: '',
     endDate: '',
+    unassigned: initialUnassigned,
   });
 
   const [showFilters, setShowFilters] = useState(false);
@@ -68,6 +74,7 @@ export default function ServiceList() {
     queryFn: () => serviceApi.getAllServices({
       ...filters,
       status: filters.status || undefined,
+      unassigned: filters.unassigned || undefined,
       includeStats: true,
     }),
   });
@@ -138,8 +145,33 @@ export default function ServiceList() {
   };
 
   const handleStatusFilter = (status: ServiceStatus | '') => {
-    setFilters({ ...filters, status, page: 1 });
+    setFilters({ ...filters, status, unassigned: false, page: 1 });
+    // Update URL params
+    const newParams = new URLSearchParams();
+    if (status) newParams.set('status', status);
+    setSearchParams(newParams);
   };
+
+  // Handle card click for filtering
+  const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'ALL') => {
+    const newParams = new URLSearchParams();
+
+    if (status === 'ALL') {
+      // Clear all filters
+      setFilters({ ...filters, status: '', unassigned: false, page: 1 });
+    } else if (status === 'UNASSIGNED') {
+      newParams.set('unassigned', 'true');
+      setFilters({ ...filters, status: '', unassigned: true, page: 1 });
+    } else {
+      newParams.set('status', status);
+      setFilters({ ...filters, status, unassigned: false, page: 1 });
+    }
+
+    setSearchParams(newParams);
+  };
+
+  // Check if any filter is active
+  const hasActiveFilter = filters.status || filters.unassigned;
 
   const handlePageChange = (page: number) => {
     setFilters({ ...filters, page });
@@ -244,7 +276,12 @@ export default function ServiceList() {
       {data?.stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
           {/* Pending */}
-          <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer">
+          <div
+            onClick={() => handleCardClick(ServiceStatus.PENDING)}
+            className={`bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.PENDING ? 'ring-4 ring-yellow-300 ring-offset-2' : ''
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-yellow-100 uppercase tracking-wider font-semibold mb-1">Pending</p>
@@ -257,7 +294,12 @@ export default function ServiceList() {
           </div>
 
           {/* Waiting Parts */}
-          <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer">
+          <div
+            onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
+            className={`bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.WAITING_PARTS ? 'ring-4 ring-orange-300 ring-offset-2' : ''
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-orange-100 uppercase tracking-wider font-semibold mb-1">Waiting Parts</p>
@@ -270,7 +312,12 @@ export default function ServiceList() {
           </div>
 
           {/* In Progress */}
-          <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer">
+          <div
+            onClick={() => handleCardClick(ServiceStatus.IN_PROGRESS)}
+            className={`bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.IN_PROGRESS ? 'ring-4 ring-blue-300 ring-offset-2' : ''
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-blue-100 uppercase tracking-wider font-semibold mb-1">In Progress</p>
@@ -283,7 +330,12 @@ export default function ServiceList() {
           </div>
 
           {/* Completed */}
-          <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer">
+          <div
+            onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
+            className={`bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.COMPLETED ? 'ring-4 ring-green-300 ring-offset-2' : ''
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Completed</p>
@@ -296,7 +348,12 @@ export default function ServiceList() {
           </div>
 
           {/* Delivered */}
-          <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer">
+          <div
+            onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
+            className={`bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.DELIVERED ? 'ring-4 ring-purple-300 ring-offset-2' : ''
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Delivered</p>
@@ -309,7 +366,12 @@ export default function ServiceList() {
           </div>
 
           {/* Unassigned */}
-          <div className="bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer">
+          <div
+            onClick={() => handleCardClick('UNASSIGNED')}
+            className={`bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.unassigned ? 'ring-4 ring-gray-300 ring-offset-2' : ''
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-100 uppercase tracking-wider font-semibold mb-1">Unassigned</p>
@@ -320,6 +382,22 @@ export default function ServiceList() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Active Filter Indicator */}
+      {hasActiveFilter && (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-sm text-gray-600">
+            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
+          </span>
+          <button
+            onClick={() => handleCardClick('ALL')}
+            className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
+          >
+            <X className="w-4 h-4" />
+            Clear Filter
+          </button>
         </div>
       )}
 
@@ -383,6 +461,11 @@ export default function ServiceList() {
                             <Smartphone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                             <span className="text-xs text-gray-600">{service.deviceModel}</span>
                           </div>
+                          {service.createdBy && (
+                            <div className="text-xs text-gray-500">
+                              Booked by: <span className="font-medium">{service.createdBy.name}</span>
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -568,6 +651,11 @@ export default function ServiceList() {
                     <div className="text-sm text-gray-900 line-clamp-2">
                       {service.damageCondition}
                     </div>
+                    {service.createdBy && (
+                      <div className="text-xs text-gray-500">
+                        Booked by: <span className="font-medium">{service.createdBy.name}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">

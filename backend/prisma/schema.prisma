@@ -126,7 +126,8 @@ model User {
   managedBranches            Branch[]                   @relation("BranchManager")
   notifications              Notification[]
   refreshTokens              RefreshToken[]
-  assignedServices           Service[]
+  assignedServices           Service[]                  @relation("ServiceAssignedTo")
+  createdServices            Service[]                  @relation("ServiceCreatedBy")
   stockMovements             StockMovement[]
   createdPurchaseOrders      PurchaseOrder[]            @relation("UserCreatedPurchaseOrders")
   createdSupplierPayments    SupplierPayment[]          @relation("UserCreatedPayments")
@@ -267,6 +268,9 @@ model Service {
   advancePayment    Float                  @default(0)
   status            ServiceStatus          @default(PENDING)
   assignedToId      String?
+  createdById       String?                // User who created/booked the service
+  dataWarrantyAccepted Boolean             @default(false) // Customer accepts data loss risk
+  sendNotificationOnAssign Boolean         @default(true)  // Whether to notify technician on assignment
   companyId         String
   branchId          String
   createdAt         DateTime               @default(now())
@@ -282,7 +286,8 @@ model Service {
   partsUsed         ServicePart[]
   statusHistory     ServiceStatusHistory[]
   rating            ServiceRating?
-  assignedTo        User?                  @relation(fields: [assignedToId], references: [id])
+  assignedTo        User?                  @relation("ServiceAssignedTo", fields: [assignedToId], references: [id])
+  createdBy         User?                  @relation("ServiceCreatedBy", fields: [createdById], references: [id])
   branch            Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
   company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer          Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -302,6 +307,7 @@ model Service {
   @@index([conditionId])
   @@index([ticketNumber])
   @@index([status])
+  @@index([createdById])
   @@map("services")
 }
 

@@ -36,27 +36,10 @@ const serviceSchema = z.object({
   accessoryIds: z.array(z.string()).optional(),
   intakeNotes: z.string().optional(),
   damageConditionIds: z.array(z.string()).min(1, 'Please add at least one damage condition'),
-  damageConditionDescription: z.string().optional(),
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
-  advancePayment: z.number().min(0, 'Advance payment cannot be negative').optional(),
-  paymentMethodId: z.string().optional(),
   branchId: z.string().min(1, 'Branch ID is required'),
-}).refine((data) => {
-  if (data.advancePayment && data.estimatedCost && data.advancePayment > data.estimatedCost) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Advance payment cannot exceed estimated cost',
-  path: ['advancePayment'],
-}).refine((data) => {
-  if (data.advancePayment && data.advancePayment > 0 && !data.paymentMethodId) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Payment method is required when advance payment is entered',
-  path: ['paymentMethodId'],
+  dataWarrantyAccepted: z.boolean().default(false),
+  sendNotificationOnAssign: z.boolean().default(true),
 });
 
 type ServiceFormData = z.infer<typeof serviceSchema>;
@@ -101,23 +84,15 @@ export default function CreateService() {
       accessoryIds: [],
       intakeNotes: '',
       damageConditionIds: [],
-      damageConditionDescription: '',
       estimatedCost: 0,
-      advancePayment: 0,
-      paymentMethodId: '',
       branchId: '',
+      dataWarrantyAccepted: false,
+      sendNotificationOnAssign: true,
     },
   });
 
   const customerId = watch('customerId');
   const estimatedCost = watch('estimatedCost');
-  const advancePayment = watch('advancePayment');
-
-  // Fetch payment methods
-  const { data: paymentMethodsData } = useQuery({
-    queryKey: ['payment-methods'],
-    queryFn: () => masterDataApi.getAllPaymentMethods({ limit: 100, isActive: true }),
-  });
 
   // Auto-set branch ID
   useEffect(() => {
@@ -201,18 +176,8 @@ export default function CreateService() {
   };
 
   const onSubmit = async (data: ServiceFormData) => {
-    // Build payment entries array if advance payment exists
-    const paymentEntries = data.advancePayment && data.advancePayment > 0 && data.paymentMethodId
-      ? [{
-          amount: data.advancePayment,
-          paymentMethodId: data.paymentMethodId,
-          notes: 'Advance payment',
-        }]
-      : [];
-
     // Combine damage condition names from selected conditions
-    const conditionNames = selectedDamageConditions.map((condition) => condition.name).join(', ');
-    const damageConditionText = conditionNames + (data.damageConditionDescription ? ` - ${data.damageConditionDescription}` : '');
+    const damageConditionText = selectedDamageConditions.map((condition) => condition.name).join(', ');
 
     const submitData: CreateServiceData = {
       customerId: data.customerId,
@@ -221,7 +186,6 @@ export default function CreateService() {
       damageCondition: damageConditionText,
       damageConditionIds: data.damageConditionIds,
       estimatedCost: data.estimatedCost || 0,
-      paymentEntries,
       branchId: data.branchId,
       images: selectedImages.length > 0 ? selectedImages : undefined,
       // Intake fields
@@ -230,12 +194,13 @@ export default function CreateService() {
       conditionId: data.deviceConditionId || undefined,
       intakeNotes: data.intakeNotes || undefined,
       accessoryIds: data.accessoryIds && data.accessoryIds.length > 0 ? data.accessoryIds : undefined,
+      // New fields
+      dataWarrantyAccepted: data.dataWarrantyAccepted,
+      sendNotificationOnAssign: data.sendNotificationOnAssign,
     };
 
     createServiceMutation.mutate(submitData);
   };
-
-  const remainingAmount = (estimatedCost || 0) - (advancePayment || 0);
 
   return (
     <div className="min-h-screen bg-white">
@@ -300,8 +265,8 @@ export default function CreateService() {
             </FormRow>
           </div>
 
-          {/* Row 2: Device Condition, Issue, Issue Description */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
+          {/* Row 2: Device Condition, Damage Condition */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2">
             <FormRow label="Device Condition">
               <SearchableDeviceConditionSelect
                 value={watch('deviceConditionId') || ''}
@@ -323,21 +288,6 @@ export default function CreateService() {
                     }}
                     error={errors.damageConditionIds?.message}
                     placeholder="Type to search or add damage conditions..."
-                  />
-                )}
-              />
-            </FormRow>
-
-            <FormRow label="Additional Notes">
-              <Controller
-                control={control}
-                name="damageConditionDescription"
-                render={({ field }) => (
-                  <input
-                    {...field}
-                    type="text"
-                    placeholder="Additional details about damage..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 )}
               />
@@ -412,7 +362,7 @@ export default function CreateService() {
             </FormRow>
           </div>
 
-          {/* Row 5: Estimated Cost, Advance Payment, Payment Method */}
+          {/* Row 5: Estimated Cost, Data Warranty, Notification */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
             <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
               <Controller
@@ -437,54 +387,56 @@ export default function CreateService() {
               />
             </FormRow>
 
-            <FormRow label="Advance Payment" error={errors.advancePayment?.message}>
+            <FormRow label="Data Warranty">
               <Controller
                 control={control}
-                name="advancePayment"
+                name="dataWarrantyAccepted"
                 render={({ field }) => (
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={field.value || ''}
-                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                      placeholder="0"
-                      className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                        errors.advancePayment ? 'border-red-500' : 'border-gray-300'
+                  <label className="flex items-center gap-3 h-[38px] cursor-pointer">
+                    <div
+                      onClick={() => field.onChange(!field.value)}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        field.value ? 'bg-purple-600' : 'bg-gray-200'
                       }`}
-                    />
-                  </div>
+                    >
+                      <div
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          field.value ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </div>
+                    <span className="text-sm text-gray-600">Customer accepts data loss risk</span>
+                  </label>
                 )}
               />
             </FormRow>
 
-            <FormRow label="Payment Method" error={errors.paymentMethodId?.message}>
+            <FormRow label="Notifications">
               <Controller
                 control={control}
-                name="paymentMethodId"
+                name="sendNotificationOnAssign"
                 render={({ field }) => (
-                  <select
-                    {...field}
-                    disabled={!advancePayment || advancePayment <= 0}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                      errors.paymentMethodId ? 'border-red-500' : 'border-gray-300'
-                    } ${!advancePayment || advancePayment <= 0 ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  >
-                    <option value="">Select method</option>
-                    {paymentMethodsData?.data?.map((method) => (
-                      <option key={method.id} value={method.id}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="flex items-center gap-3 h-[38px] cursor-pointer">
+                    <div
+                      onClick={() => field.onChange(!field.value)}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        field.value ? 'bg-purple-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          field.value ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </div>
+                    <span className="text-sm text-gray-600">Notify technician when assigned</span>
+                  </label>
                 )}
               />
             </FormRow>
           </div>
 
-          {/* Row 6: Device Photos & Payment Summary */}
+          {/* Row 6: Device Photos & Cost Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
             <div className="md:col-span-2">
               <FormRow label="Device Photos">
@@ -497,28 +449,14 @@ export default function CreateService() {
               </FormRow>
             </div>
 
-            {/* Payment Summary */}
+            {/* Cost Summary */}
             <div className="flex flex-col justify-end">
               {(estimatedCost || 0) > 0 && (
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Estimated:</span>
+                    <span className="text-gray-600">Estimated Cost:</span>
                     <span className="font-semibold text-gray-900">₹{estimatedCost || 0}</span>
                   </div>
-                  {(advancePayment || 0) > 0 && (
-                    <>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Advance:</span>
-                        <span className="font-semibold text-green-600">₹{advancePayment}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-200">
-                        <span className="text-gray-600">Balance:</span>
-                        <span className={`font-semibold ${remainingAmount > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                          ₹{remainingAmount}
-                        </span>
-                      </div>
-                    </>
-                  )}
                 </div>
               )}
             </div>

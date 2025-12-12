@@ -67,6 +67,9 @@ export class ServiceController {
     // Include stats if requested
     if (req.query.includeStats === 'true') filters.includeStats = true;
 
+    // Unassigned filter
+    if (req.query.unassigned === 'true') filters.unassigned = true;
+
     const result = await ServiceService.getServices(filters);
 
     return ApiResponse.success(res, result, 'Services retrieved successfully');
