@@ -234,7 +234,6 @@ export function PatternLockInput({
                     <div className="grid grid-cols-3 gap-0 h-full">
                       {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
                         const isSelected = tempPattern.includes(index);
-                        const selectionOrder = tempPattern.indexOf(index) + 1;
 
                         return (
                           <div
