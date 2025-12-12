@@ -13,7 +13,7 @@ const deviceFormSchema = z.object({
   brandId: z.string().min(1, 'Please select a brand'),
   modelId: z.string().min(1, 'Please select a model'),
   imei: z.string()
-    .regex(/^\d{15}$/, 'IMEI must be exactly 15 digits')
+    .regex(/^\d{5,17}$/, 'IMEI must be between 5 and 17 digits')
     .optional()
     .or(z.literal('')),
   color: z.string().optional(),

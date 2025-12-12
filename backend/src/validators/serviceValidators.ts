@@ -32,8 +32,8 @@ export const createServiceValidation: ValidationChain[] = [
   body('deviceIMEI')
     .optional()
     .trim()
-    .isLength({ min: 15, max: 17 })
-    .withMessage('IMEI must be between 15 and 17 characters')
+    .isLength({ min: 5, max: 17 })
+    .withMessage('IMEI must be between 5 and 17 characters')
     .matches(/^[0-9]+$/)
     .withMessage('IMEI must contain only numbers'),
 
@@ -141,8 +141,8 @@ export const updateServiceValidation: ValidationChain[] = [
   body('deviceIMEI')
     .optional()
     .trim()
-    .isLength({ min: 15, max: 17 })
-    .withMessage('IMEI must be between 15 and 17 characters')
+    .isLength({ min: 5, max: 17 })
+    .withMessage('IMEI must be between 5 and 17 characters')
     .matches(/^[0-9]+$/)
     .withMessage('IMEI must contain only numbers'),
 
