@@ -46,9 +46,9 @@ interface JobSheetData {
   technician?: {
     name: string;
   };
-  category?: {
+  faults?: Array<{
     name: string;
-  };
+  }>;
   template?: {
     termsAndConditions?: string;
     showCustomerSignature: boolean;
@@ -411,9 +411,10 @@ export class PDFGenerationService {
     doc.fontSize(12).font('Helvetica-Bold').text('SERVICE DETAILS', 50, doc.y);
     doc.moveDown(0.5);
 
-    if (data.category) {
-      doc.fontSize(10).font('Helvetica-Bold').text('Category: ', 50, doc.y);
-      doc.font('Helvetica').text(data.category.name, 120, doc.y - 12);
+    if (data.faults && data.faults.length > 0) {
+      doc.fontSize(10).font('Helvetica-Bold').text('Faults: ', 50, doc.y);
+      const faultNames = data.faults.map(f => f.name).join(', ');
+      doc.font('Helvetica').text(faultNames, 120, doc.y - 12, { width: 400 });
     }
 
     doc.font('Helvetica-Bold').text('Issue: ', 50, doc.y);

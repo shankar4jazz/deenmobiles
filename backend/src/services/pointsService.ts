@@ -38,7 +38,11 @@ export class PointsService {
       const service = await prisma.service.findUnique({
         where: { id: serviceId },
         include: {
-          serviceCategory: true,
+          faults: {
+            include: {
+              fault: true,
+            },
+          },
           assignedTo: {
             include: {
               technicianProfile: {
@@ -61,15 +65,17 @@ export class PointsService {
       const breakdown: PointsBreakdownItem[] = [];
       const levelMultiplier = profile.currentLevel?.pointsMultiplier || 1.0;
 
-      // Base points from service category
-      const basePoints = service.serviceCategory?.technicianPoints || 100;
+      // Base points from faults (sum of all fault points or default 100)
+      const faultPoints = service.faults?.reduce((sum, f) => sum + (f.fault.technicianPoints || 0), 0) || 100;
+      const basePoints = faultPoints > 0 ? faultPoints : 100;
       const categoryPoints = Math.floor(basePoints * levelMultiplier);
 
+      const faultNames = service.faults?.map(f => f.fault.name).join(', ') || 'Service';
       breakdown.push({
         type: PointsType.SERVICE_COMPLETED,
         points: categoryPoints,
         basePoints,
-        description: `${service.serviceCategory?.name || 'Service'} completed`,
+        description: `${faultNames} completed`,
       });
 
       // Rating bonus

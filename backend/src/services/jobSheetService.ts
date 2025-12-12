@@ -68,7 +68,11 @@ export class JobSheetService {
         include: {
           customer: true,
           customerDevice: true,
-          serviceCategory: true,
+          faults: {
+            include: {
+              fault: true,
+            },
+          },
           assignedTo: {
             select: { name: true },
           },
@@ -163,7 +167,7 @@ export class JobSheetService {
         branch: service.branch,
         company: service.company,
         technician: service.assignedTo || undefined,
-        category: service.serviceCategory || undefined,
+        faults: service.faults?.map(f => f.fault) || [],
         template: template ? {
           termsAndConditions: template.termsAndConditions || undefined,
           showCustomerSignature: template.showCustomerSignature,
@@ -263,7 +267,11 @@ export class JobSheetService {
             include: {
               customer: true,
               customerDevice: true,
-              serviceCategory: true,
+              faults: {
+                include: {
+                  fault: true,
+                },
+              },
               assignedTo: {
                 select: { name: true },
               },
@@ -306,7 +314,11 @@ export class JobSheetService {
             include: {
               customer: true,
               customerDevice: true,
-              serviceCategory: true,
+              faults: {
+                include: {
+                  fault: true,
+                },
+              },
               assignedTo: {
                 select: { name: true },
               },
@@ -359,7 +371,7 @@ export class JobSheetService {
         branch: service.branch,
         company: service.company,
         technician: service.assignedTo || undefined,
-        category: service.serviceCategory || undefined,
+        faults: service.faults?.map(f => f.fault) || [],
         template: template ? {
           termsAndConditions: template.termsAndConditions || undefined,
           showCustomerSignature: template.showCustomerSignature,

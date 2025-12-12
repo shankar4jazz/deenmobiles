@@ -109,7 +109,11 @@ export class InvoiceService {
         include: {
           customer: true,
           customerDevice: true,
-          serviceCategory: true,
+          faults: {
+            include: {
+              fault: true,
+            },
+          },
           assignedTo: {
             select: { name: true },
           },
@@ -466,7 +470,11 @@ export class InvoiceService {
             include: {
               customer: true,
               customerDevice: true,
-              serviceCategory: true,
+              faults: {
+                include: {
+                  fault: true,
+                },
+              },
               assignedTo: {
                 select: { name: true },
               },
