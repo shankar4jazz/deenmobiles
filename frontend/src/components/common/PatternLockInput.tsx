@@ -152,7 +152,7 @@ export function PatternLockInput({
         {currentPattern.length > 0 && (
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <span className="font-mono text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200 truncate">
-              {currentPattern.join('→')}
+              {currentPattern.map(n => n + 1).join(' → ')}
             </span>
             <button
               type="button"
@@ -279,7 +279,7 @@ export function PatternLockInput({
                   <div className="space-y-1">
                     <p className="text-sm text-gray-600">{tempPattern.length} dots selected</p>
                     <p className="font-mono text-sm bg-gray-100 px-3 py-1 rounded inline-block">
-                      {tempPattern.join(' → ')}
+                      {tempPattern.map(n => n + 1).join(' → ')}
                     </p>
                   </div>
                 )}
