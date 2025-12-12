@@ -56,6 +56,7 @@ model Company {
   damageConditions            DamageCondition[]
   technicianLevels            TechnicianLevel[]
   technicianProfiles          TechnicianProfile[]
+  documentNumberFormats       DocumentNumberFormat[]
 
   @@map("companies")
 }
@@ -95,6 +96,7 @@ model Branch {
   themes              Theme[]
   jobSheetTemplates   JobSheetTemplate[]         @relation("BranchJobSheetTemplates")
   technicianProfiles  TechnicianProfile[]
+  documentSequences   DocumentSequence[]
 
   @@index([companyId])
   @@index([managerId])
@@ -1848,4 +1850,63 @@ model TechnicianNotification {
   @@index([userId, isRead])
   @@index([createdAt])
   @@map("technician_notifications")
+}
+
+// ============================================
+// Document Number Format Models
+// ============================================
+
+enum DocumentType {
+  JOB_SHEET
+  SERVICE_TICKET
+  INVOICE
+  ESTIMATE
+}
+
+enum SequenceResetFrequency {
+  NEVER
+  DAILY
+  MONTHLY
+  YEARLY
+}
+
+model DocumentNumberFormat {
+  id                     String                  @id @default(uuid())
+  documentType           DocumentType
+  prefix                 String                  @default("JS")
+  separator              String                  @default("-")
+  sequenceResetFrequency SequenceResetFrequency  @default(DAILY)
+  sequenceLength         Int                     @default(3)
+  includeBranch          Boolean                 @default(true)
+  branchFormat           String                  @default("CODE") // CODE or NUMBER
+  includeYear            Boolean                 @default(true)
+  yearFormat             String                  @default("FULL") // FULL (2025) or SHORT (25)
+  includeMonth           Boolean                 @default(false)
+  includeDay             Boolean                 @default(false)
+  companyId              String
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sequences              DocumentSequence[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  @@unique([companyId, documentType])
+  @@index([companyId])
+  @@map("document_number_formats")
+}
+
+model DocumentSequence {
+  id              String               @id @default(uuid())
+  formatId        String
+  format          DocumentNumberFormat @relation(fields: [formatId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  periodKey       String?              // "2025" for yearly, "2025-12" for monthly, "2025-12-15" for daily, null for never
+  currentSequence Int                  @default(0)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([formatId, branchId, periodKey])
+  @@index([formatId])
+  @@index([branchId])
+  @@map("document_sequences")
 }

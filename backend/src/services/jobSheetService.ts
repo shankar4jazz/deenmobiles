@@ -2,6 +2,8 @@ import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { Logger } from '../utils/logger';
 import pdfGenerationService from './pdfGenerationService';
+import { DocumentNumberService } from './documentNumberService';
+import { DocumentType } from '@prisma/client';
 
 interface GenerateJobSheetData {
   serviceId: string;
@@ -12,41 +14,16 @@ interface GenerateJobSheetData {
 export class JobSheetService {
   /**
    * Generate unique job sheet number
-   * Format: JS-BRANCH-YYYYMMDD-XXX
+   * Uses configurable format from DocumentNumberService
    */
-  private static async generateJobSheetNumber(branchId: string): Promise<string> {
+  private static async generateJobSheetNumber(branchId: string, companyId: string): Promise<string> {
     try {
-      // Get branch code
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
-        select: { code: true },
-      });
-
-      if (!branch) {
-        throw new AppError(404, 'Branch not found');
-      }
-
-      // Get today's date in YYYYMMDD format
-      const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-
-      // Get count of job sheets created today for this branch
-      const todayStart = new Date(today.setHours(0, 0, 0, 0));
-      const todayEnd = new Date(today.setHours(23, 59, 59, 999));
-
-      const todayCount = await prisma.jobSheet.count({
-        where: {
-          branchId,
-          createdAt: {
-            gte: todayStart,
-            lte: todayEnd,
-          },
-        },
-      });
-
-      // Generate job sheet number
-      const sequence = (todayCount + 1).toString().padStart(3, '0');
-      const jobSheetNumber = `JS-${branch.code}-${dateStr}-${sequence}`;
+      // Use the configurable document number service
+      const jobSheetNumber = await DocumentNumberService.generateNumber(
+        companyId,
+        DocumentType.JOB_SHEET,
+        branchId
+      );
 
       return jobSheetNumber;
     } catch (error) {
@@ -137,7 +114,7 @@ export class JobSheetService {
       }
 
       // Generate job sheet number
-      const jobSheetNumber = await this.generateJobSheetNumber(service.branchId);
+      const jobSheetNumber = await this.generateJobSheetNumber(service.branchId, service.companyId);
 
       // Prepare data for PDF generation
       const pdfData = {

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FileText, Settings } from 'lucide-react';
+import { FileText, Settings, Hash } from 'lucide-react';
 import ThemeList from '../themes/ThemeList';
 import JobSheetTemplateList from '../jobsheet-templates/JobSheetTemplateList';
+import DocumentNumberSettings from '@/components/settings/DocumentNumberSettings';
 
 interface Tab {
   id: string;
@@ -33,6 +34,12 @@ export default function SettingsMainPage() {
       label: 'Job Sheet',
       icon: FileText,
       component: <JobSheetTemplateList />,
+    },
+    {
+      id: 'document-numbers',
+      label: 'Document Numbers',
+      icon: Hash,
+      component: <DocumentNumberSettings />,
     },
   ];
 
