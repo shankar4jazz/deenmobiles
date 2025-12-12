@@ -77,7 +77,7 @@ export class DocumentNumberController {
     const { documentType } = req.params;
 
     if (!branchId) {
-      return ApiResponse.error(res, 400, 'Branch ID is required');
+      return ApiResponse.error(res, 'Branch ID is required', 400);
     }
 
     const info = await DocumentNumberService.getSequenceInfo(
