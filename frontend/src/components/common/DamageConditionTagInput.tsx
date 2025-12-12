@@ -1,83 +1,83 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { serviceIssueApi } from '@/services/masterDataApi';
-import { ServiceIssue } from '@/types/masters';
+import { damageConditionApi } from '@/services/masterDataApi';
+import { DamageCondition } from '@/types/masters';
 import { X, Plus, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface IssueTagInputProps {
+interface DamageConditionTagInputProps {
   value: string[];
-  onChange: (ids: string[], issues: ServiceIssue[]) => void;
+  onChange: (ids: string[], damageConditions: DamageCondition[]) => void;
   disabled?: boolean;
   error?: string;
   placeholder?: string;
   className?: string;
 }
 
-export function IssueTagInput({
+export function DamageConditionTagInput({
   value = [],
   onChange,
   disabled = false,
   error,
-  placeholder = 'Type to search or add issues...',
+  placeholder = 'Type to search or add damage conditions...',
   className = '',
-}: IssueTagInputProps) {
+}: DamageConditionTagInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIssues, setSelectedIssues] = useState<ServiceIssue[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<DamageCondition[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  // Fetch frequent issues by default (sorted by usage count from backend)
-  const { data: frequentIssuesData, isLoading: isLoadingFrequent } = useQuery({
-    queryKey: ['service-issues-frequent'],
-    queryFn: () => serviceIssueApi.getAll({ isActive: true, limit: 50 }),
+  // Fetch frequent damage conditions by default (sorted by usage count from backend)
+  const { data: frequentConditionsData, isLoading: isLoadingFrequent } = useQuery({
+    queryKey: ['damage-conditions-frequent'],
+    queryFn: () => damageConditionApi.getAll({ isActive: true, limit: 50 }),
   });
 
-  // Fetch issues with search
+  // Fetch damage conditions with search
   const { data: searchData, isLoading: isLoadingSearch } = useQuery({
-    queryKey: ['service-issues-search', searchTerm],
-    queryFn: () => serviceIssueApi.getAll({ search: searchTerm, isActive: true, limit: 50 }),
+    queryKey: ['damage-conditions-search', searchTerm],
+    queryFn: () => damageConditionApi.getAll({ search: searchTerm, isActive: true, limit: 50 }),
     enabled: searchTerm.length >= 1,
   });
 
-  // Show search results when searching, otherwise show frequent issues
-  const issues = searchTerm.length >= 1 ? (searchData?.data || []) : (frequentIssuesData?.data || []);
+  // Show search results when searching, otherwise show frequent conditions
+  const conditions = searchTerm.length >= 1 ? (searchData?.data || []) : (frequentConditionsData?.data || []);
   const isLoading = searchTerm.length >= 1 ? isLoadingSearch : isLoadingFrequent;
-  const allIssues = frequentIssuesData?.data || [];
+  const allConditions = frequentConditionsData?.data || [];
 
-  // Filter out already selected issues from suggestions
-  const filteredIssues = issues.filter((issue) => !value.includes(issue.id));
+  // Filter out already selected conditions from suggestions
+  const filteredConditions = conditions.filter((condition) => !value.includes(condition.id));
 
-  // Check if search term matches any existing issue
-  const searchMatchesExisting = issues.some(
-    (issue) => issue.name.toLowerCase() === searchTerm.toLowerCase()
+  // Check if search term matches any existing condition
+  const searchMatchesExisting = conditions.some(
+    (condition) => condition.name.toLowerCase() === searchTerm.toLowerCase()
   );
 
-  // Create issue mutation
+  // Create damage condition mutation
   const createMutation = useMutation({
-    mutationFn: (name: string) => serviceIssueApi.create({ name }),
-    onSuccess: (newIssue) => {
-      queryClient.invalidateQueries({ queryKey: ['service-issues-search'] });
-      queryClient.invalidateQueries({ queryKey: ['service-issues-all'] });
-      addIssue(newIssue);
+    mutationFn: (name: string) => damageConditionApi.create({ name }),
+    onSuccess: (newCondition) => {
+      queryClient.invalidateQueries({ queryKey: ['damage-conditions-search'] });
+      queryClient.invalidateQueries({ queryKey: ['damage-conditions-frequent'] });
+      addCondition(newCondition);
       setSearchTerm('');
-      toast.success(`Issue "${newIssue.name}" created`);
+      toast.success(`Damage condition "${newCondition.name}" created`);
     },
     onError: () => {
-      toast.error('Failed to create issue');
+      toast.error('Failed to create damage condition');
     },
   });
 
-  // Update selected issues when value or allIssues change
+  // Update selected conditions when value or allConditions change
   useEffect(() => {
-    if (allIssues.length > 0) {
-      const selected = allIssues.filter((issue) => value.includes(issue.id));
-      setSelectedIssues(selected);
+    if (allConditions.length > 0) {
+      const selected = allConditions.filter((condition) => value.includes(condition.id));
+      setSelectedConditions(selected);
     }
-  }, [value, allIssues]);
+  }, [value, allConditions]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -98,27 +98,27 @@ export function IssueTagInput({
     };
   }, [isOpen]);
 
-  const addIssue = useCallback(
-    (issue: ServiceIssue) => {
-      if (!value.includes(issue.id)) {
-        const newIds = [...value, issue.id];
-        const newIssues = [...selectedIssues, issue];
-        onChange(newIds, newIssues);
+  const addCondition = useCallback(
+    (condition: DamageCondition) => {
+      if (!value.includes(condition.id)) {
+        const newIds = [...value, condition.id];
+        const newConditions = [...selectedConditions, condition];
+        onChange(newIds, newConditions);
       }
       setSearchTerm('');
       setHighlightedIndex(-1);
       inputRef.current?.focus();
     },
-    [value, selectedIssues, onChange]
+    [value, selectedConditions, onChange]
   );
 
-  const removeIssue = useCallback(
-    (issueId: string) => {
-      const newIds = value.filter((id) => id !== issueId);
-      const newIssues = selectedIssues.filter((issue) => issue.id !== issueId);
-      onChange(newIds, newIssues);
+  const removeCondition = useCallback(
+    (conditionId: string) => {
+      const newIds = value.filter((id) => id !== conditionId);
+      const newConditions = selectedConditions.filter((condition) => condition.id !== conditionId);
+      onChange(newIds, newConditions);
     },
-    [value, selectedIssues, onChange]
+    [value, selectedConditions, onChange]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -131,33 +131,33 @@ export function IssueTagInput({
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const maxIndex = showAddOption ? filteredIssues.length : filteredIssues.length - 1;
+      const maxIndex = showAddOption ? filteredConditions.length : filteredConditions.length - 1;
       setHighlightedIndex((prev) => (prev < maxIndex ? prev + 1 : 0));
     }
 
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      const maxIndex = showAddOption ? filteredIssues.length : filteredIssues.length - 1;
+      const maxIndex = showAddOption ? filteredConditions.length : filteredConditions.length - 1;
       setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : maxIndex));
     }
 
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (highlightedIndex >= 0 && highlightedIndex < filteredIssues.length) {
-        addIssue(filteredIssues[highlightedIndex]);
-      } else if (highlightedIndex === filteredIssues.length && showAddOption) {
-        handleCreateIssue();
-      } else if (searchTerm.trim() && !searchMatchesExisting && filteredIssues.length === 0) {
-        handleCreateIssue();
+      if (highlightedIndex >= 0 && highlightedIndex < filteredConditions.length) {
+        addCondition(filteredConditions[highlightedIndex]);
+      } else if (highlightedIndex === filteredConditions.length && showAddOption) {
+        handleCreateCondition();
+      } else if (searchTerm.trim() && !searchMatchesExisting && filteredConditions.length === 0) {
+        handleCreateCondition();
       }
     }
 
-    if (e.key === 'Backspace' && !searchTerm && selectedIssues.length > 0) {
-      removeIssue(selectedIssues[selectedIssues.length - 1].id);
+    if (e.key === 'Backspace' && !searchTerm && selectedConditions.length > 0) {
+      removeCondition(selectedConditions[selectedConditions.length - 1].id);
     }
   };
 
-  const handleCreateIssue = () => {
+  const handleCreateCondition = () => {
     if (searchTerm.trim() && !createMutation.isPending) {
       createMutation.mutate(searchTerm.trim());
     }
@@ -173,30 +173,30 @@ export function IssueTagInput({
 
   return (
     <div ref={dropdownRef} className={`relative ${className}`}>
-      {/* Selected Issues Tags */}
+      {/* Selected Damage Conditions Tags */}
       <div
         className={`w-full px-2 py-1.5 border rounded-lg bg-white min-h-[42px] flex flex-wrap items-center gap-1.5 transition-colors ${
           disabled
             ? 'bg-gray-100 cursor-not-allowed border-gray-200'
             : 'cursor-text hover:border-gray-400 border-gray-300'
-        } ${error ? 'border-red-500' : ''} ${isOpen ? 'ring-2 ring-purple-500 border-purple-500' : ''}`}
+        } ${error ? 'border-red-500' : ''} ${isOpen ? 'ring-2 ring-orange-500 border-orange-500' : ''}`}
         onClick={() => inputRef.current?.focus()}
       >
-        {selectedIssues.map((issue) => (
+        {selectedConditions.map((condition) => (
           <span
-            key={issue.id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-medium rounded-full"
+            key={condition.id}
+            className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-800 text-xs font-medium rounded-full"
           >
             <AlertTriangle className="w-3 h-3" />
-            {issue.name}
+            {condition.name}
             {!disabled && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  removeIssue(issue.id);
+                  removeCondition(condition.id);
                 }}
-                className="ml-0.5 hover:bg-purple-200 rounded-full p-0.5 transition-colors"
+                className="ml-0.5 hover:bg-orange-200 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -216,7 +216,7 @@ export function IssueTagInput({
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder={selectedIssues.length === 0 ? placeholder : ''}
+          placeholder={selectedConditions.length === 0 ? placeholder : ''}
           className="flex-1 min-w-[120px] outline-none bg-transparent text-sm py-0.5 disabled:cursor-not-allowed"
         />
       </div>
@@ -233,30 +233,30 @@ export function IssueTagInput({
             </div>
           ) : (
             <div className="max-h-52 overflow-y-auto">
-              {filteredIssues.length === 0 && !showAddOption ? (
+              {filteredConditions.length === 0 && !showAddOption ? (
                 <div className="p-3 text-center text-gray-500 text-sm">
-                  {searchTerm.length >= 1 ? 'No issues found' : 'No issues available'}
+                  {searchTerm.length >= 1 ? 'No damage conditions found' : 'No damage conditions available'}
                 </div>
               ) : (
                 <div className="py-1">
                   {/* Header for default list */}
-                  {searchTerm.length === 0 && filteredIssues.length > 0 && (
+                  {searchTerm.length === 0 && filteredConditions.length > 0 && (
                     <div className="px-3 py-1.5 text-xs text-gray-500 font-medium bg-gray-50">
-                      Frequent Issues
+                      Common Damage Conditions
                     </div>
                   )}
-                  {/* Existing Issues */}
-                  {filteredIssues.map((issue, index) => (
+                  {/* Existing Conditions */}
+                  {filteredConditions.map((condition, index) => (
                     <button
-                      key={issue.id}
+                      key={condition.id}
                       type="button"
-                      onClick={() => addIssue(issue)}
+                      onClick={() => addCondition(condition)}
                       className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors text-sm flex items-center gap-2 ${
-                        highlightedIndex === index ? 'bg-purple-50' : ''
+                        highlightedIndex === index ? 'bg-orange-50' : ''
                       }`}
                     >
                       <AlertTriangle className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span>{issue.name}</span>
+                      <span>{condition.name}</span>
                     </button>
                   ))}
 
@@ -264,14 +264,14 @@ export function IssueTagInput({
                   {showAddOption && (
                     <button
                       type="button"
-                      onClick={handleCreateIssue}
+                      onClick={handleCreateCondition}
                       disabled={createMutation.isPending}
-                      className={`w-full px-3 py-2 text-left hover:bg-purple-50 transition-colors text-sm flex items-center gap-2 border-t border-gray-100 ${
-                        highlightedIndex === filteredIssues.length ? 'bg-purple-50' : ''
+                      className={`w-full px-3 py-2 text-left hover:bg-orange-50 transition-colors text-sm flex items-center gap-2 border-t border-gray-100 ${
+                        highlightedIndex === filteredConditions.length ? 'bg-orange-50' : ''
                       }`}
                     >
-                      <Plus className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                      <span className="text-purple-600 font-medium">
+                      <Plus className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                      <span className="text-orange-600 font-medium">
                         {createMutation.isPending ? 'Creating...' : `Add "${searchTerm}"`}
                       </span>
                     </button>

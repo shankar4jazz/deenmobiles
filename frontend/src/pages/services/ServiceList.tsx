@@ -390,7 +390,7 @@ export default function ServiceList() {
                       <td className="px-4 py-4">
                         <div className="space-y-2">
                           <div className="text-sm text-gray-900 line-clamp-2">
-                            {service.issue}
+                            {service.damageCondition}
                           </div>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
                             {STATUS_LABELS[service.status]}
@@ -566,7 +566,7 @@ export default function ServiceList() {
                     </div>
 
                     <div className="text-sm text-gray-900 line-clamp-2">
-                      {service.issue}
+                      {service.damageCondition}
                     </div>
                   </div>
 

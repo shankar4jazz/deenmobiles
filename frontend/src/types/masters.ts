@@ -229,18 +229,18 @@ export interface UpdateDeviceConditionDto {
   isActive?: boolean;
 }
 
-// Service Issue
-export interface ServiceIssue extends MasterDataBase {
+// Damage Condition
+export interface DamageCondition extends MasterDataBase {
   name: string;
   description?: string;
 }
 
-export interface CreateServiceIssueDto {
+export interface CreateDamageConditionDto {
   name: string;
   description?: string;
 }
 
-export interface UpdateServiceIssueDto {
+export interface UpdateDamageConditionDto {
   name?: string;
   description?: string;
   isActive?: boolean;
@@ -281,11 +281,11 @@ export enum MasterDataType {
   PAYMENT_METHOD = 'payment-method',
   EXPENSE_CATEGORY = 'expense-category',
   DEVICE_CONDITION = 'device-condition',
-  SERVICE_ISSUE = 'service-issue',
+  DAMAGE_CONDITION = 'damage-condition',
   ACCESSORY = 'accessory',
 }
 
 // Generic Master Data Item type
-export type MasterDataItem = ItemCategory | ItemUnit | ItemGSTRate | ItemBrand | ItemModel | ServiceCategory | PaymentMethod | ExpenseCategory | DeviceCondition | ServiceIssue | Accessory;
-export type CreateMasterDataDto = CreateItemCategoryDto | CreateItemUnitDto | CreateItemGSTRateDto | CreateItemBrandDto | CreateItemModelDto | CreateServiceCategoryDto | CreatePaymentMethodDto | CreateExpenseCategoryDto | CreateDeviceConditionDto | CreateServiceIssueDto | CreateAccessoryDto;
-export type UpdateMasterDataDto = UpdateItemCategoryDto | UpdateItemUnitDto | UpdateItemGSTRateDto | UpdateItemBrandDto | UpdateItemModelDto | UpdateServiceCategoryDto | UpdatePaymentMethodDto | UpdateExpenseCategoryDto | UpdateDeviceConditionDto | UpdateServiceIssueDto | UpdateAccessoryDto;
+export type MasterDataItem = ItemCategory | ItemUnit | ItemGSTRate | ItemBrand | ItemModel | ServiceCategory | PaymentMethod | ExpenseCategory | DeviceCondition | DamageCondition | Accessory;
+export type CreateMasterDataDto = CreateItemCategoryDto | CreateItemUnitDto | CreateItemGSTRateDto | CreateItemBrandDto | CreateItemModelDto | CreateServiceCategoryDto | CreatePaymentMethodDto | CreateExpenseCategoryDto | CreateDeviceConditionDto | CreateDamageConditionDto | CreateAccessoryDto;
+export type UpdateMasterDataDto = UpdateItemCategoryDto | UpdateItemUnitDto | UpdateItemGSTRateDto | UpdateItemBrandDto | UpdateItemModelDto | UpdateServiceCategoryDto | UpdatePaymentMethodDto | UpdateExpenseCategoryDto | UpdateDeviceConditionDto | UpdateDamageConditionDto | UpdateAccessoryDto;

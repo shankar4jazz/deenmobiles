@@ -9,7 +9,7 @@ import {
   PaymentMethod,
   ExpenseCategory,
   DeviceCondition,
-  ServiceIssue,
+  DamageCondition,
   Accessory,
   CreateItemCategoryDto,
   CreateItemUnitDto,
@@ -20,7 +20,7 @@ import {
   CreatePaymentMethodDto,
   CreateExpenseCategoryDto,
   CreateDeviceConditionDto,
-  CreateServiceIssueDto,
+  CreateDamageConditionDto,
   CreateAccessoryDto,
   UpdateItemCategoryDto,
   UpdateItemUnitDto,
@@ -31,7 +31,7 @@ import {
   UpdatePaymentMethodDto,
   UpdateExpenseCategoryDto,
   UpdateDeviceConditionDto,
-  UpdateServiceIssueDto,
+  UpdateDamageConditionDto,
   UpdateAccessoryDto,
   PaginatedResponse,
 } from '../types/masters';
@@ -498,12 +498,12 @@ export const deviceConditionApi = {
   },
 };
 
-// ==================== SERVICE ISSUE API ====================
-export const serviceIssueApi = {
+// ==================== DAMAGE CONDITION API ====================
+export const damageConditionApi = {
   /**
-   * Get all service issues
+   * Get all damage conditions
    */
-  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<ServiceIssue>> => {
+  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<DamageCondition>> => {
     const params = new URLSearchParams();
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
@@ -511,39 +511,39 @@ export const serviceIssueApi = {
     if (filters?.isActive !== undefined)
       params.append('isActive', filters.isActive.toString());
 
-    const response = await api.get(`/master-data/service-issues?${params.toString()}`);
+    const response = await api.get(`/master-data/damage-conditions?${params.toString()}`);
     return response.data.data;
   },
 
   /**
-   * Get service issue by ID
+   * Get damage condition by ID
    */
-  getById: async (id: string): Promise<ServiceIssue> => {
-    const response = await api.get(`/master-data/service-issues/${id}`);
+  getById: async (id: string): Promise<DamageCondition> => {
+    const response = await api.get(`/master-data/damage-conditions/${id}`);
     return response.data.data;
   },
 
   /**
-   * Create a new service issue
+   * Create a new damage condition
    */
-  create: async (data: CreateServiceIssueDto): Promise<ServiceIssue> => {
-    const response = await api.post('/master-data/service-issues', data);
+  create: async (data: CreateDamageConditionDto): Promise<DamageCondition> => {
+    const response = await api.post('/master-data/damage-conditions', data);
     return response.data.data;
   },
 
   /**
-   * Update a service issue
+   * Update a damage condition
    */
-  update: async (id: string, data: UpdateServiceIssueDto): Promise<ServiceIssue> => {
-    const response = await api.put(`/master-data/service-issues/${id}`, data);
+  update: async (id: string, data: UpdateDamageConditionDto): Promise<DamageCondition> => {
+    const response = await api.put(`/master-data/damage-conditions/${id}`, data);
     return response.data.data;
   },
 
   /**
-   * Deactivate a service issue
+   * Deactivate a damage condition
    */
-  deactivate: async (id: string): Promise<ServiceIssue> => {
-    const response = await api.delete(`/master-data/service-issues/${id}`);
+  deactivate: async (id: string): Promise<DamageCondition> => {
+    const response = await api.delete(`/master-data/damage-conditions/${id}`);
     return response.data.data;
   },
 };
@@ -609,7 +609,7 @@ export const masterDataApi = {
   paymentMethods: paymentMethodApi,
   expenseCategories: expenseCategoryApi,
   deviceConditions: deviceConditionApi,
-  serviceIssues: serviceIssueApi,
+  damageConditions: damageConditionApi,
   accessories: accessoryApi,
   // Convenience methods for direct access
   getAllCategories: categoryApi.getAll,
@@ -621,6 +621,6 @@ export const masterDataApi = {
   getAllPaymentMethods: paymentMethodApi.getAll,
   getAllExpenseCategories: expenseCategoryApi.getAll,
   getAllDeviceConditions: deviceConditionApi.getAll,
-  getAllServiceIssues: serviceIssueApi.getAll,
+  getAllDamageConditions: damageConditionApi.getAll,
   getAllAccessories: accessoryApi.getAll,
 };

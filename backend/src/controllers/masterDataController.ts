@@ -761,14 +761,14 @@ export class MasterDataController {
   // ==================== SERVICE ISSUE ENDPOINTS ====================
 
   /**
-   * GET /api/v1/master-data/service-issues
-   * Get all service issues
+   * GET /api/v1/master-data/damage-conditions
+   * Get all damage conditions
    */
-  static getAllServiceIssues = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static getAllDamageConditions = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
     const { search, isActive, page, limit } = req.query;
 
-    const result = await MasterDataService.getAllServiceIssues({
+    const result = await MasterDataService.getAllDamageConditions({
       companyId,
       search: search as string,
       isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
@@ -776,64 +776,64 @@ export class MasterDataController {
       limit: limit ? parseInt(limit as string) : undefined,
     });
 
-    return ApiResponse.success(res, result, 'Service issues retrieved successfully');
+    return ApiResponse.success(res, result, 'Damage conditions retrieved successfully');
   });
 
   /**
-   * GET /api/v1/master-data/service-issues/:id
-   * Get service issue by ID
+   * GET /api/v1/master-data/damage-conditions/:id
+   * Get damage condition by ID
    */
-  static getServiceIssueById = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static getDamageConditionById = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const companyId = req.user!.companyId;
 
-    const serviceIssue = await MasterDataService.getServiceIssueById(id, companyId);
+    const damageCondition = await MasterDataService.getDamageConditionById(id, companyId);
 
-    return ApiResponse.success(res, serviceIssue, 'Service issue retrieved successfully');
+    return ApiResponse.success(res, damageCondition, 'Damage condition retrieved successfully');
   });
 
   /**
-   * POST /api/v1/master-data/service-issues
-   * Create a new service issue
+   * POST /api/v1/master-data/damage-conditions
+   * Create a new damage condition
    */
-  static createServiceIssue = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static createDamageCondition = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { name, description } = req.body;
     const companyId = req.user!.companyId;
 
-    const serviceIssue = await MasterDataService.createServiceIssue({
+    const damageCondition = await MasterDataService.createDamageCondition({
       name,
       description,
       companyId,
     });
 
-    return ApiResponse.created(res, serviceIssue, 'Service issue created successfully');
+    return ApiResponse.created(res, damageCondition, 'Damage condition created successfully');
   });
 
   /**
-   * PUT /api/v1/master-data/service-issues/:id
-   * Update service issue
+   * PUT /api/v1/master-data/damage-conditions/:id
+   * Update damage condition
    */
-  static updateServiceIssue = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static updateDamageCondition = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const companyId = req.user!.companyId;
     const updateData = req.body;
 
-    const serviceIssue = await MasterDataService.updateServiceIssue(id, companyId, updateData);
+    const damageCondition = await MasterDataService.updateDamageCondition(id, companyId, updateData);
 
-    return ApiResponse.success(res, serviceIssue, 'Service issue updated successfully');
+    return ApiResponse.success(res, damageCondition, 'Damage condition updated successfully');
   });
 
   /**
-   * DELETE /api/v1/master-data/service-issues/:id
-   * Deactivate service issue (soft delete)
+   * DELETE /api/v1/master-data/damage-conditions/:id
+   * Deactivate damage condition (soft delete)
    */
-  static deactivateServiceIssue = asyncHandler(async (req: AuthRequest, res: Response) => {
+  static deactivateDamageCondition = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const companyId = req.user!.companyId;
 
-    const serviceIssue = await MasterDataService.deactivateServiceIssue(id, companyId);
+    const damageCondition = await MasterDataService.deactivateDamageCondition(id, companyId);
 
-    return ApiResponse.success(res, serviceIssue, 'Service issue deactivated successfully');
+    return ApiResponse.success(res, damageCondition, 'Damage condition deactivated successfully');
   });
 
   // ==================== ACCESSORY ENDPOINTS (Global) ====================

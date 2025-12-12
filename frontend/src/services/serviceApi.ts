@@ -12,7 +12,7 @@ export interface Service {
   devicePattern?: string;
   conditionId?: string;
   intakeNotes?: string;
-  issue: string;
+  damageCondition: string;
   diagnosis?: string;
   estimatedCost: number;
   actualCost?: number;
@@ -214,8 +214,8 @@ export interface CreateServiceData {
   customerId: string;
   customerDeviceId: string;
   faultIds: string[];
-  issue: string;
-  issueIds?: string[];
+  damageCondition: string;
+  damageConditionIds?: string[];
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;
@@ -233,7 +233,7 @@ export interface CreateServiceData {
 export interface UpdateServiceData {
   customerDeviceId?: string;
   faultIds?: string[];
-  issue?: string;
+  damageCondition?: string;
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;

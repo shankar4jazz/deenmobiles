@@ -411,11 +411,11 @@ export default function ServiceDetail() {
             )}
           </div>
 
-          {/* Issue & Diagnosis - Compact */}
+          {/* Damage Condition & Diagnosis - Compact */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Issue & Diagnosis
+                Damage Condition & Diagnosis
               </h3>
               {canUpdateDiagnosis && !isEditingDiagnosis && (
                 <button
@@ -468,7 +468,7 @@ export default function ServiceDetail() {
               </div>
             ) : (
               <div className="text-sm space-y-1">
-                <p><span className="text-gray-500">Issue:</span> {service.issue}</p>
+                <p><span className="text-gray-500">Damage Condition:</span> {service.damageCondition}</p>
                 <p><span className="text-gray-500">Diagnosis:</span> {service.diagnosis || <span className="text-gray-400 italic">Not yet diagnosed</span>}</p>
               </div>
             )}

@@ -53,7 +53,7 @@ model Company {
   themes                      Theme[]
   jobSheetTemplates           JobSheetTemplate[]             @relation("CompanyJobSheetTemplates")
   jobSheetTemplateCategories  JobSheetTemplateCategory[]     @relation("CompanyJobSheetTemplateCategories")
-  serviceIssues               ServiceIssue[]
+  damageConditions            DamageCondition[]
   technicianLevels            TechnicianLevel[]
   technicianProfiles          TechnicianProfile[]
 
@@ -260,7 +260,7 @@ model Service {
   devicePattern     String?                // Pattern lock (stored as "1,2,3,5,9" format)
   conditionId       String?                // Device condition at service intake
   intakeNotes       String?                // Notes about device condition at intake
-  issue             String
+  damageCondition   String                 @map("issue") // Damage condition description (e.g., "Screen Damage, Back Door Damage")
   diagnosis         String?
   estimatedCost     Float
   actualCost        Float?
@@ -289,7 +289,7 @@ model Service {
   customerDevice    CustomerDevice?        @relation(fields: [customerDeviceId], references: [id], onDelete: SetNull)
   condition         DeviceCondition?       @relation(fields: [conditionId], references: [id], onDelete: SetNull)
   paymentEntries    PaymentEntry[]         @relation("ServicePaymentEntries")
-  serviceIssues     ServiceIssueOnService[]
+  damageConditions  DamageConditionOnService[]
   accessories       ServiceAccessory[]
   pointsHistory     TechnicianPointsHistory[]
   notes             ServiceNote[]
@@ -928,21 +928,21 @@ model FaultOnService {
   @@map("fault_on_services")
 }
 
-model ServiceIssue {
-  id          String                  @id @default(uuid())
+model DamageCondition {
+  id          String                     @id @default(uuid())
   name        String
   description String?
-  isActive    Boolean                 @default(true)
+  isActive    Boolean                    @default(true)
   companyId   String
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
-  company     Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  services    ServiceIssueOnService[]
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  company     Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  services    DamageConditionOnService[]
 
   @@unique([name, companyId])
   @@index([companyId])
   @@index([isActive])
-  @@map("service_issues")
+  @@map("damage_conditions")
 }
 
 // Accessory Master Data - Global accessories list
@@ -976,18 +976,18 @@ model ServiceAccessory {
   @@map("service_accessories")
 }
 
-model ServiceIssueOnService {
-  id             String       @id @default(uuid())
-  serviceId      String
-  serviceIssueId String
-  createdAt      DateTime     @default(now())
-  service        Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  serviceIssue   ServiceIssue @relation(fields: [serviceIssueId], references: [id], onDelete: Cascade)
+model DamageConditionOnService {
+  id                String          @id @default(uuid())
+  serviceId         String
+  damageConditionId String
+  createdAt         DateTime        @default(now())
+  service           Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  damageCondition   DamageCondition @relation(fields: [damageConditionId], references: [id], onDelete: Cascade)
 
-  @@unique([serviceId, serviceIssueId])
+  @@unique([serviceId, damageConditionId])
   @@index([serviceId])
-  @@index([serviceIssueId])
-  @@map("service_issue_on_services")
+  @@index([damageConditionId])
+  @@map("damage_condition_on_services")
 }
 
 model DeviceCondition {

@@ -724,7 +724,7 @@ export class TechnicianService {
         ticketNumber: service.ticketNumber,
         customer: service.customer,
         deviceModel: service.deviceModel,
-        issue: service.issue,
+        issue: service.damageCondition,
         status: service.status,
         faults: service.faults.map(f => f.fault),
         estimatedCost: service.estimatedCost,

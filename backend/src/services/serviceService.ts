@@ -22,8 +22,8 @@ interface CreateServiceData {
   customerId: string;
   customerDeviceId: string;
   faultIds: string[];
-  issue: string;
-  issueIds?: string[];
+  damageCondition: string;
+  damageConditionIds?: string[];
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;
@@ -42,7 +42,7 @@ interface CreateServiceData {
 interface UpdateServiceData {
   customerDeviceId?: string;
   faultIds?: string[];
-  issue?: string;
+  damageCondition?: string;
   diagnosis?: string;
   estimatedCost?: number;
   actualCost?: number;
@@ -230,7 +230,7 @@ export class ServiceService {
             devicePattern: data.devicePattern,
             conditionId: data.conditionId,
             intakeNotes: data.intakeNotes,
-            issue: data.issue,
+            damageCondition: data.damageCondition,
             diagnosis: data.diagnosis,
             estimatedCost: data.estimatedCost || 0,
             actualCost: data.actualCost,
@@ -299,13 +299,13 @@ export class ServiceService {
           }
         }
 
-        // Create service issue links if issueIds provided
-        if (data.issueIds && data.issueIds.length > 0) {
-          for (const issueId of data.issueIds) {
-            await tx.serviceIssueOnService.create({
+        // Create damage condition links if damageConditionIds provided
+        if (data.damageConditionIds && data.damageConditionIds.length > 0) {
+          for (const damageConditionId of data.damageConditionIds) {
+            await tx.damageConditionOnService.create({
               data: {
                 serviceId: service.id,
-                serviceIssueId: issueId,
+                damageConditionId: damageConditionId,
               },
             });
           }
@@ -1847,7 +1847,7 @@ export class ServiceService {
         serviceId,
         updatedService.ticketNumber,
         service.deviceModel,
-        service.issue
+        service.damageCondition
       ).catch((err) => {
         Logger.error('Failed to send assignment notification', { error: err, serviceId });
       });

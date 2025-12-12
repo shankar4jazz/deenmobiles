@@ -26,7 +26,7 @@ const editServiceSchema = z.object({
   devicePattern: z.string().optional(),
   accessoryIds: z.array(z.string()).optional(),
   intakeNotes: z.string().optional(),
-  issue: z.string().min(1, 'Issue is required'),
+  damageCondition: z.string().min(1, 'Damage condition is required'),
   diagnosis: z.string().optional(),
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
   actualCost: z.number().min(0, 'Actual cost cannot be negative').optional(),
@@ -75,7 +75,7 @@ export default function EditServiceModal({
       devicePattern: '',
       accessoryIds: [],
       intakeNotes: '',
-      issue: '',
+      damageCondition: '',
       diagnosis: '',
       estimatedCost: 0,
       actualCost: 0,
@@ -94,7 +94,7 @@ export default function EditServiceModal({
         devicePattern: service.devicePattern || '',
         accessoryIds: service.accessories?.map((a) => a.accessoryId) || [],
         intakeNotes: service.intakeNotes || '',
-        issue: service.issue || '',
+        damageCondition: service.damageCondition || '',
         diagnosis: service.diagnosis || '',
         estimatedCost: service.estimatedCost || 0,
         actualCost: service.actualCost || 0,
@@ -149,7 +149,7 @@ export default function EditServiceModal({
     const submitData: UpdateServiceData = {
       customerDeviceId: data.customerDeviceId,
       faultIds: data.faultIds,
-      issue: data.issue,
+      damageCondition: data.damageCondition,
       diagnosis: data.diagnosis || undefined,
       estimatedCost: data.estimatedCost || 0,
       actualCost: data.actualCost || undefined,
@@ -255,17 +255,17 @@ export default function EditServiceModal({
                     />
                   </FormRow>
 
-                  <FormRow label="Issue" required error={errors.issue?.message}>
+                  <FormRow label="Damage Condition" required error={errors.damageCondition?.message}>
                     <Controller
                       control={control}
-                      name="issue"
+                      name="damageCondition"
                       render={({ field }) => (
                         <textarea
                           {...field}
                           rows={2}
-                          placeholder="Describe the issue..."
+                          placeholder="Describe the damage condition..."
                           className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none ${
-                            errors.issue ? 'border-red-500' : 'border-gray-300'
+                            errors.damageCondition ? 'border-red-500' : 'border-gray-300'
                           }`}
                         />
                       )}

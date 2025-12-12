@@ -73,22 +73,22 @@ export const createServiceValidation: ValidationChain[] = [
     .isUUID()
     .withMessage('Invalid accessory ID format'),
 
-  body('issueIds')
+  body('damageConditionIds')
     .optional()
     .isArray()
-    .withMessage('Issue IDs must be an array'),
+    .withMessage('Damage condition IDs must be an array'),
 
-  body('issueIds.*')
+  body('damageConditionIds.*')
     .optional()
     .isUUID()
-    .withMessage('Invalid issue ID format'),
+    .withMessage('Invalid damage condition ID format'),
 
-  body('issue')
+  body('damageCondition')
     .trim()
     .notEmpty()
-    .withMessage('Issue description is required')
-    .isLength({ min: 10, max: 1000 })
-    .withMessage('Issue description must be between 10 and 1000 characters'),
+    .withMessage('Damage condition is required')
+    .isLength({ min: 5, max: 1000 })
+    .withMessage('Damage condition must be between 5 and 1000 characters'),
 
   body('diagnosis')
     .optional()
@@ -154,11 +154,11 @@ export const updateServiceValidation: ValidationChain[] = [
     .isLength({ max: 50 })
     .withMessage('Device password must not exceed 50 characters'),
 
-  body('issue')
+  body('damageCondition')
     .optional()
     .trim()
-    .isLength({ min: 10, max: 1000 })
-    .withMessage('Issue description must be between 10 and 1000 characters'),
+    .isLength({ min: 5, max: 1000 })
+    .withMessage('Damage condition must be between 5 and 1000 characters'),
 
   body('diagnosis')
     .optional()

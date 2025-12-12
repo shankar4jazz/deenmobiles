@@ -130,14 +130,14 @@ interface UpdateDeviceConditionData {
   isActive?: boolean;
 }
 
-// ==================== Service Issue Interfaces ====================
-interface CreateServiceIssueData {
+// ==================== Damage Condition Interfaces ====================
+interface CreateDamageConditionData {
   name: string;
   description?: string;
   companyId: string;
 }
 
-interface UpdateServiceIssueData {
+interface UpdateDamageConditionData {
   name?: string;
   description?: string;
   isActive?: boolean;
@@ -2092,12 +2092,12 @@ export class MasterDataService {
     }
   }
 
-  // ==================== SERVICE ISSUE METHODS ====================
+  // ==================== DAMAGE CONDITION METHODS ====================
 
   /**
-   * Get all service issues
+   * Get all damage conditions
    */
-  static async getAllServiceIssues(filters: MasterDataFilters) {
+  static async getAllDamageConditions(filters: MasterDataFilters) {
     try {
       const {
         companyId,
@@ -2124,8 +2124,8 @@ export class MasterDataService {
         ];
       }
 
-      const [serviceIssues, total] = await Promise.all([
-        prisma.serviceIssue.findMany({
+      const [damageConditions, total] = await Promise.all([
+        prisma.damageCondition.findMany({
           where,
           skip,
           take: limit,
@@ -2140,11 +2140,11 @@ export class MasterDataService {
             },
           },
         }),
-        prisma.serviceIssue.count({ where }),
+        prisma.damageCondition.count({ where }),
       ]);
 
       return {
-        data: serviceIssues,
+        data: damageConditions,
         pagination: {
           page,
           limit,
@@ -2153,39 +2153,39 @@ export class MasterDataService {
         },
       };
     } catch (error) {
-      Logger.error('Error fetching service issues', { error, filters });
-      throw new AppError(500, 'Failed to fetch service issues');
+      Logger.error('Error fetching damage conditions', { error, filters });
+      throw new AppError(500, 'Failed to fetch damage conditions');
     }
   }
 
   /**
-   * Get service issue by ID
+   * Get damage condition by ID
    */
-  static async getServiceIssueById(id: string, companyId: string) {
+  static async getDamageConditionById(id: string, companyId: string) {
     try {
-      const serviceIssue = await prisma.serviceIssue.findFirst({
+      const damageCondition = await prisma.damageCondition.findFirst({
         where: { id, companyId },
       });
 
-      if (!serviceIssue) {
-        throw new AppError(404, 'Service issue not found');
+      if (!damageCondition) {
+        throw new AppError(404, 'Damage condition not found');
       }
 
-      return serviceIssue;
+      return damageCondition;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error fetching service issue', { error, id });
-      throw new AppError(500, 'Failed to fetch service issue');
+      Logger.error('Error fetching damage condition', { error, id });
+      throw new AppError(500, 'Failed to fetch damage condition');
     }
   }
 
   /**
-   * Create a new service issue
+   * Create a new damage condition
    */
-  static async createServiceIssue(data: CreateServiceIssueData) {
+  static async createDamageCondition(data: CreateDamageConditionData) {
     try {
       // Check for duplicate name (case-insensitive)
-      const duplicate = await prisma.serviceIssue.findFirst({
+      const duplicate = await prisma.damageCondition.findFirst({
         where: {
           companyId: data.companyId,
           name: { equals: data.name, mode: 'insensitive' },
@@ -2193,11 +2193,11 @@ export class MasterDataService {
       });
 
       if (duplicate) {
-        // Return existing issue instead of error for auto-create flow
+        // Return existing damage condition instead of error for auto-create flow
         return duplicate;
       }
 
-      const serviceIssue = await prisma.serviceIssue.create({
+      const damageCondition = await prisma.damageCondition.create({
         data: {
           name: data.name,
           description: data.description,
@@ -2205,32 +2205,32 @@ export class MasterDataService {
         },
       });
 
-      Logger.info('Service issue created', { serviceIssueId: serviceIssue.id });
-      return serviceIssue;
+      Logger.info('Damage condition created', { damageConditionId: damageCondition.id });
+      return damageCondition;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error creating service issue', { error, data });
-      throw new AppError(500, 'Failed to create service issue');
+      Logger.error('Error creating damage condition', { error, data });
+      throw new AppError(500, 'Failed to create damage condition');
     }
   }
 
   /**
-   * Update a service issue
+   * Update a damage condition
    */
-  static async updateServiceIssue(id: string, companyId: string, data: UpdateServiceIssueData) {
+  static async updateDamageCondition(id: string, companyId: string, data: UpdateDamageConditionData) {
     try {
-      // Check if service issue exists
-      const existing = await prisma.serviceIssue.findFirst({
+      // Check if damage condition exists
+      const existing = await prisma.damageCondition.findFirst({
         where: { id, companyId },
       });
 
       if (!existing) {
-        throw new AppError(404, 'Service issue not found');
+        throw new AppError(404, 'Damage condition not found');
       }
 
       // Check for duplicate name if being updated
       if (data.name) {
-        const duplicate = await prisma.serviceIssue.findFirst({
+        const duplicate = await prisma.damageCondition.findFirst({
           where: {
             companyId,
             name: { equals: data.name, mode: 'insensitive' },
@@ -2239,11 +2239,11 @@ export class MasterDataService {
         });
 
         if (duplicate) {
-          throw new AppError(400, 'Service issue name already exists');
+          throw new AppError(400, 'Damage condition name already exists');
         }
       }
 
-      const serviceIssue = await prisma.serviceIssue.update({
+      const damageCondition = await prisma.damageCondition.update({
         where: { id },
         data: {
           ...(data.name && { name: data.name }),
@@ -2252,40 +2252,40 @@ export class MasterDataService {
         },
       });
 
-      Logger.info('Service issue updated', { serviceIssueId: id });
-      return serviceIssue;
+      Logger.info('Damage condition updated', { damageConditionId: id });
+      return damageCondition;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error updating service issue', { error, id, data });
-      throw new AppError(500, 'Failed to update service issue');
+      Logger.error('Error updating damage condition', { error, id, data });
+      throw new AppError(500, 'Failed to update damage condition');
     }
   }
 
   /**
-   * Deactivate a service issue (soft delete)
+   * Deactivate a damage condition (soft delete)
    */
-  static async deactivateServiceIssue(id: string, companyId: string) {
+  static async deactivateDamageCondition(id: string, companyId: string) {
     try {
-      // Check if service issue exists
-      const existing = await prisma.serviceIssue.findFirst({
+      // Check if damage condition exists
+      const existing = await prisma.damageCondition.findFirst({
         where: { id, companyId },
       });
 
       if (!existing) {
-        throw new AppError(404, 'Service issue not found');
+        throw new AppError(404, 'Damage condition not found');
       }
 
-      const serviceIssue = await prisma.serviceIssue.update({
+      const damageCondition = await prisma.damageCondition.update({
         where: { id },
         data: { isActive: false },
       });
 
-      Logger.info('Service issue deactivated', { serviceIssueId: id });
-      return serviceIssue;
+      Logger.info('Damage condition deactivated', { damageConditionId: id });
+      return damageCondition;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Error deactivating service issue', { error, id });
-      throw new AppError(500, 'Failed to deactivate service issue');
+      Logger.error('Error deactivating damage condition', { error, id });
+      throw new AppError(500, 'Failed to deactivate damage condition');
     }
   }
 

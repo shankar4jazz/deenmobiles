@@ -10,7 +10,7 @@ import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
 import { ArrowLeft } from 'lucide-react';
 import { CustomerDevice, Customer } from '@/types';
-import { Fault, ServiceIssue, Accessory } from '@/types/masters';
+import { Fault, DamageCondition, Accessory } from '@/types/masters';
 
 // Components
 import { FormRow } from '@/components/common/FormRow';
@@ -19,7 +19,7 @@ import { SearchableDeviceSelect } from '@/components/common/SearchableDeviceSele
 import { FaultTagInput } from '@/components/common/FaultTagInput';
 import { SearchableDeviceConditionSelect } from '@/components/common/SearchableDeviceConditionSelect';
 import { MultiImageUpload } from '@/components/common/MultiImageUpload';
-import { IssueTagInput } from '@/components/common/IssueTagInput';
+import { DamageConditionTagInput } from '@/components/common/DamageConditionTagInput';
 import { PatternLockInput } from '@/components/common/PatternLockInput';
 import { AccessoryTagInput } from '@/components/common/AccessoryTagInput';
 import { AddDeviceModal } from './components/AddDeviceModal';
@@ -35,8 +35,8 @@ const serviceSchema = z.object({
   devicePattern: z.string().optional(),
   accessoryIds: z.array(z.string()).optional(),
   intakeNotes: z.string().optional(),
-  issueIds: z.array(z.string()).min(1, 'Please add at least one issue'),
-  issueDescription: z.string().optional(),
+  damageConditionIds: z.array(z.string()).min(1, 'Please add at least one damage condition'),
+  damageConditionDescription: z.string().optional(),
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
   advancePayment: z.number().min(0, 'Advance payment cannot be negative').optional(),
   paymentMethodId: z.string().optional(),
@@ -79,7 +79,7 @@ export default function CreateService() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<CustomerDevice | null>(null);
   const [selectedFaults, setSelectedFaults] = useState<Fault[]>([]);
-  const [selectedIssues, setSelectedIssues] = useState<ServiceIssue[]>([]);
+  const [selectedDamageConditions, setSelectedDamageConditions] = useState<DamageCondition[]>([]);
   const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
 
   const {
@@ -100,8 +100,8 @@ export default function CreateService() {
       devicePattern: '',
       accessoryIds: [],
       intakeNotes: '',
-      issueIds: [],
-      issueDescription: '',
+      damageConditionIds: [],
+      damageConditionDescription: '',
       estimatedCost: 0,
       advancePayment: 0,
       paymentMethodId: '',
@@ -210,16 +210,16 @@ export default function CreateService() {
         }]
       : [];
 
-    // Combine issue names from selected issues
-    const issueNames = selectedIssues.map((issue) => issue.name).join(', ');
-    const issueText = issueNames + (data.issueDescription ? ` - ${data.issueDescription}` : '');
+    // Combine damage condition names from selected conditions
+    const conditionNames = selectedDamageConditions.map((condition) => condition.name).join(', ');
+    const damageConditionText = conditionNames + (data.damageConditionDescription ? ` - ${data.damageConditionDescription}` : '');
 
     const submitData: CreateServiceData = {
       customerId: data.customerId,
       customerDeviceId: data.customerDeviceId,
       faultIds: data.faultIds,
-      issue: issueText,
-      issueIds: data.issueIds,
+      damageCondition: damageConditionText,
+      damageConditionIds: data.damageConditionIds,
       estimatedCost: data.estimatedCost || 0,
       paymentEntries,
       branchId: data.branchId,
@@ -310,33 +310,33 @@ export default function CreateService() {
               />
             </FormRow>
 
-            <FormRow label="Issues" required error={errors.issueIds?.message}>
+            <FormRow label="Damage Condition" required error={errors.damageConditionIds?.message}>
               <Controller
                 control={control}
-                name="issueIds"
+                name="damageConditionIds"
                 render={({ field }) => (
-                  <IssueTagInput
+                  <DamageConditionTagInput
                     value={field.value}
-                    onChange={(ids, issues) => {
+                    onChange={(ids, conditions) => {
                       field.onChange(ids);
-                      setSelectedIssues(issues);
+                      setSelectedDamageConditions(conditions);
                     }}
-                    error={errors.issueIds?.message}
-                    placeholder="Type to search or add issues..."
+                    error={errors.damageConditionIds?.message}
+                    placeholder="Type to search or add damage conditions..."
                   />
                 )}
               />
             </FormRow>
 
-            <FormRow label="Issue Description">
+            <FormRow label="Additional Notes">
               <Controller
                 control={control}
-                name="issueDescription"
+                name="damageConditionDescription"
                 render={({ field }) => (
                   <input
                     {...field}
                     type="text"
-                    placeholder="Additional details..."
+                    placeholder="Additional details about damage..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 )}

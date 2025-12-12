@@ -221,8 +221,8 @@ export class AnalyticsService {
           key = `${service.createdAt.getFullYear()}-${String(service.createdAt.getMonth() + 1).padStart(2, '0')}`;
           break;
         case 'service_type':
-          // Group by issue type (you can modify this logic)
-          key = service.issue.substring(0, 50); // First 50 chars of issue
+          // Group by damage condition type (you can modify this logic)
+          key = service.damageCondition.substring(0, 50); // First 50 chars of damage condition
           break;
         case 'branch':
           key = service.branch?.name || 'Unknown';
@@ -548,7 +548,7 @@ export class AnalyticsService {
     const services = await prisma.service.findMany({
       where,
       select: {
-        issue: true,
+        damageCondition: true,
         actualCost: true,
         estimatedCost: true,
         createdAt: true,
@@ -565,7 +565,7 @@ export class AnalyticsService {
     }>();
 
     for (const service of services) {
-      const issue = service.issue.substring(0, 100).toLowerCase().trim();
+      const issue = service.damageCondition.substring(0, 100).toLowerCase().trim();
       if (!issueMap.has(issue)) {
         issueMap.set(issue, {
           count: 0,
@@ -736,7 +736,7 @@ export class AnalyticsService {
     // Find top issue
     const issueMap = new Map<string, number>();
     for (const service of services) {
-      const issue = service.issue.substring(0, 50).toLowerCase().trim();
+      const issue = service.damageCondition.substring(0, 50).toLowerCase().trim();
       issueMap.set(issue, (issueMap.get(issue) || 0) + 1);
     }
 

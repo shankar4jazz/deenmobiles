@@ -489,56 +489,56 @@ router.delete(
   MasterDataController.deactivateDeviceCondition
 );
 
-// ==================== SERVICE ISSUE ROUTES ====================
+// ==================== DAMAGE CONDITION ROUTES ====================
 
 /**
- * @route   GET /api/v1/master-data/service-issues
- * @desc    Get all service issues
+ * @route   GET /api/v1/master-data/damage-conditions
+ * @desc    Get all damage conditions
  * @access  Private (Admin, Branch Admin, Manager)
  */
-router.get('/service-issues', authorize(...authorizedRoles), MasterDataController.getAllServiceIssues);
+router.get('/damage-conditions', authorize(...authorizedRoles), MasterDataController.getAllDamageConditions);
 
 /**
- * @route   GET /api/v1/master-data/service-issues/:id
- * @desc    Get service issue by ID
+ * @route   GET /api/v1/master-data/damage-conditions/:id
+ * @desc    Get damage condition by ID
  * @access  Private (Admin, Branch Admin, Manager)
  */
 router.get(
-  '/service-issues/:id',
+  '/damage-conditions/:id',
   authorize(...authorizedRoles),
   validate(idValidation),
-  MasterDataController.getServiceIssueById
+  MasterDataController.getDamageConditionById
 );
 
 /**
- * @route   POST /api/v1/master-data/service-issues
- * @desc    Create a new service issue
+ * @route   POST /api/v1/master-data/damage-conditions
+ * @desc    Create a new damage condition
  * @access  Private (Admin, Branch Admin, Manager)
  */
-router.post('/service-issues', authorize(...authorizedRoles), MasterDataController.createServiceIssue);
+router.post('/damage-conditions', authorize(...authorizedRoles), MasterDataController.createDamageCondition);
 
 /**
- * @route   PUT /api/v1/master-data/service-issues/:id
- * @desc    Update service issue
+ * @route   PUT /api/v1/master-data/damage-conditions/:id
+ * @desc    Update damage condition
  * @access  Private (Admin, Branch Admin, Manager)
  */
 router.put(
-  '/service-issues/:id',
+  '/damage-conditions/:id',
   authorize(...authorizedRoles),
   validate(idValidation),
-  MasterDataController.updateServiceIssue
+  MasterDataController.updateDamageCondition
 );
 
 /**
- * @route   DELETE /api/v1/master-data/service-issues/:id
- * @desc    Deactivate service issue (soft delete)
+ * @route   DELETE /api/v1/master-data/damage-conditions/:id
+ * @desc    Deactivate damage condition (soft delete)
  * @access  Private (Admin, Branch Admin, Manager)
  */
 router.delete(
-  '/service-issues/:id',
+  '/damage-conditions/:id',
   authorize(...authorizedRoles),
   validate(idValidation),
-  MasterDataController.deactivateServiceIssue
+  MasterDataController.deactivateDamageCondition
 );
 
 // ==================== ACCESSORY ROUTES (Global) ====================

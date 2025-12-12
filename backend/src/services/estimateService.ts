@@ -174,7 +174,7 @@ export class EstimateService {
               select: {
                 ticketNumber: true,
                 deviceModel: true,
-                issue: true,
+                damageCondition: true,
               },
             },
           },
@@ -231,7 +231,7 @@ export class EstimateService {
               id: true,
               ticketNumber: true,
               deviceModel: true,
-              issue: true,
+              damageCondition: true,
             },
           },
           items: {
