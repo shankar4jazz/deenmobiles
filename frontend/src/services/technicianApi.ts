@@ -17,9 +17,9 @@ export interface TechnicianLevel {
 
 export interface TechnicianSkill {
   id: string;
-  serviceCategoryId: string;
-  categoryName?: string;
-  serviceCategory?: {
+  faultId: string;
+  faultName?: string;
+  fault?: {
     id: string;
     name: string;
     code?: string;
@@ -295,7 +295,7 @@ export const technicianApi = {
    */
   addSkill: async (
     userId: string,
-    data: { serviceCategoryId: string; proficiencyLevel?: number }
+    data: { faultId: string; proficiencyLevel?: number }
   ): Promise<TechnicianSkill> => {
     const response = await api.post(`/technicians/${userId}/skills`, data);
     return response.data.data;

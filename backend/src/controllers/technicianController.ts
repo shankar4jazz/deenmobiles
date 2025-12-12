@@ -126,12 +126,12 @@ export class TechnicianController {
   static addSkill = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { userId } = req.params;
     const companyId = req.user!.companyId;
-    const { serviceCategoryId, proficiencyLevel } = req.body;
+    const { faultId, proficiencyLevel } = req.body;
 
     const skill = await TechnicianService.addSkill(
       userId,
       companyId,
-      serviceCategoryId,
+      faultId,
       proficiencyLevel
     );
 

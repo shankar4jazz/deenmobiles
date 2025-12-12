@@ -91,9 +91,9 @@ export class TechnicianService {
       // Add skills if provided
       if (data.skillIds && data.skillIds.length > 0) {
         await prisma.technicianSkill.createMany({
-          data: data.skillIds.map((categoryId) => ({
+          data: data.skillIds.map((faultId) => ({
             technicianProfileId: profile.id,
-            serviceCategoryId: categoryId,
+            faultId: faultId,
             proficiencyLevel: 1,
           })),
         });
@@ -127,7 +127,7 @@ export class TechnicianService {
           branch: { select: { id: true, name: true, code: true } },
           skills: {
             include: {
-              serviceCategory: { select: { id: true, name: true, code: true } },
+              fault: { select: { id: true, name: true, code: true } },
             },
           },
         },
@@ -250,7 +250,7 @@ export class TechnicianService {
 
       if (filters.categoryId) {
         where.skills = {
-          some: { serviceCategoryId: filters.categoryId },
+          some: { faultId: filters.categoryId },
         };
       }
 
@@ -277,7 +277,7 @@ export class TechnicianService {
             branch: { select: { id: true, name: true, code: true } },
             skills: {
               include: {
-                serviceCategory: { select: { id: true, name: true } },
+                fault: { select: { id: true, name: true } },
               },
             },
           },
@@ -337,7 +337,7 @@ export class TechnicianService {
 
       if (filters.categoryId) {
         where.skills = {
-          some: { serviceCategoryId: filters.categoryId },
+          some: { faultId: filters.categoryId },
         };
       }
 
@@ -350,7 +350,7 @@ export class TechnicianService {
           currentLevel: true,
           skills: {
             include: {
-              serviceCategory: { select: { id: true, name: true } },
+              fault: { select: { id: true, name: true } },
             },
           },
         },
@@ -394,8 +394,8 @@ export class TechnicianService {
               maxConcurrentJobs: tech.maxConcurrentJobs,
             },
             skills: tech.skills.map((s) => ({
-              categoryId: s.serviceCategoryId,
-              categoryName: s.serviceCategory.name,
+              faultId: s.faultId,
+              faultName: s.fault.name,
               proficiencyLevel: s.proficiencyLevel,
             })),
             pendingServicesCount: pendingCount,
@@ -436,7 +436,7 @@ export class TechnicianService {
   static async addSkill(
     userId: string,
     companyId: string,
-    serviceCategoryId: string,
+    faultId: string,
     proficiencyLevel: number = 1
   ) {
     try {
@@ -452,7 +452,7 @@ export class TechnicianService {
       const existingSkill = await prisma.technicianSkill.findFirst({
         where: {
           technicianProfileId: profile.id,
-          serviceCategoryId,
+          faultId,
         },
       });
 
@@ -460,23 +460,23 @@ export class TechnicianService {
         throw new AppError(400, 'Skill already exists for this technician');
       }
 
-      // Verify service category exists
-      const category = await prisma.serviceCategory.findFirst({
-        where: { id: serviceCategoryId, companyId },
+      // Verify fault exists
+      const fault = await prisma.fault.findFirst({
+        where: { id: faultId, companyId },
       });
 
-      if (!category) {
-        throw new AppError(404, 'Service category not found');
+      if (!fault) {
+        throw new AppError(404, 'Fault not found');
       }
 
       const skill = await prisma.technicianSkill.create({
         data: {
           technicianProfileId: profile.id,
-          serviceCategoryId,
+          faultId,
           proficiencyLevel: Math.min(5, Math.max(1, proficiencyLevel)),
         },
         include: {
-          serviceCategory: { select: { id: true, name: true, code: true } },
+          fault: { select: { id: true, name: true, code: true } },
         },
       });
 
@@ -523,7 +523,7 @@ export class TechnicianService {
           }),
         },
         include: {
-          serviceCategory: { select: { id: true, name: true, code: true } },
+          fault: { select: { id: true, name: true, code: true } },
         },
       });
 
@@ -705,8 +705,12 @@ export class TechnicianService {
           customer: {
             select: { id: true, name: true, phone: true },
           },
-          serviceCategory: {
-            select: { id: true, name: true, technicianPoints: true },
+          faults: {
+            include: {
+              fault: {
+                select: { id: true, name: true, technicianPoints: true },
+              },
+            },
           },
           branch: {
             select: { id: true, name: true, code: true },
@@ -722,7 +726,7 @@ export class TechnicianService {
         deviceModel: service.deviceModel,
         issue: service.issue,
         status: service.status,
-        category: service.serviceCategory,
+        faults: service.faults.map(f => f.fault),
         estimatedCost: service.estimatedCost,
         createdAt: service.createdAt,
         assignedAt: service.updatedAt,

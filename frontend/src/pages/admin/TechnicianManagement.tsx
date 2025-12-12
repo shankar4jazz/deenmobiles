@@ -8,7 +8,7 @@ import {
   PromotionCandidate,
 } from '@/services/technicianApi';
 import { branchApi } from '@/services/branchApi';
-import { serviceCategoryApi } from '@/services/masterDataApi';
+import { faultApi } from '@/services/masterDataApi';
 import { LevelBadge } from '@/components/common/LevelBadge';
 import {
   Users,
@@ -102,10 +102,10 @@ export default function TechnicianManagement() {
     enabled: activeTab === 'skills',
   });
 
-  // Fetch service categories for skill options
-  const { data: serviceCategoriesData } = useQuery({
-    queryKey: ['service-categories'],
-    queryFn: () => serviceCategoryApi.getAll({ isActive: true, limit: 100 }),
+  // Fetch faults for skill options
+  const { data: faultsData } = useQuery({
+    queryKey: ['faults'],
+    queryFn: () => faultApi.getAll({ isActive: true, limit: 100 }),
     enabled: activeTab === 'skills' || showAddSkillModal,
   });
 
@@ -195,7 +195,7 @@ export default function TechnicianManagement() {
 
   // Add skill mutation
   const addSkillMutation = useMutation({
-    mutationFn: ({ userId, data }: { userId: string; data: { serviceCategoryId: string; proficiencyLevel?: number } }) =>
+    mutationFn: ({ userId, data }: { userId: string; data: { faultId: string; proficiencyLevel?: number } }) =>
       technicianApi.addSkill(userId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['technicians-with-skills'] });
@@ -938,7 +938,7 @@ export default function TechnicianManagement() {
                             >
                               <Wrench className="w-4 h-4 text-gray-500" />
                               <span className="text-sm font-medium text-gray-700">
-                                {skill.serviceCategory?.name || 'Unknown'}
+                                {skill.fault?.name || 'Unknown'}
                               </span>
 
                               {/* Proficiency Level */}
@@ -1321,7 +1321,7 @@ export default function TechnicianManagement() {
                   addSkillMutation.mutate({
                     userId: skillTechnician.userId,
                     data: {
-                      serviceCategoryId: formData.get('serviceCategoryId') as string,
+                      faultId: formData.get('faultId') as string,
                       proficiencyLevel: parseInt(formData.get('proficiencyLevel') as string) || 3,
                     },
                   });
@@ -1330,19 +1330,19 @@ export default function TechnicianManagement() {
               >
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Service Category (Skill)
+                    Fault (Skill)
                   </label>
                   <select
-                    name="serviceCategoryId"
+                    name="faultId"
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   >
-                    <option value="">Select a service category</option>
-                    {serviceCategoriesData?.items
-                      ?.filter((cat: any) => !skillTechnician.skills?.find((s: TechnicianSkill) => s.serviceCategoryId === cat.id))
-                      .map((category: any) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
+                    <option value="">Select a fault</option>
+                    {faultsData?.data
+                      ?.filter((fault: any) => !skillTechnician.skills?.find((s: TechnicianSkill) => s.faultId === fault.id))
+                      .map((fault: any) => (
+                        <option key={fault.id} value={fault.id}>
+                          {fault.name}
                         </option>
                       ))}
                   </select>
@@ -1424,7 +1424,7 @@ export default function TechnicianManagement() {
                 <div className="flex items-center gap-2">
                   <Wrench className="w-5 h-5 text-gray-600" />
                   <span className="font-medium text-gray-900">
-                    {editingSkill.serviceCategory?.name || 'Unknown Skill'}
+                    {editingSkill.fault?.name || 'Unknown Skill'}
                   </span>
                 </div>
               </div>
