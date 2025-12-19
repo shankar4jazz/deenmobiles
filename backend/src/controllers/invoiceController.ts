@@ -153,6 +153,19 @@ export class InvoiceController {
   });
 
   /**
+   * PUT /api/v1/invoices/:id/sync
+   * Sync invoice from service - recalculates totals from current service data
+   */
+  static syncFromService = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    const invoice = await InvoiceService.syncFromService(id, companyId);
+
+    return ApiResponse.success(res, invoice, 'Invoice synced from service successfully');
+  });
+
+  /**
    * POST /api/v1/invoices/:id/payments
    * Record payment for invoice
    */

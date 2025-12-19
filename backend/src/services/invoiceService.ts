@@ -745,7 +745,7 @@ export class InvoiceService {
   }
 
   /**
-   * Delete invoice
+   * Delete invoice (with payments)
    */
   static async deleteInvoice(invoiceId: string, companyId: string): Promise<void> {
     try {
@@ -760,13 +760,109 @@ export class InvoiceService {
         throw new AppError(404, 'Invoice not found');
       }
 
+      // Delete all payments first
+      await prisma.payment.deleteMany({
+        where: { invoiceId },
+      });
+
+      // Delete invoice
       await prisma.invoice.delete({
         where: { id: invoiceId },
       });
 
-      Logger.info(`Invoice ${invoice.invoiceNumber} deleted`);
+      Logger.info(`Invoice ${invoice.invoiceNumber} deleted with payments`);
     } catch (error) {
       Logger.error('Error deleting invoice:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync invoice from service - recalculates totals from current service data
+   */
+  static async syncFromService(invoiceId: string, companyId: string): Promise<any> {
+    try {
+      // Get invoice with service
+      const invoice = await prisma.invoice.findFirst({
+        where: {
+          id: invoiceId,
+          companyId,
+        },
+        include: {
+          service: true,
+        },
+      });
+
+      if (!invoice) {
+        throw new AppError(404, 'Invoice not found');
+      }
+
+      if (!invoice.serviceId || !invoice.service) {
+        throw new AppError(400, 'No service linked to this invoice');
+      }
+
+      const service = invoice.service;
+
+      // Calculate new total from service
+      const newTotalAmount = service.actualCost ?? service.estimatedCost;
+
+      // Sum all existing payments on this invoice
+      const payments = await prisma.payment.aggregate({
+        where: { invoiceId },
+        _sum: { amount: true },
+      });
+      const paidAmount = payments._sum.amount || 0;
+      const balanceAmount = newTotalAmount - paidAmount;
+
+      // Determine payment status
+      let paymentStatus: PaymentStatus;
+      if (balanceAmount <= 0) {
+        paymentStatus = PaymentStatus.PAID;
+      } else if (paidAmount > 0) {
+        paymentStatus = PaymentStatus.PARTIAL;
+      } else {
+        paymentStatus = PaymentStatus.PENDING;
+      }
+
+      // Update invoice
+      const updatedInvoice = await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          totalAmount: newTotalAmount,
+          paidAmount,
+          balanceAmount,
+          paymentStatus,
+        },
+        include: {
+          service: {
+            select: {
+              ticketNumber: true,
+              deviceModel: true,
+              customer: {
+                select: {
+                  name: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+          payments: {
+            include: {
+              paymentMethod: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      Logger.info(`Invoice ${invoice.invoiceNumber} synced from service. New total: ${newTotalAmount}, Paid: ${paidAmount}, Balance: ${balanceAmount}`);
+
+      return updatedInvoice;
+    } catch (error) {
+      Logger.error('Error syncing invoice from service:', error);
       throw error;
     }
   }

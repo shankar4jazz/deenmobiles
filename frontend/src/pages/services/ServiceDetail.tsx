@@ -56,6 +56,8 @@ export default function ServiceDetail() {
   const [showEditEstimatedModal, setShowEditEstimatedModal] = useState(false);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showStatusChange, setShowStatusChange] = useState(false);
+  const [isEditingLabour, setIsEditingLabour] = useState(false);
+  const [labourCharge, setLabourCharge] = useState(0);
 
   // Photo viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -140,6 +142,19 @@ export default function ServiceDetail() {
     },
     onError: () => {
       setDeletingDeviceImageId(null);
+    },
+  });
+
+  // Update labour charge mutation
+  const updateLabourChargeMutation = useMutation({
+    mutationFn: (amount: number) => serviceApi.updateLabourCharge(id!, amount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      setIsEditingLabour(false);
+      toast.success('Labour charge updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update labour charge');
     },
   });
 
@@ -683,39 +698,123 @@ export default function ServiceDetail() {
               <DollarSign className="w-3 h-3" />
               Pricing
             </h3>
-            <div className="text-sm space-y-1">
-              {/* Estimated - with edit button */}
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">Estimated</span>
-                <div className="flex items-center gap-1">
-                  <span>₹{service.estimatedCost.toFixed(2)}</span>
-                  {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TECHNICIAN') && (
-                    <button
-                      onClick={() => setShowEditEstimatedModal(true)}
-                      className="p-1 hover:bg-gray-100 rounded"
-                      title="Edit estimated cost"
-                    >
-                      <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
-                    </button>
-                  )}
+            {(() => {
+              // Calculate parts total
+              const partsTotal = (service.partsUsed || []).reduce(
+                (sum, part) => sum + part.totalPrice,
+                0
+              );
+              const currentLabourCharge = service.labourCharge || 0;
+              const actualTotal = partsTotal + currentLabourCharge;
+              const balance = actualTotal - service.advancePayment;
+
+              return (
+                <div className="text-sm space-y-1">
+                  {/* Estimated - with edit button */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Estimated</span>
+                    <div className="flex items-center gap-1">
+                      <span>₹{service.estimatedCost.toFixed(2)}</span>
+                      {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TECHNICIAN') && (
+                        <button
+                          onClick={() => setShowEditEstimatedModal(true)}
+                          className="p-1 hover:bg-gray-100 rounded"
+                          title="Edit estimated cost"
+                        >
+                          <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Separator */}
+                  <div className="border-t border-dashed border-gray-200 my-2" />
+
+                  {/* Parts - from parts used */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Parts</span>
+                    <span>₹{partsTotal.toFixed(2)}</span>
+                  </div>
+
+                  {/* Labour - with edit button */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Labour</span>
+                    {isEditingLabour ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={labourCharge}
+                          onChange={(e) => setLabourCharge(parseFloat(e.target.value) || 0)}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              updateLabourChargeMutation.mutate(labourCharge);
+                            } else if (e.key === 'Escape') {
+                              setIsEditingLabour(false);
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => updateLabourChargeMutation.mutate(labourCharge)}
+                          disabled={updateLabourChargeMutation.isPending}
+                          className="p-1 hover:bg-green-100 rounded text-green-600"
+                          title="Save"
+                        >
+                          <Save className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setIsEditingLabour(false)}
+                          className="p-1 hover:bg-gray-100 rounded text-gray-500"
+                          title="Cancel"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span>₹{currentLabourCharge.toFixed(2)}</span>
+                        {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TECHNICIAN') && (
+                          <button
+                            onClick={() => {
+                              setLabourCharge(currentLabourCharge);
+                              setIsEditingLabour(true);
+                            }}
+                            className="p-1 hover:bg-gray-100 rounded"
+                            title="Edit labour charge"
+                          >
+                            <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Separator */}
+                  <div className="border-t border-dashed border-gray-200 my-2" />
+
+                  {/* Actual Total */}
+                  <div className="flex justify-between font-medium">
+                    <span className="text-gray-700">Actual Total</span>
+                    <span>₹{actualTotal.toFixed(2)}</span>
+                  </div>
+
+                  {/* Advance */}
+                  <div className="flex justify-between text-green-600">
+                    <span>Advance</span>
+                    <span>₹{service.advancePayment.toFixed(2)}</span>
+                  </div>
+
+                  {/* Balance */}
+                  <div className="flex justify-between font-semibold pt-1 border-t">
+                    <span>Balance</span>
+                    <span className={balance > 0 ? 'text-red-600' : 'text-green-600'}>
+                      ₹{balance.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              {service.actualCost && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Actual</span>
-                  <span>₹{service.actualCost.toFixed(2)}</span>
-                </div>
-              )}
-              {/* Advance */}
-              <div className="flex justify-between text-green-600">
-                <span>Advance</span>
-                <span>₹{service.advancePayment.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-semibold pt-1 border-t">
-                <span>Balance</span>
-                <span>₹{((service.actualCost || service.estimatedCost) - service.advancePayment).toFixed(2)}</span>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Add Payment Button */}
             {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (

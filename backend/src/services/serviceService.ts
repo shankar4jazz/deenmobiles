@@ -210,7 +210,6 @@ export class ServiceService {
           const accessories = await tx.accessory.findMany({
             where: {
               id: { in: data.accessoryIds },
-              companyId: data.companyId,
               isActive: true,
             },
           });
@@ -229,20 +228,20 @@ export class ServiceService {
           throw new AppError(404, 'Branch not found');
         }
 
-        // Verify payment methods if payment entries provided
+        // Verify payment methods if payment entries provided (batch verification)
         if (data.paymentEntries && data.paymentEntries.length > 0) {
-          for (const entry of data.paymentEntries) {
-            const paymentMethod = await tx.paymentMethod.findFirst({
-              where: {
-                id: entry.paymentMethodId,
-                companyId: data.companyId,
-                isActive: true,
-              },
-            });
+          const paymentMethodIds = [...new Set(data.paymentEntries.map((e) => e.paymentMethodId))];
+          const paymentMethods = await tx.paymentMethod.findMany({
+            where: {
+              id: { in: paymentMethodIds },
+              companyId: data.companyId,
+              isActive: true,
+            },
+            select: { id: true },
+          });
 
-            if (!paymentMethod) {
-              throw new AppError(404, `Payment method not found or inactive`);
-            }
+          if (paymentMethods.length !== paymentMethodIds.length) {
+            throw new AppError(404, 'One or more payment methods not found or inactive');
           }
         }
 
@@ -319,45 +318,39 @@ export class ServiceService {
           },
         });
 
-        // Create payment entries if provided
+        // Create payment entries if provided (batch insert)
         if (data.paymentEntries && data.paymentEntries.length > 0) {
-          for (const entry of data.paymentEntries) {
-            await tx.paymentEntry.create({
-              data: {
-                amount: entry.amount,
-                paymentMethodId: entry.paymentMethodId,
-                notes: entry.notes,
-                transactionId: entry.transactionId,
-                paymentDate: entry.paymentDate || new Date(),
-                serviceId: service.id,
-                companyId: data.companyId,
-              },
-            });
-          }
+          await tx.paymentEntry.createMany({
+            data: data.paymentEntries.map((entry) => ({
+              amount: entry.amount,
+              paymentMethodId: entry.paymentMethodId,
+              notes: entry.notes,
+              transactionId: entry.transactionId,
+              paymentDate: entry.paymentDate || new Date(),
+              serviceId: service.id,
+              companyId: data.companyId,
+            })),
+          });
         }
 
-        // Create damage condition links if damageConditionIds provided
+        // Create damage condition links if damageConditionIds provided (batch insert)
         if (data.damageConditionIds && data.damageConditionIds.length > 0) {
-          for (const damageConditionId of data.damageConditionIds) {
-            await tx.damageConditionOnService.create({
-              data: {
-                serviceId: service.id,
-                damageConditionId: damageConditionId,
-              },
-            });
-          }
+          await tx.damageConditionOnService.createMany({
+            data: data.damageConditionIds.map((damageConditionId) => ({
+              serviceId: service.id,
+              damageConditionId,
+            })),
+          });
         }
 
-        // Create service accessory links if accessoryIds provided
+        // Create service accessory links if accessoryIds provided (batch insert)
         if (data.accessoryIds && data.accessoryIds.length > 0) {
-          for (const accessoryId of data.accessoryIds) {
-            await tx.serviceAccessory.create({
-              data: {
-                serviceId: service.id,
-                accessoryId: accessoryId,
-              },
-            });
-          }
+          await tx.serviceAccessory.createMany({
+            data: data.accessoryIds.map((accessoryId) => ({
+              serviceId: service.id,
+              accessoryId,
+            })),
+          });
         }
 
         // Create initial status history
@@ -401,17 +394,17 @@ export class ServiceService {
         return service;
       });
 
-      // Auto-generate job sheet after service creation (outside transaction)
-      try {
-        await JobSheetService.generateJobSheet({
-          serviceId: createdService.id,
-          userId: data.createdBy,
+      // Auto-generate job sheet after service creation (async, non-blocking)
+      JobSheetService.generateJobSheet({
+        serviceId: createdService.id,
+        userId: data.createdBy,
+      })
+        .then(() => {
+          Logger.info('Job sheet auto-generated for service', { serviceId: createdService.id });
+        })
+        .catch((jobSheetError) => {
+          Logger.error('Failed to auto-generate job sheet', { error: jobSheetError, serviceId: createdService.id });
         });
-        Logger.info('Job sheet auto-generated for service', { serviceId: createdService.id });
-      } catch (jobSheetError) {
-        // Log error but don't fail service creation
-        Logger.error('Failed to auto-generate job sheet', { error: jobSheetError, serviceId: createdService.id });
-      }
 
       return createdService;
     } catch (error) {
@@ -1236,7 +1229,7 @@ export class ServiceService {
         // Verify service exists and get its branch
         const service = await tx.service.findFirst({
           where: { id: serviceId, companyId },
-          select: { id: true, branchId: true, actualCost: true },
+          select: { id: true, branchId: true, actualCost: true, labourCharge: true },
         });
 
         if (!service) {
@@ -1341,13 +1334,14 @@ export class ServiceService {
           });
 
           // Update service actual cost (add only the new quantity's price)
-          const addedPrice = unitPrice * quantity;
           const currentActualCost = service.actualCost || 0;
-          // Recalculate: remove old total, add new total
+          const labourCost = service.labourCharge || 0;
+          // Recalculate: remove old total, add new total (include labour charge)
           const oldTotalPrice = existingPart.totalPrice;
+          const newPartsTotal = (currentActualCost - labourCost) - oldTotalPrice + totalPrice;
           await tx.service.update({
             where: { id: serviceId },
-            data: { actualCost: currentActualCost - oldTotalPrice + totalPrice },
+            data: { actualCost: newPartsTotal + labourCost },
           });
 
           action = 'SERVICE_PART_QUANTITY_INCREASED';
@@ -1386,11 +1380,13 @@ export class ServiceService {
             },
           });
 
-          // Update service actual cost
+          // Update service actual cost (parts total + labour charge)
           const currentActualCost = service.actualCost || 0;
+          const labourCost = service.labourCharge || 0;
+          const currentPartsTotal = currentActualCost - labourCost;
           await tx.service.update({
             where: { id: serviceId },
-            data: { actualCost: currentActualCost + totalPrice },
+            data: { actualCost: currentPartsTotal + totalPrice + labourCost },
           });
 
           action = 'SERVICE_PART_ADDED';
@@ -1455,7 +1451,7 @@ export class ServiceService {
             service: { companyId },
           },
           include: {
-            service: { select: { branchId: true, actualCost: true } },
+            service: { select: { branchId: true, actualCost: true, labourCharge: true } },
             branchInventory: true,
           },
         });
@@ -1536,12 +1532,15 @@ export class ServiceService {
           },
         });
 
-        // Update service actual cost
+        // Update service actual cost (parts total + labour charge)
         const currentActualCost = servicePart.service.actualCost || 0;
+        const labourCost = servicePart.service.labourCharge || 0;
+        const currentPartsTotal = currentActualCost - labourCost;
         const costDiff = newTotalPrice - oldTotalPrice;
+        const newPartsTotal = Math.max(0, currentPartsTotal + costDiff);
         await tx.service.update({
           where: { id: serviceId },
-          data: { actualCost: Math.max(0, currentActualCost + costDiff) },
+          data: { actualCost: newPartsTotal + labourCost },
         });
 
         // Create activity log
@@ -1605,7 +1604,7 @@ export class ServiceService {
         // Get service for branch info
         const service = await tx.service.findUnique({
           where: { id: serviceId },
-          select: { branchId: true, actualCost: true },
+          select: { branchId: true, actualCost: true, labourCharge: true },
         });
 
         if (!service) {
@@ -1671,12 +1670,15 @@ export class ServiceService {
           where: { id: servicePartId },
         });
 
-        // Update service actual cost
+        // Update service actual cost (parts total + labour charge)
         const currentActualCost = service.actualCost || 0;
+        const labourCost = service.labourCharge || 0;
+        const currentPartsTotal = currentActualCost - labourCost;
+        const newPartsTotal = Math.max(0, currentPartsTotal - servicePart.totalPrice);
         await tx.service.update({
           where: { id: serviceId },
           data: {
-            actualCost: Math.max(0, currentActualCost - servicePart.totalPrice),
+            actualCost: newPartsTotal + labourCost,
           },
         });
 
@@ -2313,6 +2315,80 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error deleting service note', { error, noteId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to delete note');
+    }
+  }
+
+  /**
+   * Update labour charge for a service
+   * Recalculates actualCost = partsTotal + labourCharge
+   */
+  static async updateLabourCharge(
+    serviceId: string,
+    labourCharge: number,
+    userId: string,
+    companyId: string
+  ) {
+    try {
+      const service = await prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          companyId,
+        },
+        include: {
+          partsUsed: true,
+        },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      // Calculate parts total
+      const partsTotal = service.partsUsed.reduce((sum, part) => sum + part.totalPrice, 0);
+
+      // Calculate new actual cost
+      const actualCost = partsTotal + labourCharge;
+
+      const updatedService = await prisma.service.update({
+        where: { id: serviceId },
+        data: {
+          labourCharge,
+          actualCost,
+        },
+        include: {
+          customer: true,
+          assignedTo: true,
+          branch: true,
+          partsUsed: {
+            include: {
+              item: true,
+            },
+          },
+        },
+      });
+
+      // Create activity log
+      await prisma.activityLog.create({
+        data: {
+          userId,
+          action: 'UPDATE',
+          entity: 'service',
+          entityId: serviceId,
+          details: JSON.stringify({
+            action: 'labour_charge_updated',
+            labourCharge,
+            partsTotal,
+            actualCost,
+          }),
+        },
+      });
+
+      Logger.info('Service labour charge updated', { serviceId, labourCharge, actualCost });
+
+      return updatedService;
+    } catch (error) {
+      Logger.error('Error updating service labour charge', { error, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to update labour charge');
     }
   }
 }

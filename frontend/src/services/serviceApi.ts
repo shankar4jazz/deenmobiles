@@ -16,6 +16,7 @@ export interface Service {
   diagnosis?: string;
   estimatedCost: number;
   actualCost?: number;
+  labourCharge?: number;
   advancePayment: number;
   status: ServiceStatus;
   assignedToId?: string;
@@ -510,6 +511,14 @@ export const serviceApi = {
    */
   updateEstimatedCost: async (serviceId: string, estimatedCost: number): Promise<Service> => {
     const response = await api.put(`/services/${serviceId}`, { estimatedCost });
+    return response.data.data;
+  },
+
+  /**
+   * Update labour charge
+   */
+  updateLabourCharge: async (serviceId: string, labourCharge: number): Promise<Service> => {
+    const response = await api.put(`/services/${serviceId}/labour-charge`, { labourCharge });
     return response.data.data;
   },
 

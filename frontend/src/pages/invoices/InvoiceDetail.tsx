@@ -15,7 +15,10 @@ import {
   Building,
   Package,
   ChevronDown,
+  RefreshCw,
+  Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 const PAYMENT_STATUS_COLORS = {
@@ -45,9 +48,9 @@ export default function InvoiceDetail() {
   });
 
   // Fetch payment methods
-  const { data: paymentMethods } = useQuery({
+  const { data: paymentMethodsData } = useQuery({
     queryKey: ['paymentMethods'],
-    queryFn: () => masterDataApi.getPaymentMethods(),
+    queryFn: () => masterDataApi.getAllPaymentMethods({ isActive: true, limit: 100 }),
   });
 
   // Record payment mutation
@@ -66,6 +69,30 @@ export default function InvoiceDetail() {
       setPaymentMethodId('');
       setTransactionId('');
       setPaymentNotes('');
+    },
+  });
+
+  // Sync from service mutation
+  const syncFromServiceMutation = useMutation({
+    mutationFn: () => invoiceApi.syncFromService(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+      toast.success('Invoice synced from service successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to sync invoice');
+    },
+  });
+
+  // Delete invoice mutation
+  const deleteInvoiceMutation = useMutation({
+    mutationFn: () => invoiceApi.delete(id!),
+    onSuccess: () => {
+      toast.success('Invoice deleted successfully');
+      navigate('/branch/invoices');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete invoice');
     },
   });
 
@@ -155,6 +182,32 @@ export default function InvoiceDetail() {
               Record Payment
             </button>
           )}
+          {/* Sync from Service button - only for service-linked invoices */}
+          {invoice.serviceId && (
+            <button
+              onClick={() => syncFromServiceMutation.mutate()}
+              disabled={syncFromServiceMutation.isPending}
+              className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              title="Recalculate totals from current service data"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncFromServiceMutation.isPending ? 'animate-spin' : ''}`} />
+              Sync
+            </button>
+          )}
+          {/* Delete Invoice button */}
+          <button
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+                deleteInvoiceMutation.mutate();
+              }
+            }}
+            disabled={deleteInvoiceMutation.isPending}
+            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+            title="Delete this invoice"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
           <div className="relative">
             <button
               onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
@@ -295,7 +348,7 @@ export default function InvoiceDetail() {
                       )}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {formatDate(payment.paymentDate)}
+                      {formatDate(payment.paymentDate || payment.createdAt)}
                     </div>
                   </div>
                 ))}
@@ -371,7 +424,7 @@ export default function InvoiceDetail() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">Select payment method</option>
-                  {paymentMethods?.map((method) => (
+                  {paymentMethodsData?.data?.map((method) => (
                     <option key={method.id} value={method.id}>
                       {method.name}
                     </option>

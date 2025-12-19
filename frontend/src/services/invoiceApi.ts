@@ -45,7 +45,7 @@ export interface InvoicePayment {
   paymentMethodId: string;
   transactionId?: string;
   notes?: string;
-  paymentDate: string;
+  paymentDate?: string; // Optional - fallback to createdAt
   createdAt: string;
   paymentMethod?: {
     id: string;
@@ -152,6 +152,12 @@ export const invoiceApi = {
   // Delete invoice
   delete: async (id: string): Promise<void> => {
     await api.delete(`/invoices/${id}`);
+  },
+
+  // Sync invoice from service - recalculates totals from current service data
+  syncFromService: async (id: string): Promise<Invoice> => {
+    const response = await api.put(`/invoices/${id}/sync`);
+    return response.data.data;
   },
 
   // Record payment

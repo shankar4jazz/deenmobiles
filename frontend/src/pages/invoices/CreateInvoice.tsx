@@ -51,9 +51,9 @@ export default function CreateInvoice() {
   });
 
   // Fetch payment methods
-  const { data: paymentMethods } = useQuery({
+  const { data: paymentMethodsData } = useQuery({
     queryKey: ['paymentMethods'],
-    queryFn: () => masterDataApi.getPaymentMethods(),
+    queryFn: () => masterDataApi.getAllPaymentMethods({ isActive: true, limit: 100 }),
   });
 
   // Fetch active themes
@@ -437,7 +437,7 @@ export default function CreateInvoice() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="">Select Payment Method</option>
-                  {paymentMethods?.map((method) => (
+                  {paymentMethodsData?.data?.map((method) => (
                     <option key={method.id} value={method.id}>
                       {method.name}
                     </option>

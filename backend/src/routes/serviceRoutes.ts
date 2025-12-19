@@ -312,6 +312,23 @@ router.put(
 );
 
 /**
+ * @route   PUT /api/v1/services/:id/labour-charge
+ * @desc    Update service labour charge
+ * @access  Private (Technician, Manager, Admin)
+ */
+router.put(
+  '/:id/labour-charge',
+  authorize(
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.updateLabourCharge
+);
+
+/**
  * @route   GET /api/v1/services/:id/history
  * @desc    Get service status history
  * @access  Private (All authenticated users)

@@ -206,7 +206,7 @@ export default function CreateService() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="border-b sticky top-0 z-10 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center h-12">
             <div className="flex items-center gap-3">
               <button
@@ -222,7 +222,7 @@ export default function CreateService() {
       </div>
 
       {/* Form Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
           {/* Row 1: Customer, Device, Service Category */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">

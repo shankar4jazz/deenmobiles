@@ -127,6 +127,23 @@ router.delete(
 );
 
 /**
+ * @route   PUT /api/v1/invoices/:id/sync
+ * @desc    Sync invoice from service - recalculates totals from current service data
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.put(
+  '/:id/sync',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(invoiceIdValidation),
+  InvoiceController.syncFromService
+);
+
+/**
  * @route   POST /api/v1/invoices/:id/payments
  * @desc    Record payment for invoice
  * @access  Private (Receptionist, Manager, Admin)

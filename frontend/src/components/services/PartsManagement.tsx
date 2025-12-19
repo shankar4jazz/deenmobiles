@@ -135,7 +135,11 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
         </div>
         {canEdit && (
           <button
-            onClick={() => setShowAddPart(!showAddPart)}
+            onClick={() => {
+              const newState = !showAddPart;
+              setShowAddPart(newState);
+              if (newState) setShowDropdown(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
           >
             <Plus className="h-4 w-4" />

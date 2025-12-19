@@ -312,6 +312,21 @@ export class ServiceController {
   });
 
   /**
+   * PUT /api/v1/services/:id/labour-charge
+   * Update service labour charge
+   */
+  static updateLabourCharge = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { labourCharge } = req.body;
+
+    const service = await ServiceService.updateLabourCharge(id, labourCharge, userId, companyId);
+
+    return ApiResponse.success(res, service, 'Labour charge updated successfully');
+  });
+
+  /**
    * GET /api/v1/services/:id/history
    * Get service status history
    */

@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
-import { api } from '@/services/api';
+import { technicianApi } from '@/services/technicianApi';
+import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
 import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check } from 'lucide-react';
@@ -29,6 +30,7 @@ export default function ServiceList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const user = useAuthStore((state) => state.user);
 
   // Initialize filters from URL params
   const initialStatus = searchParams.get('status') as ServiceStatus | '' || '';
@@ -81,12 +83,12 @@ export default function ServiceList() {
 
   // Fetch technicians (only when assigning)
   const { data: techniciansData } = useQuery({
-    queryKey: ['technicians'],
-    queryFn: async () => {
-      const response = await api.get('/users?role=TECHNICIAN&limit=100');
-      return response.data.data;
-    },
-    enabled: !!assigningServiceId,
+    queryKey: ['technicians-for-assignment', user?.branchId],
+    queryFn: () =>
+      technicianApi.getTechniciansForAssignment({
+        branchId: user?.branchId!,
+      }),
+    enabled: !!assigningServiceId && !!user?.branchId,
   });
 
   // Delete mutation
@@ -117,9 +119,9 @@ export default function ServiceList() {
   });
 
   // Filter technicians by search
-  const filteredTechnicians = techniciansData?.users?.filter((tech: any) =>
+  const filteredTechnicians = techniciansData?.technicians?.filter((tech: any) =>
     tech.name.toLowerCase().includes(technicianSearch.toLowerCase()) ||
-    tech.email.toLowerCase().includes(technicianSearch.toLowerCase())
+    (tech.email && tech.email.toLowerCase().includes(technicianSearch.toLowerCase()))
   ) || [];
 
   const handleDelete = (e: React.MouseEvent, id: string, ticketNumber: string) => {
@@ -529,6 +531,7 @@ export default function ServiceList() {
                                         <button
                                           key={tech.id}
                                           onClick={(e) => handleAssign(e, service.id, tech.id)}
+                                          onMouseDown={(e) => e.stopPropagation()}
                                           disabled={assignMutation.isPending}
                                           className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between disabled:opacity-50"
                                         >
@@ -701,6 +704,7 @@ export default function ServiceList() {
                                     <button
                                       key={tech.id}
                                       onClick={(e) => handleAssign(e, service.id, tech.id)}
+                                      onMouseDown={(e) => e.stopPropagation()}
                                       disabled={assignMutation.isPending}
                                       className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between disabled:opacity-50"
                                     >

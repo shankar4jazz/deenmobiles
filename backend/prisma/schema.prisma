@@ -267,6 +267,7 @@ model Service {
   diagnosis         String?
   estimatedCost     Float
   actualCost        Float?
+  labourCharge      Float                  @default(0)
   advancePayment    Float                  @default(0)
   status            ServiceStatus          @default(PENDING)
   assignedToId      String?
