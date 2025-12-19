@@ -199,10 +199,13 @@ export class DocumentNumberService {
     branchId: string
   ): Promise<string> {
     try {
+      Logger.info(`Generating ${documentType} number for company ${companyId}, branch ${branchId}`);
+
       // Get or create format with defaults
       let format = await this.getFormat(companyId, documentType);
 
       if (!format) {
+        Logger.info(`No format found for ${documentType}, creating default`);
         // Create default format based on document type
         const defaultPrefix = documentType === DocumentType.JOB_SHEET ? 'JS' :
                               documentType === DocumentType.INVOICE ? 'INV' :
@@ -221,6 +224,7 @@ export class DocumentNumberService {
           includeMonth: false,
           includeDay: false,
         });
+        Logger.info(`Created default format with id ${format.id}`);
       }
 
       // Get branch info if needed
