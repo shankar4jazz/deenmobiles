@@ -112,6 +112,7 @@ function App() {
               <Route path="petty-cash/transfers" element={<PettyCashTransfersPage />} />
               <Route path="petty-cash/requests" element={<PettyCashRequestsPage />} />
               <Route path="technicians" element={<TechnicianManagement />} />
+              <Route path="settings" element={<SettingsMainPage />} />
             </Route>
           ) : null}
 

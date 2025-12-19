@@ -1,4 +1,4 @@
-import { BarChart3, LayoutDashboard, Plus, Package, Shield, UserCog, Database, Wallet, Receipt, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { BarChart3, LayoutDashboard, Plus, Package, Shield, UserCog, Database, Wallet, Receipt, AlertCircle, ChevronDown, ChevronRight, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { UserRole } from '@/types';
@@ -47,6 +47,11 @@ const getNavItems = (role: string): NavItem[] => {
       ? '/admin/masters'
       : '/branch/masters';
     baseItems.push({ name: 'Master Data', icon: Database, path: mastersPath });
+  }
+
+  // Settings for Super Admin only
+  if (role === UserRole.SUPER_ADMIN) {
+    baseItems.push({ name: 'Settings', icon: Settings, path: '/admin/settings' });
   }
 
   return baseItems;
