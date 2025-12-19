@@ -157,14 +157,12 @@ export class DocumentNumberService {
   ): Promise<number> {
     // Use a transaction with serializable isolation for atomic increment
     const result = await prisma.$transaction(async (tx) => {
-      // Try to find existing sequence
-      const existing = await tx.documentSequence.findUnique({
+      // Try to find existing sequence using findFirst for proper null handling
+      const existing = await tx.documentSequence.findFirst({
         where: {
-          formatId_branchId_periodKey: {
-            formatId,
-            branchId: branchId ?? '',
-            periodKey: periodKey ?? '',
-          },
+          formatId,
+          branchId: branchId || null,
+          periodKey: periodKey || null,
         },
       });
 
@@ -375,13 +373,12 @@ export class DocumentNumberService {
 
     const periodKey = this.getPeriodKey(format.sequenceResetFrequency);
 
-    const sequence = await prisma.documentSequence.findUnique({
+    // Use findFirst for proper null handling
+    const sequence = await prisma.documentSequence.findFirst({
       where: {
-        formatId_branchId_periodKey: {
-          formatId: format.id,
-          branchId: format.includeBranch ? branchId : '',
-          periodKey: periodKey ?? '',
-        },
+        formatId: format.id,
+        branchId: format.includeBranch ? branchId : null,
+        periodKey: periodKey || null,
       },
     });
 
