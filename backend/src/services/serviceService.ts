@@ -1,12 +1,13 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { Logger } from '../utils/logger';
-import { ServiceStatus, StockMovementType } from '@prisma/client';
+import { ServiceStatus, StockMovementType, DocumentType } from '@prisma/client';
 import { StockMovementService } from './stockMovementService';
 import JobSheetService from './jobSheetService';
 import { S3Service } from './s3Service';
 import { PointsService } from './pointsService';
 import { TechnicianNotificationService } from './technicianNotificationService';
+import { DocumentNumberService } from './documentNumberService';
 import path from 'path';
 import fs from 'fs';
 
@@ -85,44 +86,20 @@ interface AddServicePartData {
 
 export class ServiceService {
   /**
-   * Generate unique ticket number
-   * Format: SRV-BRANCH-YYYYMMDD-XXX
+   * Generate unique ticket number using configurable format from settings
+   * Format is configurable via Settings → Document Numbers → Service Ticket
+   * Example: DS-1-2025-001 (prefix-branch-year-sequence)
    */
-  private static async generateTicketNumber(branchId: string): Promise<string> {
+  private static async generateTicketNumber(branchId: string, companyId: string): Promise<string> {
     try {
-      // Get branch code
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
-        select: { code: true },
-      });
+      // Use DocumentNumberService to generate ticket number based on company settings
+      const ticketNumber = await DocumentNumberService.generateNumber(
+        companyId,
+        DocumentType.SERVICE_TICKET,
+        branchId
+      );
 
-      if (!branch) {
-        throw new AppError(404, 'Branch not found');
-      }
-
-      // Get today's date in YYYYMMDD format
-      const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-
-      // Get count of services created today for this branch
-      const todayStart = new Date(today.setHours(0, 0, 0, 0));
-      const todayEnd = new Date(today.setHours(23, 59, 59, 999));
-
-      const todayCount = await prisma.service.count({
-        where: {
-          branchId,
-          createdAt: {
-            gte: todayStart,
-            lte: todayEnd,
-          },
-        },
-      });
-
-      // Generate ticket number
-      const sequence = (todayCount + 1).toString().padStart(3, '0');
-      const ticketNumber = `SRV-${branch.code}-${dateStr}-${sequence}`;
-
-      // Check if ticket number already exists (rare edge case)
+      // Check if ticket number already exists (rare edge case due to race conditions)
       const existing = await prisma.service.findUnique({
         where: { ticketNumber },
       });
@@ -130,12 +107,13 @@ export class ServiceService {
       if (existing) {
         // If exists, add random suffix
         const randomSuffix = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+        Logger.warn('Duplicate ticket number detected, adding suffix', { ticketNumber, randomSuffix });
         return `${ticketNumber}-${randomSuffix}`;
       }
 
       return ticketNumber;
     } catch (error) {
-      Logger.error('Error generating ticket number', { error, branchId });
+      Logger.error('Error generating ticket number', { error, branchId, companyId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to generate ticket number');
     }
   }
@@ -245,8 +223,8 @@ export class ServiceService {
           }
         }
 
-        // Generate ticket number
-        const ticketNumber = await this.generateTicketNumber(data.branchId);
+        // Generate ticket number using configurable format from settings
+        const ticketNumber = await this.generateTicketNumber(data.branchId, data.companyId);
 
         // Calculate total advance payment
         const totalAdvancePayment = data.paymentEntries?.reduce((sum, entry) => sum + entry.amount, 0) || 0;
