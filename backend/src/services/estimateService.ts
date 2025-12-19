@@ -1,9 +1,10 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { Logger } from '../utils/logger';
-import { EstimateStatus } from '@prisma/client';
+import { EstimateStatus, DocumentType } from '@prisma/client';
 import pdfGenerationService from './pdfGenerationService';
 import InvoiceService from './invoiceService';
+import { DocumentNumberService } from './documentNumberService';
 
 interface EstimateItem {
   description: string;
@@ -49,42 +50,17 @@ interface EstimateFilters {
 
 export class EstimateService {
   /**
-   * Generate unique estimate number
-   * Format: EST-BRANCH-YYYYMMDD-XXX
+   * Generate unique estimate number using configurable format from settings
+   * Format is configurable via Settings → Document Numbers → Estimate
    */
-  private static async generateEstimateNumber(branchId: string): Promise<string> {
+  private static async generateEstimateNumber(branchId: string, companyId: string): Promise<string> {
     try {
-      // Get branch code
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
-        select: { code: true },
-      });
-
-      if (!branch) {
-        throw new AppError(404, 'Branch not found');
-      }
-
-      // Get today's date in YYYYMMDD format
-      const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-
-      // Get count of estimates created today for this branch
-      const todayStart = new Date(today.setHours(0, 0, 0, 0));
-      const todayEnd = new Date(today.setHours(23, 59, 59, 999));
-
-      const todayCount = await prisma.estimate.count({
-        where: {
-          branchId,
-          createdAt: {
-            gte: todayStart,
-            lte: todayEnd,
-          },
-        },
-      });
-
-      // Generate estimate number
-      const sequence = (todayCount + 1).toString().padStart(3, '0');
-      const estimateNumber = `EST-${branch.code}-${dateStr}-${sequence}`;
+      // Use DocumentNumberService to generate estimate number based on company settings
+      const estimateNumber = await DocumentNumberService.generateNumber(
+        companyId,
+        DocumentType.ESTIMATE,
+        branchId
+      );
 
       return estimateNumber;
     } catch (error) {
@@ -141,8 +117,8 @@ export class EstimateService {
         }
       }
 
-      // Generate estimate number
-      const estimateNumber = await this.generateEstimateNumber(branchId);
+      // Generate estimate number using configurable format from settings
+      const estimateNumber = await this.generateEstimateNumber(branchId, companyId);
 
       // Create estimate with items in transaction
       const estimate = await prisma.$transaction(async (tx) => {

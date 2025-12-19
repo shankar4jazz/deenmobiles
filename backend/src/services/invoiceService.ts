@@ -1,8 +1,9 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { Logger } from '../utils/logger';
-import { PaymentStatus } from '@prisma/client';
+import { PaymentStatus, DocumentType } from '@prisma/client';
 import pdfGenerationService from './pdfGenerationService';
+import { DocumentNumberService } from './documentNumberService';
 
 interface GenerateInvoiceFromServiceData {
   serviceId: string;
@@ -50,42 +51,17 @@ interface InvoiceFilters {
 
 export class InvoiceService {
   /**
-   * Generate unique invoice number
-   * Format: INV-BRANCH-YYYYMMDD-XXX
+   * Generate unique invoice number using configurable format from settings
+   * Format is configurable via Settings → Document Numbers → Invoice
    */
-  private static async generateInvoiceNumber(branchId: string): Promise<string> {
+  private static async generateInvoiceNumber(branchId: string, companyId: string): Promise<string> {
     try {
-      // Get branch code
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId },
-        select: { code: true },
-      });
-
-      if (!branch) {
-        throw new AppError(404, 'Branch not found');
-      }
-
-      // Get today's date in YYYYMMDD format
-      const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-
-      // Get count of invoices created today for this branch
-      const todayStart = new Date(today.setHours(0, 0, 0, 0));
-      const todayEnd = new Date(today.setHours(23, 59, 59, 999));
-
-      const todayCount = await prisma.invoice.count({
-        where: {
-          branchId,
-          createdAt: {
-            gte: todayStart,
-            lte: todayEnd,
-          },
-        },
-      });
-
-      // Generate invoice number
-      const sequence = (todayCount + 1).toString().padStart(3, '0');
-      const invoiceNumber = `INV-${branch.code}-${dateStr}-${sequence}`;
+      // Use DocumentNumberService to generate invoice number based on company settings
+      const invoiceNumber = await DocumentNumberService.generateNumber(
+        companyId,
+        DocumentType.INVOICE,
+        branchId
+      );
 
       return invoiceNumber;
     } catch (error) {
@@ -189,8 +165,8 @@ export class InvoiceService {
         paymentStatus = PaymentStatus.PENDING;
       }
 
-      // Generate invoice number
-      const invoiceNumber = await this.generateInvoiceNumber(service.branchId);
+      // Generate invoice number using configurable format from settings
+      const invoiceNumber = await this.generateInvoiceNumber(service.branchId, service.companyId);
 
       // Prepare data for PDF generation
       const pdfData = {
@@ -385,8 +361,8 @@ export class InvoiceService {
         paymentStatus = PaymentStatus.PENDING;
       }
 
-      // Generate invoice number
-      const invoiceNumber = await this.generateInvoiceNumber(effectiveBranchId!);
+      // Generate invoice number using configurable format from settings
+      const invoiceNumber = await this.generateInvoiceNumber(effectiveBranchId!, companyId);
 
       // Create invoice with items in transaction
       const invoice = await prisma.$transaction(async (tx) => {
