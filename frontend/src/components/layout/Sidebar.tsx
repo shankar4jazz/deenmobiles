@@ -1,4 +1,4 @@
-import { BarChart3, LayoutDashboard, Plus, Package, Shield, UserCog, Database, Wallet, Receipt, AlertCircle, ChevronDown, ChevronRight, Settings, ClipboardList } from 'lucide-react';
+import { BarChart3, LayoutDashboard, Plus, Package, Shield, ShieldCheck, UserCog, Database, Wallet, Receipt, AlertCircle, ChevronDown, ChevronRight, Settings, ClipboardList } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { UserRole } from '@/types';
@@ -35,6 +35,9 @@ const getNavItems = (role: string): NavItem[] => {
 
     // Task Management for Admins
     baseItems.push({ name: 'Task Management', icon: ClipboardList, path: '/admin/tasks' });
+
+    // Warranty Management for Admins
+    baseItems.push({ name: 'Warranties', icon: ShieldCheck, path: '/admin/warranties' });
   }
 
   // Master Data access for Admin, Branch Admin, and Manager roles

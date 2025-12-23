@@ -64,6 +64,7 @@ import CategoryManager from './pages/jobsheet-templates/CategoryManager';
 import SettingsMainPage from './pages/settings/SettingsMainPage';
 import TechnicianManagement from './pages/admin/TechnicianManagement';
 import TaskManagement from './pages/admin/TaskManagement';
+import WarrantyManagement from './pages/admin/WarrantyManagement';
 import PointsHistoryPage from './pages/technician/PointsHistoryPage';
 import MyTasks from './pages/tasks/MyTasks';
 import ReportsPage from './pages/reports/ReportsPage';
@@ -117,6 +118,7 @@ function App() {
               <Route path="petty-cash/requests" element={<PettyCashRequestsPage />} />
               <Route path="technicians" element={<TechnicianManagement />} />
               <Route path="tasks" element={<TaskManagement />} />
+              <Route path="warranties" element={<WarrantyManagement />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="settings" element={<SettingsMainPage />} />
             </Route>
