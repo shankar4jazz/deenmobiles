@@ -495,8 +495,8 @@ export default function ServiceList() {
                             <span className="text-xs text-gray-400">No faults</span>
                           )}
                           {/* Estimated Price */}
-                          <div className="text-sm font-medium text-gray-900">
-                            ₹{service.estimatedCost || 0} <span className="text-xs text-gray-500 font-normal">Est.</span>
+                          <div className="text-sm text-gray-900">
+                            <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
                           </div>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
                             {STATUS_LABELS[service.status]}
@@ -694,8 +694,8 @@ export default function ServiceList() {
                     )}
 
                     {/* Estimated Price */}
-                    <div className="text-sm font-medium text-gray-900">
-                      ₹{service.estimatedCost || 0} <span className="text-xs text-gray-500 font-normal">Est.</span>
+                    <div className="text-sm text-gray-900">
+                      <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
                     </div>
                     {service.createdBy && (
                       <div className="text-xs text-gray-500">
