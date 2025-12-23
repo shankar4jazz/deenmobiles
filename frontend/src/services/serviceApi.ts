@@ -26,6 +26,13 @@ export interface Service {
   updatedAt: string;
   completedAt?: string;
   deliveredAt?: string;
+  notServiceableReason?: string;
+  deviceReturnedAt?: string;
+  deviceReturnedById?: string;
+  deviceReturnedBy?: {
+    id: string;
+    name: string;
+  };
   dataWarrantyAccepted?: boolean;
   sendNotificationOnAssign?: boolean;
   createdById?: string;
@@ -173,6 +180,7 @@ export enum ServiceStatus {
   COMPLETED = 'COMPLETED',
   DELIVERED = 'DELIVERED',
   CANCELLED = 'CANCELLED',
+  NOT_SERVICEABLE = 'NOT_SERVICEABLE',
 }
 
 export interface PaymentEntryData {
@@ -451,9 +459,18 @@ export const serviceApi = {
   updateServiceStatus: async (
     serviceId: string,
     status: ServiceStatus,
-    notes?: string
+    notes?: string,
+    notServiceableReason?: string
   ): Promise<Service> => {
-    const response = await api.put(`/services/${serviceId}/status`, { status, notes });
+    const response = await api.put(`/services/${serviceId}/status`, { status, notes, notServiceableReason });
+    return response.data.data;
+  },
+
+  /**
+   * Mark device as returned to customer
+   */
+  markDeviceReturned: async (serviceId: string): Promise<Service> => {
+    const response = await api.put(`/services/${serviceId}/device-returned`);
     return response.data.data;
   },
 

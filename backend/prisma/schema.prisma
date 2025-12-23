@@ -153,6 +153,7 @@ model User {
   technicianProfile          TechnicianProfile?
   technicianNotifications    TechnicianNotification[]
   serviceNotes               ServiceNote[]              @relation("ServiceNotesByUser")
+  deviceReturns              Service[]                  @relation("DeviceReturnedBy")
 
   @@index([companyId])
   @@index([branchId])
@@ -282,6 +283,9 @@ model Service {
   updatedAt         DateTime               @updatedAt
   completedAt       DateTime?
   deliveredAt       DateTime?
+  notServiceableReason String?              // Reason why device cannot be serviced
+  deviceReturnedAt  DateTime?              // When device was physically returned to customer
+  deviceReturnedById String?               // User who returned device to customer
   invoice           Invoice?
   jobSheet          JobSheet?
   estimate          Estimate? // Formal estimate linked to service
@@ -293,6 +297,7 @@ model Service {
   rating            ServiceRating?
   assignedTo        User?                  @relation("ServiceAssignedTo", fields: [assignedToId], references: [id])
   createdBy         User?                  @relation("ServiceCreatedBy", fields: [createdById], references: [id])
+  deviceReturnedBy  User?                  @relation("DeviceReturnedBy", fields: [deviceReturnedById], references: [id])
   branch            Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
   company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer          Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -1235,6 +1240,7 @@ enum ServiceStatus {
   COMPLETED
   DELIVERED
   CANCELLED
+  NOT_SERVICEABLE
 }
 
 enum PaymentStatus {

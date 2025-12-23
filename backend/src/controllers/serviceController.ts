@@ -274,11 +274,25 @@ export class ServiceController {
     const { id } = req.params;
     const companyId = req.user!.companyId;
     const userId = req.user!.userId;
-    const { status, notes } = req.body;
+    const { status, notes, notServiceableReason } = req.body;
 
-    const service = await ServiceService.updateServiceStatus(id, status as ServiceStatus, notes, userId, companyId);
+    const service = await ServiceService.updateServiceStatus(id, status as ServiceStatus, notes, userId, companyId, notServiceableReason);
 
     return ApiResponse.success(res, service, 'Service status updated successfully');
+  });
+
+  /**
+   * PUT /api/v1/services/:id/device-returned
+   * Mark device as returned to customer
+   */
+  static markDeviceReturned = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+
+    const service = await ServiceService.markDeviceReturned(id, userId, companyId);
+
+    return ApiResponse.success(res, service, 'Device marked as returned to customer');
   });
 
   /**

@@ -15,6 +15,7 @@ const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.COMPLETED]: 'bg-green-100 text-green-800',
   [ServiceStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
   [ServiceStatus.CANCELLED]: 'bg-red-100 text-red-800',
+  [ServiceStatus.NOT_SERVICEABLE]: 'bg-gray-100 text-gray-800',
 };
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
@@ -24,6 +25,7 @@ const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.COMPLETED]: 'Completed',
   [ServiceStatus.DELIVERED]: 'Delivered',
   [ServiceStatus.CANCELLED]: 'Cancelled',
+  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
 };
 
 export default function ServiceList() {

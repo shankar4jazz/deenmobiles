@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
-import { Clock, Circle, CheckCircle, AlertCircle, Package, UserCheck } from 'lucide-react';
+import { Clock, Circle, CheckCircle, AlertCircle, Package, UserCheck, Ban } from 'lucide-react';
 
 interface ServiceHistoryTimelineProps {
   serviceId: string;
@@ -13,6 +13,7 @@ const STATUS_ICONS: Record<ServiceStatus, any> = {
   [ServiceStatus.COMPLETED]: CheckCircle,
   [ServiceStatus.DELIVERED]: CheckCircle,
   [ServiceStatus.CANCELLED]: AlertCircle,
+  [ServiceStatus.NOT_SERVICEABLE]: Ban,
 };
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -22,6 +23,7 @@ const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.COMPLETED]: 'text-green-600 bg-green-100',
   [ServiceStatus.DELIVERED]: 'text-purple-600 bg-purple-100',
   [ServiceStatus.CANCELLED]: 'text-red-600 bg-red-100',
+  [ServiceStatus.NOT_SERVICEABLE]: 'text-gray-600 bg-gray-100',
 };
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
@@ -31,6 +33,7 @@ const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.COMPLETED]: 'Completed',
   [ServiceStatus.DELIVERED]: 'Delivered',
   [ServiceStatus.CANCELLED]: 'Cancelled',
+  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
 };
 
 export default function ServiceHistoryTimeline({ serviceId }: ServiceHistoryTimelineProps) {

@@ -279,6 +279,24 @@ router.put(
 );
 
 /**
+ * @route   PUT /api/v1/services/:id/device-returned
+ * @desc    Mark device as returned to customer
+ * @access  Private (Receptionist, Technician, Manager, Admin)
+ */
+router.put(
+  '/:id/device-returned',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.markDeviceReturned
+);
+
+/**
  * @route   PUT /api/v1/services/:id/assign
  * @desc    Assign service to technician
  * @access  Private (Manager, Admin)

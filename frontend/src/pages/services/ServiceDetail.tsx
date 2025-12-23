@@ -27,6 +27,7 @@ const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.COMPLETED]: 'bg-green-100 text-green-800',
   [ServiceStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
   [ServiceStatus.CANCELLED]: 'bg-red-100 text-red-800',
+  [ServiceStatus.NOT_SERVICEABLE]: 'bg-gray-100 text-gray-800',
 };
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
@@ -36,6 +37,7 @@ const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.COMPLETED]: 'Completed',
   [ServiceStatus.DELIVERED]: 'Delivered',
   [ServiceStatus.CANCELLED]: 'Cancelled',
+  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
 };
 
 export default function ServiceDetail() {
@@ -49,6 +51,7 @@ export default function ServiceDetail() {
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<ServiceStatus | ''>('');
   const [statusNotes, setStatusNotes] = useState('');
+  const [notServiceableReason, setNotServiceableReason] = useState('');
   const [uploadingImages, setUploadingImages] = useState(false);
   const [uploadingDeviceImages, setUploadingDeviceImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
@@ -84,16 +87,34 @@ export default function ServiceDetail() {
 
   // Update status mutation
   const updateStatusMutation = useMutation({
-    mutationFn: (status: ServiceStatus) => serviceApi.updateServiceStatus(id!, status, statusNotes),
+    mutationFn: (status: ServiceStatus) => serviceApi.updateServiceStatus(
+      id!,
+      status,
+      statusNotes,
+      status === ServiceStatus.NOT_SERVICEABLE ? notServiceableReason : undefined
+    ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service', id] });
       setSelectedStatus('');
       setStatusNotes('');
+      setNotServiceableReason('');
       setShowStatusChange(false);
       toast.success('Status updated successfully');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update status');
+    },
+  });
+
+  // Mark device returned mutation
+  const markDeviceReturnedMutation = useMutation({
+    mutationFn: () => serviceApi.markDeviceReturned(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      toast.success('Device marked as returned to customer');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to mark device as returned');
     },
   });
 
@@ -716,12 +737,27 @@ export default function ServiceDetail() {
                   </div>
                 )}
 
+                {selectedStatus === ServiceStatus.NOT_SERVICEABLE && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Reason (required)</label>
+                    <textarea
+                      value={notServiceableReason}
+                      onChange={(e) => setNotServiceableReason(e.target.value)}
+                      placeholder="Why can't this device be serviced? (e.g., irreparable damage, parts not available, etc.)"
+                      rows={3}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setShowStatusChange(false);
                       setSelectedStatus('');
                       setStatusNotes('');
+                      setNotServiceableReason('');
                     }}
                     className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
@@ -729,13 +765,54 @@ export default function ServiceDetail() {
                   </button>
                   <button
                     onClick={handleStatusUpdate}
-                    disabled={!selectedStatus || updateStatusMutation.isPending}
+                    disabled={!selectedStatus || updateStatusMutation.isPending || (selectedStatus === ServiceStatus.NOT_SERVICEABLE && !notServiceableReason.trim())}
                     className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CheckCircle className="w-4 h-4" />
                     {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Not Serviceable Reason Display */}
+            {service.status === ServiceStatus.NOT_SERVICEABLE && service.notServiceableReason && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Reason Not Serviceable</h4>
+                <p className="text-sm text-gray-700">{service.notServiceableReason}</p>
+              </div>
+            )}
+
+            {/* Device Return Section */}
+            {(service.status === ServiceStatus.DELIVERED || service.status === ServiceStatus.NOT_SERVICEABLE || service.status === ServiceStatus.CANCELLED) && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Device Return</h4>
+                {service.deviceReturnedAt ? (
+                  <div className="text-sm">
+                    <p className="text-green-600 font-medium flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      Device returned to customer
+                    </p>
+                    <p className="text-gray-500 mt-1">
+                      Returned on {new Date(service.deviceReturnedAt).toLocaleDateString()} at {new Date(service.deviceReturnedAt).toLocaleTimeString()}
+                    </p>
+                    {service.deviceReturnedBy && (
+                      <p className="text-gray-500">By: {service.deviceReturnedBy.name}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Device has not been returned to customer yet.</p>
+                    <button
+                      onClick={() => markDeviceReturnedMutation.mutate()}
+                      disabled={markDeviceReturnedMutation.isPending}
+                      className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      {markDeviceReturnedMutation.isPending ? 'Marking...' : 'Mark Device Returned'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
