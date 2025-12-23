@@ -158,18 +158,39 @@ export class InvoiceService {
       // Check if this is a warranty repair
       const isWarrantyRepair = service.isWarrantyRepair ?? false;
 
-      // Calculate amounts - warranty repairs are free
+      // Calculate amounts
       let totalAmount: number;
       let paidAmount: number;
       let balanceAmount: number;
       let paymentStatus: PaymentStatus;
 
       if (isWarrantyRepair) {
-        // Warranty repair - no charge to customer
-        totalAmount = 0;
-        paidAmount = 0;
-        balanceAmount = 0;
-        paymentStatus = PaymentStatus.PAID;
+        // Warranty repair - calculate based on matching vs new faults
+        const matchingFaultIds = service.matchingFaultIds || [];
+
+        // Calculate new faults total (faults not in matchingFaultIds)
+        const newFaultsTotal = service.faults
+          .filter((sf: any) => !matchingFaultIds.includes(sf.faultId))
+          .reduce((sum: number, sf: any) => sum + Number(sf.fault?.defaultPrice || 0), 0);
+
+        // Extra spare parts total (charged even for warranty)
+        const extraSpareTotal = service.partsUsed
+          .filter((p: any) => p.isExtraSpare && p.isApproved)
+          .reduce((sum: number, p: any) => sum + Number(p.totalPrice || 0), 0);
+
+        // Total = new faults + extra spare parts (matching faults are FREE)
+        totalAmount = newFaultsTotal + extraSpareTotal;
+        paidAmount = service.advancePayment;
+        balanceAmount = totalAmount - paidAmount;
+
+        // Determine payment status
+        if (balanceAmount <= 0) {
+          paymentStatus = PaymentStatus.PAID;
+        } else if (paidAmount > 0) {
+          paymentStatus = PaymentStatus.PARTIAL;
+        } else {
+          paymentStatus = PaymentStatus.PENDING;
+        }
       } else {
         // Regular service - calculate normally
         totalAmount = service.actualCost ?? service.estimatedCost;
@@ -188,6 +209,9 @@ export class InvoiceService {
 
       // Generate invoice number using configurable format from settings
       const invoiceNumber = await this.generateInvoiceNumber(service.branchId, service.companyId);
+
+      // Get matching fault IDs for warranty pricing
+      const matchingFaultIds = service.matchingFaultIds || [];
 
       // Prepare data for PDF generation
       const pdfData = {
@@ -212,13 +236,31 @@ export class InvoiceService {
         },
         branch: service.branch,
         company: service.company,
-        parts: service.partsUsed.map((sp: any) => ({
-          partName: sp.item?.itemName || sp.part?.name || 'Unknown Part',
-          quantity: sp.quantity,
-          unitPrice: sp.unitPrice,
-          totalPrice: isWarrantyRepair ? 0 : sp.totalPrice, // Zero for warranty
-          isWarrantyCovered: isWarrantyRepair,
-        })),
+        // Faults with warranty info
+        faults: service.faults.map((sf: any) => {
+          const isWarrantyCovered = isWarrantyRepair && matchingFaultIds.includes(sf.faultId);
+          return {
+            name: sf.fault?.name || 'Unknown Fault',
+            price: sf.fault?.defaultPrice || 0,
+            isWarrantyCovered,
+            chargedPrice: isWarrantyCovered ? 0 : (sf.fault?.defaultPrice || 0),
+          };
+        }),
+        // Parts - extra spares are charged, warranty parts are free
+        parts: service.partsUsed.map((sp: any) => {
+          // Extra spare parts are always charged
+          const isExtraSpare = sp.isExtraSpare;
+          // Non-extra parts are warranty covered if warranty repair
+          const isWarrantyCovered = isWarrantyRepair && !isExtraSpare;
+          return {
+            partName: sp.item?.itemName || sp.part?.name || 'Unknown Part',
+            quantity: sp.quantity,
+            unitPrice: sp.unitPrice,
+            totalPrice: isWarrantyCovered ? 0 : sp.totalPrice,
+            isWarrantyCovered,
+            isExtraSpare,
+          };
+        }),
         payments: service.paymentEntries.map((pe: any) => ({
           amount: pe.amount,
           paymentMethod: pe.paymentMethod?.name || 'Unknown',
@@ -233,6 +275,7 @@ export class InvoiceService {
         isWarrantyRepair,
         warrantyReason: service.warrantyReason || undefined,
         previousServiceTicket: service.previousService?.ticketNumber || undefined,
+        matchingFaultIds,
       };
 
       // Generate PDF

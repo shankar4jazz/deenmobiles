@@ -308,6 +308,8 @@ export default function CreateService() {
                     onChange={handleFaultsChange}
                     error={errors.faultIds?.message}
                     placeholder="Select faults..."
+                    isWarrantyRepair={isWarrantyRepair}
+                    matchingFaultIds={previousServiceInfo?.matchingFaultIds || []}
                   />
                 )}
               />

@@ -12,6 +12,8 @@ interface FaultTagInputProps {
   error?: string;
   placeholder?: string;
   className?: string;
+  isWarrantyRepair?: boolean;
+  matchingFaultIds?: string[];
 }
 
 export function FaultTagInput({
@@ -21,6 +23,8 @@ export function FaultTagInput({
   error,
   placeholder = 'Type to search or add faults...',
   className = '',
+  isWarrantyRepair = false,
+  matchingFaultIds = [],
 }: FaultTagInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,10 +75,16 @@ export function FaultTagInput({
     },
   });
 
-  // Calculate total price from selected faults
+  // Calculate total price from selected faults (excludes matching faults when warranty repair)
   const calculateTotalPrice = useCallback((faults: Fault[]): number => {
+    if (isWarrantyRepair && matchingFaultIds.length > 0) {
+      // Only charge for NEW faults (not in matchingFaultIds)
+      return faults
+        .filter(fault => !matchingFaultIds.includes(fault.id))
+        .reduce((sum, fault) => sum + Number(fault.defaultPrice || 0), 0);
+    }
     return faults.reduce((sum, fault) => sum + Number(fault.defaultPrice || 0), 0);
-  }, []);
+  }, [isWarrantyRepair, matchingFaultIds]);
 
   // Update selected faults when value or allFaults change
   useEffect(() => {
@@ -195,30 +205,44 @@ export function FaultTagInput({
         } ${error ? 'border-red-500' : ''} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
         onClick={() => inputRef.current?.focus()}
       >
-        {selectedFaults.map((fault) => (
-          <span
-            key={fault.id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full"
-          >
-            <Wrench className="w-3 h-3" />
-            {fault.name}
-            {Number(fault.defaultPrice) > 0 && (
-              <span className="text-blue-600 ml-0.5">({formatPrice(fault.defaultPrice)})</span>
-            )}
-            {!disabled && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeFault(fault.id);
-                }}
-                className="ml-0.5 hover:bg-blue-200 rounded-full p-0.5 transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </span>
-        ))}
+        {selectedFaults.map((fault) => {
+          const isWarrantyCovered = isWarrantyRepair && matchingFaultIds.includes(fault.id);
+          return (
+            <span
+              key={fault.id}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+                isWarrantyCovered
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-blue-100 text-blue-800'
+              }`}
+            >
+              <Wrench className="w-3 h-3" />
+              {fault.name}
+              {Number(fault.defaultPrice) > 0 && (
+                <span className={isWarrantyCovered ? 'line-through text-gray-400 ml-0.5' : 'text-blue-600 ml-0.5'}>
+                  ({formatPrice(fault.defaultPrice)})
+                </span>
+              )}
+              {isWarrantyCovered && (
+                <span className="text-green-600 font-semibold ml-0.5">FREE</span>
+              )}
+              {!disabled && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFault(fault.id);
+                  }}
+                  className={`ml-0.5 rounded-full p-0.5 transition-colors ${
+                    isWarrantyCovered ? 'hover:bg-green-200' : 'hover:bg-blue-200'
+                  }`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </span>
+          );
+        })}
 
         <input
           ref={inputRef}
@@ -239,11 +263,50 @@ export function FaultTagInput({
 
       {/* Total Price Display */}
       {selectedFaults.length > 0 && (
-        <div className="mt-1 text-xs text-gray-600 flex items-center gap-1">
-          <span>Total estimated cost:</span>
-          <span className="font-semibold text-blue-600">
-            ₹{calculateTotalPrice(selectedFaults).toLocaleString('en-IN')}
-          </span>
+        <div className="mt-1 text-xs text-gray-600">
+          {isWarrantyRepair && matchingFaultIds.length > 0 ? (
+            <div className="space-y-0.5">
+              {/* Show covered faults total */}
+              {selectedFaults.filter(f => matchingFaultIds.includes(f.id)).length > 0 && (
+                <div className="flex items-center gap-1 text-green-600">
+                  <span>Covered ({selectedFaults.filter(f => matchingFaultIds.includes(f.id)).length}):</span>
+                  <span className="line-through text-gray-400">
+                    ₹{selectedFaults
+                      .filter(f => matchingFaultIds.includes(f.id))
+                      .reduce((sum, f) => sum + Number(f.defaultPrice || 0), 0)
+                      .toLocaleString('en-IN')}
+                  </span>
+                  <span className="font-semibold">FREE</span>
+                </div>
+              )}
+              {/* Show new faults total */}
+              {selectedFaults.filter(f => !matchingFaultIds.includes(f.id)).length > 0 && (
+                <div className="flex items-center gap-1">
+                  <span>New faults ({selectedFaults.filter(f => !matchingFaultIds.includes(f.id)).length}):</span>
+                  <span className="font-semibold text-blue-600">
+                    ₹{selectedFaults
+                      .filter(f => !matchingFaultIds.includes(f.id))
+                      .reduce((sum, f) => sum + Number(f.defaultPrice || 0), 0)
+                      .toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
+              {/* Total to charge */}
+              <div className="flex items-center gap-1 pt-1 border-t border-gray-200">
+                <span>Estimated cost:</span>
+                <span className="font-semibold text-blue-600">
+                  ₹{calculateTotalPrice(selectedFaults).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <span>Total estimated cost:</span>
+              <span className="font-semibold text-blue-600">
+                ₹{calculateTotalPrice(selectedFaults).toLocaleString('en-IN')}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
