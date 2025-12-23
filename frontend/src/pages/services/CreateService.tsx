@@ -17,7 +17,6 @@ import { FormRow } from '@/components/common/FormRow';
 import { SearchableCustomerSelectWithAdd } from '@/components/common/SearchableCustomerSelectWithAdd';
 import { SearchableDeviceSelect } from '@/components/common/SearchableDeviceSelect';
 import { FaultTagInput } from '@/components/common/FaultTagInput';
-import { SearchableDeviceConditionSelect } from '@/components/common/SearchableDeviceConditionSelect';
 import { MultiImageUpload } from '@/components/common/MultiImageUpload';
 import { DamageConditionTagInput } from '@/components/common/DamageConditionTagInput';
 import { PatternLockInput } from '@/components/common/PatternLockInput';
@@ -143,10 +142,6 @@ export default function CreateService() {
     }
   };
 
-  const handleConditionChange = (id: string) => {
-    setValue('deviceConditionId', id);
-  };
-
   const handleAddCustomer = (phoneNumber?: string) => {
     setInitialPhoneNumber(phoneNumber);
     setShowAddCustomerModal(true);
@@ -268,10 +263,20 @@ export default function CreateService() {
           {/* Row 2: Device Condition, Damage Condition */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2">
             <FormRow label="Device Condition">
-              <SearchableDeviceConditionSelect
-                value={watch('deviceConditionId') || ''}
-                onChange={handleConditionChange}
-                placeholder="Select condition..."
+              <Controller
+                control={control}
+                name="deviceConditionId"
+                render={({ field }) => (
+                  <select
+                    value={field.value || ''}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                  >
+                    <option value="">Select condition...</option>
+                    <option value="on">On</option>
+                    <option value="off">Off</option>
+                  </select>
+                )}
               />
             </FormRow>
 
