@@ -12,7 +12,7 @@ export class CashSettlementController {
    */
   static createSettlement = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const userRole = req.user!.role;
 
     let branchId = req.body.branchId as string;
@@ -45,7 +45,7 @@ export class CashSettlementController {
    */
   static getTodaySettlement = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const userRole = req.user!.role;
 
     let branchId = req.query.branchId as string;
@@ -162,7 +162,7 @@ export class CashSettlementController {
    */
   static submitSettlement = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
     const { id } = req.params;
 
     const settlement = await cashSettlementService.submitSettlement(id, companyId, userId);
@@ -176,7 +176,7 @@ export class CashSettlementController {
    */
   static verifySettlement = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
-    const verifiedById = req.user!.id;
+    const verifiedById = req.user!.userId;
     const { id } = req.params;
     const { notes } = req.body;
 
@@ -191,7 +191,7 @@ export class CashSettlementController {
    */
   static rejectSettlement = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
-    const rejectedById = req.user!.id;
+    const rejectedById = req.user!.userId;
     const { id } = req.params;
     const { reason } = req.body;
 

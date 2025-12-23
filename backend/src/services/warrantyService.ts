@@ -105,9 +105,9 @@ export class WarrantyService {
         include: {
           customer: true,
           branch: true,
-          parts: {
+          partsUsed: {
             where: {
-              status: 'APPROVED',
+              isApproved: true,
             },
             include: {
               item: true,
@@ -126,7 +126,7 @@ export class WarrantyService {
 
       // Create warranty record for each approved part with warranty
       const warrantyRecords = [];
-      for (const part of service.parts) {
+      for (const part of service.partsUsed) {
         const item = part.item;
 
         // Skip if item has no warranty
@@ -182,7 +182,6 @@ export class WarrantyService {
         where: { id: invoiceId },
         include: {
           customer: true,
-          branch: true,
           items: {
             include: {
               item: true,
@@ -221,6 +220,16 @@ export class WarrantyService {
 
         if (existingWarranty) {
           continue; // Skip if already has warranty
+        }
+
+        if (!invoice.branchId) {
+          Logger.warn(`Invoice ${invoiceId} has no branchId, skipping warranty creation for item ${item.id}`);
+          continue;
+        }
+
+        if (!invoice.customerId) {
+          Logger.warn(`Invoice ${invoiceId} has no customerId, skipping warranty creation for item ${item.id}`);
+          continue;
         }
 
         const warrantyNumber = await this.generateWarrantyNumber(invoice.branchId);
@@ -277,7 +286,7 @@ export class WarrantyService {
             select: { id: true, itemName: true },
           },
           service: {
-            select: { id: true, serviceNumber: true },
+            select: { id: true, ticketNumber: true },
           },
           invoice: {
             select: { id: true, invoiceNumber: true },
@@ -338,7 +347,7 @@ export class WarrantyService {
             select: { id: true, itemName: true, itemCode: true },
           },
           service: {
-            select: { id: true, serviceNumber: true },
+            select: { id: true, ticketNumber: true },
           },
           invoice: {
             select: { id: true, invoiceNumber: true },
@@ -383,7 +392,7 @@ export class WarrantyService {
             select: { id: true, name: true, phone: true, email: true },
           },
           service: {
-            select: { id: true, serviceNumber: true, deviceName: true },
+            select: { id: true, ticketNumber: true, deviceModel: true },
           },
           invoice: {
             select: { id: true, invoiceNumber: true },
@@ -392,7 +401,7 @@ export class WarrantyService {
             select: { id: true, name: true, code: true },
           },
           claimService: {
-            select: { id: true, serviceNumber: true },
+            select: { id: true, ticketNumber: true },
           },
         },
       });
@@ -478,7 +487,7 @@ export class WarrantyService {
             select: { id: true, name: true, code: true },
           },
           service: {
-            select: { id: true, serviceNumber: true },
+            select: { id: true, ticketNumber: true },
           },
           invoice: {
             select: { id: true, invoiceNumber: true },

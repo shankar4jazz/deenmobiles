@@ -112,7 +112,8 @@ export class TaskController {
     const role = req.user!.role;
 
     // For non-admin users, only show their own stats
-    const userId = [UserRole.ADMIN, UserRole.MANAGER, UserRole.SUPER_ADMIN].includes(role as UserRole)
+    const adminRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER, UserRole.SUPER_ADMIN];
+    const userId = adminRoles.includes(role as UserRole)
       ? undefined
       : req.user!.userId;
 
@@ -171,7 +172,8 @@ export class TaskController {
     const companyId = req.user!.companyId;
     const role = req.user!.role;
 
-    const isAdmin = [UserRole.ADMIN, UserRole.MANAGER, UserRole.SUPER_ADMIN].includes(role as UserRole);
+    const adminRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER, UserRole.SUPER_ADMIN];
+    const isAdmin = adminRoles.includes(role as UserRole);
 
     const task = await TaskService.updateTaskStatus(id, status, userId, companyId, isAdmin);
 

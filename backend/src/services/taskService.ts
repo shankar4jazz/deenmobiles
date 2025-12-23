@@ -141,7 +141,6 @@ export class TaskService {
           userId: data.assignedToId,
           title: 'New Task Assigned',
           message: `You have been assigned a new task: ${data.title}`,
-          type: 'TASK_ASSIGNED',
         },
       });
 
@@ -214,7 +213,6 @@ export class TaskService {
               userId: assigneeId,
               title: 'New Task Assigned',
               message: `You have been assigned a new task: ${data.title}`,
-              type: 'TASK_ASSIGNED',
             },
           });
 
@@ -460,7 +458,6 @@ export class TaskService {
             userId: data.assignedToId,
             title: 'Task Reassigned',
             message: `You have been assigned a task: ${updatedTask.title}`,
-            type: 'TASK_ASSIGNED',
           },
         });
       }
