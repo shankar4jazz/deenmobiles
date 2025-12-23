@@ -295,6 +295,23 @@ router.post(
 );
 
 /**
+ * @route   POST /api/v1/services/:id/parts/:partId/approve-warranty
+ * @desc    Approve a service part for warranty repair (deduct stock, no customer charge)
+ * @access  Private (Technician, Manager, Admin)
+ */
+router.post(
+  '/:id/parts/:partId/approve-warranty',
+  authorize(
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate([...serviceIdValidation, ...partIdValidation]),
+  ServiceController.approveServicePartForWarranty
+);
+
+/**
  * @route   PUT /api/v1/services/:id/status
  * @desc    Update service status
  * @access  Private (Technician, Manager, Admin)

@@ -71,6 +71,11 @@ export class JobSheetService {
               logo: true,
             },
           },
+          previousService: {
+            select: {
+              ticketNumber: true,
+            },
+          },
         },
       });
 
@@ -153,6 +158,10 @@ export class JobSheetService {
           showContactDetails: template.showContactDetails,
           footerText: template.footerText || undefined,
         } : undefined,
+        // Warranty info
+        isWarrantyRepair: service.isWarrantyRepair || false,
+        warrantyReason: service.warrantyReason || undefined,
+        previousServiceTicket: service.previousService?.ticketNumber || undefined,
       };
 
       // Generate PDF
@@ -301,6 +310,11 @@ export class JobSheetService {
               },
               branch: true,
               company: true,
+              previousService: {
+                select: {
+                  ticketNumber: true,
+                },
+              },
             },
           },
         },
@@ -357,6 +371,10 @@ export class JobSheetService {
           showContactDetails: template.showContactDetails,
           footerText: template.footerText || undefined,
         } : undefined,
+        // Warranty info
+        isWarrantyRepair: service.isWarrantyRepair || false,
+        warrantyReason: service.warrantyReason || undefined,
+        previousServiceTicket: service.previousService?.ticketNumber || undefined,
       };
 
       // Generate new PDF

@@ -74,6 +74,10 @@ export default function CreateService() {
   const [previousServiceInfo, setPreviousServiceInfo] = useState<PreviousServiceInfo | null>(null);
   const [isCheckingPreviousServices, setIsCheckingPreviousServices] = useState(false);
 
+  // Warranty repair state
+  const [isWarrantyRepair, setIsWarrantyRepair] = useState(false);
+  const [warrantyReason, setWarrantyReason] = useState<string>('');
+
   const {
     control,
     handleSubmit,
@@ -124,13 +128,22 @@ export default function CreateService() {
     setPreviousServiceInfo(null);
   }, [customerId, setValue]);
 
-  // Check for previous services when device is selected
+  // Check for previous services when device is selected or faults change
+  const faultIds = watch('faultIds');
   useEffect(() => {
     if (selectedDevice?.id) {
       setIsCheckingPreviousServices(true);
-      serviceApi.checkPreviousServices(selectedDevice.id)
+      serviceApi.checkPreviousServices(selectedDevice.id, faultIds)
         .then((info) => {
           setPreviousServiceInfo(info);
+          // Auto-detect warranty if matching faults found
+          if (info.hasFaultMatch && info.matchingFaultIds.length > 0) {
+            setIsWarrantyRepair(true);
+            setWarrantyReason('SAME_FAULT');
+          } else {
+            setIsWarrantyRepair(false);
+            setWarrantyReason('');
+          }
         })
         .catch((error) => {
           console.error('Failed to check previous services:', error);
@@ -142,7 +155,7 @@ export default function CreateService() {
     } else {
       setPreviousServiceInfo(null);
     }
-  }, [selectedDevice?.id]);
+  }, [selectedDevice?.id, faultIds]);
 
   // Create service mutation
   const createServiceMutation = useMutation({
@@ -229,6 +242,10 @@ export default function CreateService() {
       dataWarrantyAccepted: data.dataWarrantyAccepted,
       sendSmsNotification: data.sendSmsNotification,
       sendWhatsappNotification: data.sendWhatsappNotification,
+      // Warranty repair fields
+      isWarrantyRepair,
+      warrantyReason: isWarrantyRepair ? warrantyReason : undefined,
+      matchingFaultIds: previousServiceInfo?.matchingFaultIds,
     };
 
     createServiceMutation.mutate(submitData);
@@ -340,6 +357,32 @@ export default function CreateService() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Matching faults indicator */}
+                  {previousServiceInfo.hasFaultMatch && previousServiceInfo.matchingFaultIds.length > 0 && (
+                    <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+                      <span className="text-green-700 text-sm font-medium">
+                        Same fault detected - Warranty repair suggested
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Warranty checkbox */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="warrantyRepair"
+                      checked={isWarrantyRepair}
+                      onChange={(e) => {
+                        setIsWarrantyRepair(e.target.checked);
+                        setWarrantyReason(e.target.checked ? 'STAFF_OVERRIDE' : '');
+                      }}
+                      className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                    />
+                    <label htmlFor="warrantyRepair" className="text-sm font-medium text-gray-700">
+                      Mark as Warranty Repair (No Charge)
+                    </label>
                   </div>
                 </div>
               </div>

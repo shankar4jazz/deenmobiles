@@ -327,6 +327,11 @@ export default function ServiceDetail() {
         <div className="flex items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
           <InvoiceButton serviceId={service.id} variant="primary" />
+          {service.isWarrantyRepair && (
+            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+              Warranty
+            </span>
+          )}
           {service.isRepeatedService && (
             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
               <RefreshCw className="h-3 w-3" />
@@ -596,6 +601,7 @@ export default function ServiceDetail() {
             parts={service.partsUsed || []}
             faults={service.faults || []}
             canEdit={user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
+            isWarrantyRepair={service.isWarrantyRepair}
           />
 
           {/* Technician Notes */}

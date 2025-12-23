@@ -19,9 +19,10 @@ interface PartsManagementProps {
   faults: FaultWithTags[];
   canEdit: boolean;
   onExtraSpareUpdate?: (amount: number) => void;
+  isWarrantyRepair?: boolean;
 }
 
-export default function PartsManagement({ serviceId, parts, faults, canEdit, onExtraSpareUpdate }: PartsManagementProps) {
+export default function PartsManagement({ serviceId, parts, faults, canEdit, onExtraSpareUpdate, isWarrantyRepair }: PartsManagementProps) {
   const queryClient = useQueryClient();
 
   // Get unique tags from all faults
@@ -76,6 +77,13 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
   const [extraUnitPrice, setExtraUnitPrice] = useState(0);
   const [showExtraDropdown, setShowExtraDropdown] = useState(false);
 
+  // State for manual add (parts without specific tag)
+  const [showManualAddForm, setShowManualAddForm] = useState(false);
+  const [manualSearchQuery, setManualSearchQuery] = useState('');
+  const [manualSelectedPart, setManualSelectedPart] = useState<BranchInventoryPart | null>(null);
+  const [manualQuantity, setManualQuantity] = useState(1);
+  const [showManualDropdown, setShowManualDropdown] = useState(false);
+
   // Edit state
   const [editingPartId, setEditingPartId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState(0);
@@ -98,6 +106,13 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
     queryKey: ['available-parts', serviceId, extraSearchQuery, 'extra'],
     queryFn: () => serviceApi.getAvailableParts(serviceId, extraSearchQuery || undefined),
     enabled: showExtraSpareForm && !extraSelectedPart,
+  });
+
+  // Fetch available parts for manual add section
+  const { data: manualAvailableParts = [], isLoading: isLoadingManualParts } = useQuery({
+    queryKey: ['available-parts', serviceId, manualSearchQuery, 'manual'],
+    queryFn: () => serviceApi.getAvailableParts(serviceId, manualSearchQuery || undefined),
+    enabled: showManualAddForm && !manualSelectedPart,
   });
 
   // Add part mutation (updated to include isExtraSpare and faultTag)
@@ -141,6 +156,15 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
     },
   });
 
+  // Approve part for warranty mutation
+  const approveWarrantyMutation = useMutation({
+    mutationFn: ({ partId, note }: { partId: string; note?: string }) =>
+      serviceApi.approveServicePartForWarranty(serviceId, partId, note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+    },
+  });
+
   const resetTagForm = () => {
     setActiveTagForm(null);
     setTagSelectedPart(null);
@@ -176,6 +200,25 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
       quantity: extraQuantity,
       unitPrice: extraUnitPrice,
       isExtraSpare: true,
+    });
+  };
+
+  const resetManualForm = () => {
+    setShowManualAddForm(false);
+    setManualSelectedPart(null);
+    setManualSearchQuery('');
+    setManualQuantity(1);
+    setShowManualDropdown(false);
+  };
+
+  const handleAddManualPart = () => {
+    if (!manualSelectedPart) return;
+    addPartMutation.mutate({
+      branchInventoryId: manualSelectedPart.id,
+      quantity: manualQuantity,
+      unitPrice: Number(manualSelectedPart.item.salesPrice) || 0,
+      isExtraSpare: false,
+      faultTag: undefined,
     });
   };
 
@@ -237,7 +280,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
               <div className="font-medium text-gray-900">{part.item.itemName}</div>
               <div className="text-sm text-gray-500">
                 {part.item.itemCode && <span className="mr-2">{part.item.itemCode}</span>}
-                Stock: {Number(part.stockQuantity)} | Price: ₹{Number(part.item.salesPrice) || 0}
+                Stock: {Number(part.stockQuantity)}
               </div>
             </button>
           ))}
@@ -392,12 +435,24 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
                       Pending
                     </span>
                     {canEdit && (
-                      <button
-                        onClick={() => setApprovingPartId(part.id)}
-                        className="text-xs text-purple-600 hover:text-purple-800 font-medium"
-                      >
-                        Approve
-                      </button>
+                      <div className="flex flex-col gap-1 mt-1">
+                        {isWarrantyRepair ? (
+                          <button
+                            onClick={() => approveWarrantyMutation.mutate({ partId: part.id })}
+                            disabled={approveWarrantyMutation.isPending}
+                            className="px-3 py-1 text-xs bg-green-600 text-white rounded font-medium hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {approveWarrantyMutation.isPending ? 'Approving...' : 'Approve Warranty'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setApprovingPartId(part.id)}
+                            className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -545,7 +600,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
                           <div>
                             <div className="font-semibold text-gray-900">{tagSelectedPart.item.itemName}</div>
                             <div className="text-sm text-gray-600">
-                              Stock: {Number(tagSelectedPart.stockQuantity)} | Price: ₹{Number(tagSelectedPart.item.salesPrice) || 0}
+                              Stock: {Number(tagSelectedPart.stockQuantity)}
                             </div>
                           </div>
                           <button onClick={() => setTagSelectedPart(null)} className="text-gray-400 hover:text-gray-600">
@@ -761,13 +816,14 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
       )}
 
       {/* Error Messages */}
-      {(addPartMutation.isError || updatePartMutation.isError || approvePartMutation.isError) && (
+      {(addPartMutation.isError || updatePartMutation.isError || approvePartMutation.isError || approveWarrantyMutation.isError) && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
           <AlertCircle className="h-4 w-4" />
           <span>
             {(addPartMutation.error as any)?.response?.data?.message ||
              (updatePartMutation.error as any)?.response?.data?.message ||
              (approvePartMutation.error as any)?.response?.data?.message ||
+             (approveWarrantyMutation.error as any)?.response?.data?.message ||
              'Failed to update part'}
           </span>
         </div>

@@ -134,6 +134,11 @@ export class InvoiceService {
               },
             },
           },
+          previousService: {
+            select: {
+              ticketNumber: true,
+            },
+          },
         },
       });
 
@@ -150,19 +155,35 @@ export class InvoiceService {
         throw new AppError(400, 'Invoice already exists for this service');
       }
 
-      // Calculate amounts
-      const totalAmount = service.actualCost ?? service.estimatedCost;
-      const paidAmount = service.advancePayment;
-      const balanceAmount = totalAmount - paidAmount;
+      // Check if this is a warranty repair
+      const isWarrantyRepair = service.isWarrantyRepair ?? false;
 
-      // Determine payment status
+      // Calculate amounts - warranty repairs are free
+      let totalAmount: number;
+      let paidAmount: number;
+      let balanceAmount: number;
       let paymentStatus: PaymentStatus;
-      if (balanceAmount <= 0) {
+
+      if (isWarrantyRepair) {
+        // Warranty repair - no charge to customer
+        totalAmount = 0;
+        paidAmount = 0;
+        balanceAmount = 0;
         paymentStatus = PaymentStatus.PAID;
-      } else if (paidAmount > 0) {
-        paymentStatus = PaymentStatus.PARTIAL;
       } else {
-        paymentStatus = PaymentStatus.PENDING;
+        // Regular service - calculate normally
+        totalAmount = service.actualCost ?? service.estimatedCost;
+        paidAmount = service.advancePayment;
+        balanceAmount = totalAmount - paidAmount;
+
+        // Determine payment status
+        if (balanceAmount <= 0) {
+          paymentStatus = PaymentStatus.PAID;
+        } else if (paidAmount > 0) {
+          paymentStatus = PaymentStatus.PARTIAL;
+        } else {
+          paymentStatus = PaymentStatus.PENDING;
+        }
       }
 
       // Generate invoice number using configurable format from settings
@@ -195,7 +216,8 @@ export class InvoiceService {
           partName: sp.item?.itemName || sp.part?.name || 'Unknown Part',
           quantity: sp.quantity,
           unitPrice: sp.unitPrice,
-          totalPrice: sp.totalPrice,
+          totalPrice: isWarrantyRepair ? 0 : sp.totalPrice, // Zero for warranty
+          isWarrantyCovered: isWarrantyRepair,
         })),
         payments: service.paymentEntries.map((pe: any) => ({
           amount: pe.amount,
@@ -207,6 +229,10 @@ export class InvoiceService {
         paidAmount,
         balanceAmount,
         paymentStatus,
+        // Warranty info
+        isWarrantyRepair,
+        warrantyReason: service.warrantyReason || undefined,
+        previousServiceTicket: service.previousService?.ticketNumber || undefined,
       };
 
       // Generate PDF
@@ -221,6 +247,7 @@ export class InvoiceService {
           paidAmount,
           balanceAmount,
           paymentStatus,
+          isWarrantyInvoice: isWarrantyRepair,
           companyId: service.companyId,
           pdfUrl,
         },

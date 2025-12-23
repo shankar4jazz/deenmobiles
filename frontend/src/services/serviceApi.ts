@@ -45,6 +45,10 @@ export interface Service {
     completedAt?: string;
     faults?: { fault: { id: string; name: string } }[];
   };
+  // Warranty repair fields
+  isWarrantyRepair?: boolean;
+  warrantyReason?: string;
+  matchingFaultIds?: string[];
   dataWarrantyAccepted?: boolean;
   sendNotificationOnAssign?: boolean;
   createdById?: string;
@@ -269,6 +273,10 @@ export interface CreateServiceData {
   // New fields
   dataWarrantyAccepted?: boolean;
   sendNotificationOnAssign?: boolean;
+  // Warranty repair fields
+  isWarrantyRepair?: boolean;
+  warrantyReason?: string;
+  matchingFaultIds?: string[];
 }
 
 export interface UpdateServiceData {
@@ -340,6 +348,8 @@ export interface PreviousServiceInfo {
     faults?: { id: string; name: string }[];
   } | null;
   daysSinceLastService: number | null;
+  hasFaultMatch: boolean;
+  matchingFaultIds: string[];
 }
 
 export const serviceApi = {
@@ -353,9 +363,16 @@ export const serviceApi = {
 
   /**
    * Check if a device has been serviced within the last 30 days
+   * Optionally pass faultIds to check for matching faults
    */
-  checkPreviousServices: async (customerDeviceId: string): Promise<PreviousServiceInfo> => {
-    const response = await api.get(`/services/check-previous/${customerDeviceId}`);
+  checkPreviousServices: async (customerDeviceId: string, faultIds?: string[]): Promise<PreviousServiceInfo> => {
+    const params = new URLSearchParams();
+    if (faultIds && faultIds.length > 0) {
+      params.append('faultIds', faultIds.join(','));
+    }
+    const queryString = params.toString();
+    const url = `/services/check-previous/${customerDeviceId}${queryString ? `?${queryString}` : ''}`;
+    const response = await api.get(url);
     return response.data.data;
   },
 
@@ -515,6 +532,19 @@ export const serviceApi = {
     data: ApproveServicePartData
   ): Promise<ServicePart> => {
     const response = await api.post(`/services/${serviceId}/parts/${partId}/approve`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Approve a service part for warranty repair (staff internal approval)
+   * Deducts stock but does NOT charge the customer
+   */
+  approveServicePartForWarranty: async (
+    serviceId: string,
+    partId: string,
+    approvalNote?: string
+  ): Promise<ServicePart> => {
+    const response = await api.post(`/services/${serviceId}/parts/${partId}/approve-warranty`, { approvalNote });
     return response.data.data;
   },
 
