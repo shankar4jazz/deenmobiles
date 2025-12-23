@@ -2134,9 +2134,13 @@ export class ServiceService {
         if (status === ServiceStatus.DELIVERED && !service.deliveredAt) {
           updateData.deliveredAt = new Date();
         }
-        // Set notServiceableReason when status is NOT_SERVICEABLE
+        // Set notServiceableReason and zero out pricing when status is NOT_SERVICEABLE
         if (status === ServiceStatus.NOT_SERVICEABLE) {
           updateData.notServiceableReason = notServiceableReason;
+          // Zero out all pricing - customer is not charged for not serviceable items
+          updateData.estimatedCost = 0;
+          updateData.actualCost = 0;
+          updateData.labourCharge = 0;
         }
 
         // Update service status

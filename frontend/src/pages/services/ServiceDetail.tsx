@@ -347,7 +347,11 @@ export default function ServiceDetail() {
         </div>
         <div className="flex items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
-          <InvoiceButton serviceId={service.id} variant="primary" />
+          {/* Hide Invoice for NOT_SERVICEABLE and CANCELLED - no payment collected */}
+          {service.status !== ServiceStatus.NOT_SERVICEABLE &&
+           service.status !== ServiceStatus.CANCELLED && (
+            <InvoiceButton serviceId={service.id} variant="primary" />
+          )}
           {service.isWarrantyRepair && (
             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
               Warranty
@@ -831,7 +835,12 @@ export default function ServiceDetail() {
               <DollarSign className="w-3 h-3" />
               Pricing
             </h3>
-            {(() => {
+            {service.status === ServiceStatus.NOT_SERVICEABLE ? (
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm">No payment required</p>
+                <p className="text-gray-400 text-xs mt-1">Service not serviceable</p>
+              </div>
+            ) : (() => {
               // Calculate extra spare total (parts where isExtraSpare = true)
               const extraSpareTotal = (service.partsUsed || [])
                 .filter((part: any) => part.isExtraSpare)
@@ -962,21 +971,36 @@ export default function ServiceDetail() {
                   </div>
                 </div>
               );
-            })()}
+            })())}
 
-            {/* Add Payment & Delivery Button */}
-            {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
-              <button
-                onClick={() => setShowAddPaymentModal(true)}
-                className="w-full mt-3 py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow-md flex items-center justify-center gap-2 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add Payment & Delivery
-              </button>
+            {/* Action Buttons based on status */}
+            {service.status === ServiceStatus.NOT_SERVICEABLE ? (
+              /* For NOT_SERVICEABLE - only show Mark Device Returned (no payment) */
+              !service.deviceReturnedAt && (
+                <button
+                  onClick={() => markDeviceReturnedMutation.mutate()}
+                  disabled={markDeviceReturnedMutation.isPending}
+                  className="w-full mt-3 py-2.5 px-3 bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg shadow-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {markDeviceReturnedMutation.isPending ? 'Marking...' : 'Mark Device Returned'}
+                </button>
+              )
+            ) : (
+              /* For other statuses - show Add Payment & Delivery */
+              (user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
+                <button
+                  onClick={() => setShowAddPaymentModal(true)}
+                  className="w-full mt-3 py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow-md flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Payment & Delivery
+                </button>
+              )
             )}
 
-            {/* Payment History */}
-            {service.paymentEntries && service.paymentEntries.length > 0 && (
+            {/* Payment History - hide for NOT_SERVICEABLE */}
+            {service.status !== ServiceStatus.NOT_SERVICEABLE &&
+             service.paymentEntries && service.paymentEntries.length > 0 && (
               <div className="mt-3 pt-3 border-t">
                 <h4 className="text-xs font-medium text-gray-500 mb-2">Payment History</h4>
                 <div className="space-y-1.5 text-xs max-h-32 overflow-y-auto">
