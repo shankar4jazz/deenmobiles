@@ -433,6 +433,28 @@ export class ServiceController {
   });
 
   /**
+   * POST /api/v1/services/:id/payment-entries/bulk
+   * Add multiple payment entries to an existing service
+   */
+  static addBulkPaymentEntries = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { payments, notes, markAsDelivered } = req.body;
+
+    const result = await ServiceService.addBulkPaymentEntries({
+      serviceId: id,
+      payments,
+      notes,
+      markAsDelivered,
+      userId,
+      companyId,
+    });
+
+    return ApiResponse.created(res, result, 'Payment entries added successfully');
+  });
+
+  /**
    * GET /api/v1/services/:id/notes
    * Get all notes for a service
    */

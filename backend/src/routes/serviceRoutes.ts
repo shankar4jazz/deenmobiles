@@ -485,6 +485,23 @@ router.post(
 );
 
 /**
+ * @route   POST /api/v1/services/:id/payment-entries/bulk
+ * @desc    Add multiple payment entries to an existing service
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.post(
+  '/:id/payment-entries/bulk',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.addBulkPaymentEntries
+);
+
+/**
  * @route   POST /api/v1/services/:id/payment-entries
  * @desc    Add a payment entry to an existing service
  * @access  Private (Receptionist, Manager, Admin)

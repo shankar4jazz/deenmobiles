@@ -238,6 +238,16 @@ export interface AddPaymentEntryData {
   transactionId?: string;
 }
 
+export interface BulkPaymentEntryData {
+  payments: Array<{
+    amount: number;
+    paymentMethodId: string;
+    transactionId?: string;
+  }>;
+  notes?: string;
+  markAsDelivered: boolean;
+}
+
 export interface ServiceNote {
   id: string;
   serviceId: string;
@@ -615,6 +625,17 @@ export const serviceApi = {
     data: AddPaymentEntryData
   ): Promise<{ paymentEntry: PaymentEntry; service: Service }> => {
     const response = await api.post(`/services/${serviceId}/payment-entries`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Add multiple payment entries to an existing service (bulk payment)
+   */
+  addBulkPaymentEntries: async (
+    serviceId: string,
+    data: BulkPaymentEntryData
+  ): Promise<{ paymentEntries: PaymentEntry[]; service: Service }> => {
+    const response = await api.post(`/services/${serviceId}/payment-entries/bulk`, data);
     return response.data.data;
   },
 

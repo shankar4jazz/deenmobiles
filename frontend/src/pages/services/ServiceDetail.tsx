@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
-import AddPaymentModal from '@/components/services/AddPaymentModal';
+import MultiPaymentModal from '@/components/services/MultiPaymentModal';
 import TechnicianNotes from '@/components/services/TechnicianNotes';
 import { toast } from 'sonner';
 
@@ -74,6 +74,23 @@ export default function ServiceDetail() {
     enabled: !!id,
     refetchInterval: 30000,
   });
+
+  // Calculate pricing summary for payment modal
+  const pricingSummary = useMemo(() => {
+    const extraSpareTotal = (service?.partsUsed || [])
+      .filter((part: any) => part.isExtraSpare)
+      .reduce((sum: number, part: any) => sum + part.totalPrice, 0);
+    const estimatePrice = service?.estimatedCost || 0;
+    const totalAmount = estimatePrice + extraSpareTotal;
+    const advancePaid = service?.advancePayment || 0;
+    return {
+      estimatePrice,
+      extraSpareTotal,
+      totalAmount,
+      advancePaid,
+      balanceDue: totalAmount - advancePaid,
+    };
+  }, [service]);
 
   // Update diagnosis mutation
   const updateDiagnosisMutation = useMutation({
@@ -1112,11 +1129,13 @@ export default function ServiceDetail() {
         currentValue={service.estimatedCost}
       />
 
-      {/* Add Payment Modal */}
-      <AddPaymentModal
+      {/* Multi Payment Modal */}
+      <MultiPaymentModal
         isOpen={showAddPaymentModal}
         onClose={() => setShowAddPaymentModal(false)}
         serviceId={service.id}
+        pricingSummary={pricingSummary}
+        currentStatus={service.status}
       />
     </div>
   );

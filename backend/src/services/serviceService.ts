@@ -2697,6 +2697,162 @@ export class ServiceService {
   }
 
   /**
+   * Add multiple payment entries to a service (bulk payment)
+   * This creates multiple PaymentEntry records and optionally marks service as delivered
+   */
+  static async addBulkPaymentEntries(data: {
+    serviceId: string;
+    payments: Array<{
+      amount: number;
+      paymentMethodId: string;
+      transactionId?: string;
+    }>;
+    notes?: string;
+    markAsDelivered: boolean;
+    userId: string;
+    companyId: string;
+  }) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // Verify service exists and belongs to company
+        const service = await tx.service.findFirst({
+          where: { id: data.serviceId, companyId: data.companyId },
+          include: { assignedTo: true },
+        });
+
+        if (!service) {
+          throw new AppError(404, 'Service not found');
+        }
+
+        // Filter out payments with zero or negative amounts
+        const validPayments = data.payments.filter((p) => p.amount > 0);
+
+        if (validPayments.length === 0) {
+          throw new AppError(400, 'At least one payment with amount > 0 is required');
+        }
+
+        // Create payment entries
+        const createdPaymentEntries = [];
+        let totalAmount = 0;
+
+        for (const payment of validPayments) {
+          const paymentEntry = await tx.paymentEntry.create({
+            data: {
+              amount: payment.amount,
+              paymentMethodId: payment.paymentMethodId,
+              transactionId: payment.transactionId,
+              notes: data.notes,
+              paymentDate: new Date(),
+              serviceId: data.serviceId,
+              companyId: data.companyId,
+            },
+            include: {
+              paymentMethod: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          });
+
+          createdPaymentEntries.push(paymentEntry);
+          totalAmount += payment.amount;
+
+          // Log activity for each payment
+          await tx.activityLog.create({
+            data: {
+              userId: data.userId,
+              action: 'CREATE',
+              entity: 'payment_entry',
+              entityId: paymentEntry.id,
+              details: JSON.stringify({
+                serviceId: data.serviceId,
+                ticketNumber: service.ticketNumber,
+                amount: payment.amount,
+                paymentMethod: paymentEntry.paymentMethod.name,
+              }),
+            },
+          });
+        }
+
+        // Update service advancePayment total
+        let updatedService = await tx.service.update({
+          where: { id: data.serviceId },
+          data: {
+            advancePayment: { increment: totalAmount },
+          },
+          include: {
+            customer: true,
+            assignedTo: true,
+            branch: true,
+          },
+        });
+
+        // Mark as delivered if requested and status is COMPLETED
+        if (data.markAsDelivered && service.status === ServiceStatus.COMPLETED) {
+          updatedService = await tx.service.update({
+            where: { id: data.serviceId },
+            data: {
+              status: ServiceStatus.DELIVERED,
+              deliveredAt: new Date(),
+            },
+            include: {
+              customer: true,
+              assignedTo: true,
+              branch: true,
+            },
+          });
+
+          // Create status history record
+          await tx.serviceStatusHistory.create({
+            data: {
+              serviceId: data.serviceId,
+              status: ServiceStatus.DELIVERED,
+              notes: 'Marked as delivered during payment collection',
+              changedBy: data.userId,
+            },
+          });
+
+          // Log status change activity
+          await tx.activityLog.create({
+            data: {
+              userId: data.userId,
+              action: 'STATUS_UPDATE',
+              entity: 'service',
+              entityId: data.serviceId,
+              details: JSON.stringify({
+                oldStatus: ServiceStatus.COMPLETED,
+                newStatus: ServiceStatus.DELIVERED,
+                notes: 'Marked as delivered during payment collection',
+              }),
+            },
+          });
+        }
+
+        Logger.info('Bulk payment entries added successfully', {
+          serviceId: data.serviceId,
+          paymentCount: createdPaymentEntries.length,
+          totalAmount,
+          markedAsDelivered: data.markAsDelivered && service.status === ServiceStatus.COMPLETED,
+        });
+
+        // Award delivery points if marked as delivered (async, don't block)
+        if (data.markAsDelivered && service.status === ServiceStatus.COMPLETED && service.assignedToId) {
+          PointsService.onServiceDelivered(data.serviceId).catch((err) => {
+            Logger.error('Failed to award delivery points', { error: err, serviceId: data.serviceId });
+          });
+        }
+
+        return { paymentEntries: createdPaymentEntries, service: updatedService };
+      });
+    } catch (error) {
+      Logger.error('Error adding bulk payment entries', { error, serviceId: data.serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to add payment entries');
+    }
+  }
+
+  /**
    * Add a note to a service
    */
   static async addNote(data: {
