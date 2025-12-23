@@ -1085,6 +1085,9 @@ function FaultSection({
                 Default Price
               </th>
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Level
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                 Technician Points
               </th>
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -1112,6 +1115,17 @@ function FaultSection({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
                   ₹{Number(category.defaultPrice).toFixed(2)}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-xs">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    category.level === 1 ? 'bg-green-100 text-green-800' :
+                    category.level === 2 ? 'bg-blue-100 text-blue-800' :
+                    category.level === 3 ? 'bg-yellow-100 text-yellow-800' :
+                    category.level === 4 ? 'bg-orange-100 text-orange-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    L{category.level || 1}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {category.technicianPoints} pts
@@ -1708,6 +1722,7 @@ function MasterDataModal({
       rate: 0,
       brandId: '',
       defaultPrice: 0,
+      level: 1,
       technicianPoints: 0,
       tags: ''
     }
@@ -1908,6 +1923,23 @@ function MasterDataModal({
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Level *
+                </label>
+                <select
+                  value={formData.level || 1}
+                  onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  required
+                >
+                  <option value={1}>Level 1 - Easy</option>
+                  <option value={2}>Level 2 - Simple</option>
+                  <option value={3}>Level 3 - Medium</option>
+                  <option value={4}>Level 4 - Complex</option>
+                  <option value={5}>Level 5 - Hard</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2130,6 +2162,7 @@ function ImportModal({
               await masterDataApi.faults.create({
                 ...row,
                 defaultPrice: parseFloat(row.defaultPrice || 0),
+                level: parseInt(row.level || 1),
                 technicianPoints: parseInt(row.technicianPoints || 0),
               });
             } else if (type === 'payment-method') {
@@ -2162,7 +2195,7 @@ function ImportModal({
       'gst-rate': 'name,rate,description\nGST 5%,5,5% GST rate\nGST 18%,18,18% GST rate',
       'brand': 'name,code,description\nSamsung,SAM,Samsung Electronics\nApple,APP,Apple Inc.',
       'model': 'name,code,brandId,description\niPhone 15,IP15,,Latest iPhone model\nGalaxy S24,GS24,,Latest Samsung Galaxy',
-      'fault': 'name,code,defaultPrice,technicianPoints,description\nScreen Replacement,SCR_REP,1500,10,Screen replacement service\nBattery Replacement,BAT_REP,800,5,Battery replacement service',
+      'fault': 'name,code,defaultPrice,level,technicianPoints,description\nScreen Replacement,SCR_REP,1500,3,10,Screen replacement service\nBattery Replacement,BAT_REP,800,2,5,Battery replacement service',
       'payment-method': 'name,code,description\nCash,CASH,Cash payment\nUPI,UPI,UPI payment\nCard,CARD,Card payment',
       'expense-category': 'name,code,description\nRent,RENT,Office rent\nUtilities,UTIL,Electricity and water\nSalaries,SAL,Employee salaries',
       'service-issue': 'name,description\nScreen Cracked,Display glass or screen is cracked\nBattery Draining Fast,Battery discharges quickly\nNot Charging,Device not charging when connected',
@@ -2226,11 +2259,11 @@ function ImportModal({
         ],
       },
       'fault': {
-        headers: ['name', 'code', 'defaultPrice', 'technicianPoints', 'description'],
+        headers: ['name', 'code', 'defaultPrice', 'level', 'technicianPoints', 'description'],
         samples: [
-          ['Screen Replacement', 'SCR_REP', '1500', '10', 'Screen replacement service'],
-          ['Battery Replacement', 'BAT_REP', '800', '5', 'Battery replacement service'],
-          ['Software Update', 'SW_UPD', '300', '2', 'Software update service'],
+          ['Screen Replacement', 'SCR_REP', '1500', '3', '10', 'Screen replacement service'],
+          ['Battery Replacement', 'BAT_REP', '800', '2', '5', 'Battery replacement service'],
+          ['Software Update', 'SW_UPD', '300', '1', '2', 'Software update service'],
         ],
       },
       'payment-method': {

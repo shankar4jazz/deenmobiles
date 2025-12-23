@@ -150,6 +150,7 @@ export interface Fault extends MasterDataBase {
   description?: string;
   tags?: string;
   defaultPrice: number;
+  level: number; // 1=Easy, 5=Hard
   technicianPoints: number;
 }
 
@@ -159,6 +160,7 @@ export interface CreateFaultDto {
   description?: string;
   tags?: string;
   defaultPrice?: number;
+  level?: number;
   technicianPoints?: number;
 }
 
@@ -168,6 +170,7 @@ export interface UpdateFaultDto {
   description?: string;
   tags?: string;
   defaultPrice?: number;
+  level?: number;
   technicianPoints?: number;
   isActive?: boolean;
 }
