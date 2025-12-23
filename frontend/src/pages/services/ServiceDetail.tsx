@@ -378,7 +378,7 @@ export default function ServiceDetail() {
                   >
                     <span className="font-medium text-red-700">{f.fault?.name || 'Unknown'}</span>
                     {f.fault?.defaultPrice > 0 && (
-                      <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-semibold rounded">₹{f.fault.defaultPrice}</span>
+                      <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-semibold rounded">₹{f.fault.defaultPrice}</span>
                     )}
                   </div>
                 ))}
