@@ -119,12 +119,28 @@ export function JobSheetPreviewModal({
               </button>
             </div>
           ) : jobSheet?.pdfUrl ? (
-            <div className="h-full">
-              <iframe
-                src={jobSheet.pdfUrl}
+            <div className="h-full flex flex-col items-center justify-center">
+              {/* Try object tag for better PDF support */}
+              <object
+                data={jobSheet.pdfUrl}
+                type="application/pdf"
                 className="w-full h-[500px] border border-gray-200 rounded-lg"
-                title="Job Sheet Preview"
-              />
+              >
+                {/* Fallback if PDF can't be embedded */}
+                <div className="h-[500px] flex flex-col items-center justify-center bg-gray-50 border border-gray-200 rounded-lg">
+                  <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
+                  <p className="text-lg font-medium text-gray-900 mb-2">Job Sheet Ready!</p>
+                  <p className="text-sm text-gray-500 mb-4">Job Sheet #{jobSheet.jobSheetNumber}</p>
+                  <p className="text-xs text-gray-400 mb-6">PDF preview not supported in this browser</p>
+                  <button
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <Printer className="w-5 h-5" />
+                    <span className="font-medium">Open PDF</span>
+                  </button>
+                </div>
+              </object>
             </div>
           ) : (
             <div className="h-96 flex flex-col items-center justify-center text-gray-500">
