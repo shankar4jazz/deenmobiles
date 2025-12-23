@@ -34,13 +34,17 @@ const serviceSchema = z.object({
   devicePattern: z.string().optional(),
   accessoryIds: z.array(z.string()).optional(),
   intakeNotes: z.string().optional(),
-  damageConditionIds: z.array(z.string()).min(1, 'Please add at least one damage condition'),
+  noDamage: z.boolean().default(false),
+  damageConditionIds: z.array(z.string()).optional(),
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
   branchId: z.string().min(1, 'Branch ID is required'),
   dataWarrantyAccepted: z.boolean().default(false),
   sendSmsNotification: z.boolean().default(true),
   sendWhatsappNotification: z.boolean().default(false),
-});
+}).refine(
+  (data) => data.noDamage || (data.damageConditionIds && data.damageConditionIds.length > 0),
+  { message: 'Please add at least one damage condition or mark as No Damage', path: ['damageConditionIds'] }
+);
 
 type ServiceFormData = z.infer<typeof serviceSchema>;
 
@@ -83,6 +87,7 @@ export default function CreateService() {
       devicePattern: '',
       accessoryIds: [],
       intakeNotes: '',
+      noDamage: false,
       damageConditionIds: [],
       estimatedCost: 0,
       branchId: '',
@@ -94,6 +99,7 @@ export default function CreateService() {
 
   const customerId = watch('customerId');
   const estimatedCost = watch('estimatedCost');
+  const noDamage = watch('noDamage');
 
   // Auto-set branch ID
   useEffect(() => {
@@ -173,15 +179,17 @@ export default function CreateService() {
   };
 
   const onSubmit = async (data: ServiceFormData) => {
-    // Combine damage condition names from selected conditions
-    const damageConditionText = selectedDamageConditions.map((condition) => condition.name).join(', ');
+    // Handle damage condition - either "No Damage" or combine selected conditions
+    const damageConditionText = data.noDamage
+      ? 'No Damage'
+      : selectedDamageConditions.map((condition) => condition.name).join(', ');
 
     const submitData: CreateServiceData = {
       customerId: data.customerId,
       customerDeviceId: data.customerDeviceId,
       faultIds: data.faultIds,
       damageCondition: damageConditionText,
-      damageConditionIds: data.damageConditionIds,
+      damageConditionIds: data.noDamage ? [] : data.damageConditionIds,
       estimatedCost: data.estimatedCost || 0,
       branchId: data.branchId,
       images: selectedImages.length > 0 ? selectedImages : undefined,
@@ -298,22 +306,49 @@ export default function CreateService() {
               />
             </FormRow>
 
-            <FormRow label="Damage Condition" required error={errors.damageConditionIds?.message}>
-              <Controller
-                control={control}
-                name="damageConditionIds"
-                render={({ field }) => (
-                  <DamageConditionTagInput
-                    value={field.value}
-                    onChange={(ids, conditions) => {
-                      field.onChange(ids);
-                      setSelectedDamageConditions(conditions);
-                    }}
-                    error={errors.damageConditionIds?.message}
-                    placeholder="Type to search or add damage conditions..."
+            <FormRow label="Damage Condition" required={!noDamage} error={errors.damageConditionIds?.message}>
+              <div className="space-y-2">
+                <Controller
+                  control={control}
+                  name="noDamage"
+                  render={({ field }) => (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        field.onChange(!field.value);
+                        if (!field.value) {
+                          setValue('damageConditionIds', []);
+                          setSelectedDamageConditions([]);
+                        }
+                      }}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+                        field.value
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      No Damage
+                    </button>
+                  )}
+                />
+                {!noDamage && (
+                  <Controller
+                    control={control}
+                    name="damageConditionIds"
+                    render={({ field }) => (
+                      <DamageConditionTagInput
+                        value={field.value || []}
+                        onChange={(ids, conditions) => {
+                          field.onChange(ids);
+                          setSelectedDamageConditions(conditions);
+                        }}
+                        error={errors.damageConditionIds?.message}
+                        placeholder="Type to search or add damage conditions..."
+                      />
+                    )}
                   />
                 )}
-              />
+              </div>
             </FormRow>
           </div>
 
