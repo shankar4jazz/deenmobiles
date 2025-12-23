@@ -440,12 +440,13 @@ export class ServiceController {
     const { id } = req.params;
     const companyId = req.user!.companyId;
     const userId = req.user!.userId;
-    const { payments, notes, markAsDelivered } = req.body;
+    const { payments, notes, markAsCompleted, markAsDelivered } = req.body;
 
     const result = await ServiceService.addBulkPaymentEntries({
       serviceId: id,
       payments,
       notes,
+      markAsCompleted,
       markAsDelivered,
       userId,
       companyId,

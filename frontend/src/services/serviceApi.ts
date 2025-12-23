@@ -245,7 +245,8 @@ export interface BulkPaymentEntryData {
     transactionId?: string;
   }>;
   notes?: string;
-  markAsDelivered: boolean;
+  markAsCompleted?: boolean;
+  markAsDelivered?: boolean;
 }
 
 export interface ServiceNote {
