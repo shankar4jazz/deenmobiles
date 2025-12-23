@@ -10,7 +10,7 @@ export interface Service {
   deviceIMEI?: string;
   devicePassword?: string;
   devicePattern?: string;
-  conditionId?: string;
+  deviceCondition?: string;
   intakeNotes?: string;
   damageCondition: string;
   diagnosis?: string;
@@ -233,7 +233,7 @@ export interface CreateServiceData {
   // Intake fields (moved from device level)
   devicePassword?: string;
   devicePattern?: string;
-  conditionId?: string;
+  deviceCondition?: string;
   intakeNotes?: string;
   accessoryIds?: string[];
   // New fields
@@ -252,7 +252,7 @@ export interface UpdateServiceData {
   // Intake fields
   devicePassword?: string;
   devicePattern?: string;
-  conditionId?: string;
+  deviceCondition?: string;
   intakeNotes?: string;
   accessoryIds?: string[];
 }

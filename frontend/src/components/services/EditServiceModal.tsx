@@ -88,7 +88,7 @@ export default function EditServiceModal({
       reset({
         customerDeviceId: service.customerDeviceId || '',
         faultIds: service.faults?.map((f) => f.faultId) || [],
-        deviceConditionId: service.conditionId || '',
+        deviceConditionId: service.deviceCondition || '',
         devicePassword: service.devicePassword || '',
         devicePattern: service.devicePattern || '',
         accessoryIds: service.accessories?.map((a) => a.accessoryId) || [],
@@ -151,7 +151,7 @@ export default function EditServiceModal({
       advancePayment: data.advancePayment || 0,
       devicePassword: data.devicePassword || undefined,
       devicePattern: data.devicePattern || undefined,
-      conditionId: data.deviceConditionId || undefined,
+      deviceCondition: data.deviceConditionId || undefined,
       intakeNotes: data.intakeNotes || undefined,
       accessoryIds: data.accessoryIds && data.accessoryIds.length > 0 ? data.accessoryIds : [],
     };

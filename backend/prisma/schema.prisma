@@ -273,6 +273,7 @@ model Service {
   assignedToId      String?
   createdById       String?                // User who created/booked the service
   dataWarrantyAccepted Boolean             @default(false) // Customer accepts data loss risk
+  sendNotificationOnAssign Boolean         @default(true)  // @deprecated - use sendSmsNotification instead
   sendSmsNotification Boolean              @default(true)  // Send SMS notification to customer
   sendWhatsappNotification Boolean         @default(false) // Send WhatsApp notification to customer
   companyId         String

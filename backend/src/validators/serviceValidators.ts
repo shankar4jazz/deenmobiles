@@ -51,11 +51,11 @@ export const createServiceValidation: ValidationChain[] = [
     .isLength({ max: 50 })
     .withMessage('Device pattern must not exceed 50 characters'),
 
-  body('conditionId')
+  body('deviceCondition')
     .optional()
     .trim()
-    .isUUID()
-    .withMessage('Invalid condition ID format'),
+    .isIn(['on', 'off'])
+    .withMessage('Device condition must be "on" or "off"'),
 
   body('intakeNotes')
     .optional()
