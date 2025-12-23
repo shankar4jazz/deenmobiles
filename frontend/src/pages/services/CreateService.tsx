@@ -29,7 +29,7 @@ const serviceSchema = z.object({
   customerId: z.string().min(1, 'Please select a customer'),
   customerDeviceId: z.string().min(1, 'Please select a device'),
   faultIds: z.array(z.string()).min(1, 'Please select at least one fault'),
-  deviceConditionId: z.string().optional(),
+  deviceConditionId: z.string().min(1, 'Device condition is required'),
   devicePassword: z.string().optional(),
   devicePattern: z.string().optional(),
   accessoryIds: z.array(z.string()).optional(),
@@ -188,7 +188,7 @@ export default function CreateService() {
       // Intake fields
       devicePassword: data.devicePassword || undefined,
       devicePattern: data.devicePattern || undefined,
-      deviceCondition: data.deviceConditionId || undefined,
+      deviceCondition: data.deviceConditionId,
       intakeNotes: data.intakeNotes || undefined,
       accessoryIds: data.accessoryIds && data.accessoryIds.length > 0 ? data.accessoryIds : undefined,
       // New fields
