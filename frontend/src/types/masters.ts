@@ -246,6 +246,11 @@ export interface UpdateDamageConditionDto {
   isActive?: boolean;
 }
 
+// Service Issue (Alias for DamageCondition - backward compatibility)
+export type ServiceIssue = DamageCondition;
+export type CreateServiceIssueDto = CreateDamageConditionDto;
+export type UpdateServiceIssueDto = UpdateDamageConditionDto;
+
 // Accessory (Global - not company scoped)
 export interface Accessory {
   id: string;

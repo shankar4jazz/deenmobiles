@@ -610,6 +610,7 @@ export const masterDataApi = {
   expenseCategories: expenseCategoryApi,
   deviceConditions: deviceConditionApi,
   damageConditions: damageConditionApi,
+  serviceIssues: damageConditionApi, // Alias for backward compatibility
   accessories: accessoryApi,
   // Convenience methods for direct access
   getAllCategories: categoryApi.getAll,
