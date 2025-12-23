@@ -155,44 +155,7 @@ export default function MultiPaymentModal({
 
         <form onSubmit={handleSubmit} className="p-4">
           <div className="grid grid-cols-2 gap-4">
-            {/* LEFT: Details */}
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Details</h3>
-              <table className="w-full text-sm">
-                <tbody>
-                  <tr>
-                    <td className="py-1 text-gray-500">Estimate</td>
-                    <td className="py-1 text-right font-medium">₹{pricingSummary.estimatePrice.toFixed(2)}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1 text-gray-500">Extra Spare</td>
-                    <td className="py-1 text-right font-medium">₹{pricingSummary.extraSpareTotal.toFixed(2)}</td>
-                  </tr>
-                  <tr className="border-t">
-                    <td className="py-1 font-medium">Total</td>
-                    <td className="py-1 text-right font-semibold">₹{pricingSummary.totalAmount.toFixed(2)}</td>
-                  </tr>
-                  {pricingSummary.discount > 0 && (
-                    <tr>
-                      <td className="py-1 text-red-600">Discount</td>
-                      <td className="py-1 text-right text-red-600">-₹{pricingSummary.discount.toFixed(2)}</td>
-                    </tr>
-                  )}
-                  <tr>
-                    <td className="py-1 text-green-600">Paid</td>
-                    <td className="py-1 text-right text-green-600">₹{pricingSummary.advancePaid.toFixed(2)}</td>
-                  </tr>
-                  <tr className="border-t">
-                    <td className="py-2 font-bold">Balance Due</td>
-                    <td className={`py-2 text-right font-bold text-lg ${pricingSummary.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      ₹{pricingSummary.balanceDue.toFixed(2)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* RIGHT: Cash Details */}
+            {/* LEFT: Cash Details */}
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Cash Details</h3>
               {isLoadingMethods ? (
@@ -238,6 +201,43 @@ export default function MultiPaymentModal({
                   </tbody>
                 </table>
               )}
+            </div>
+
+            {/* RIGHT: Details */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Details</h3>
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr>
+                    <td className="py-1 text-gray-500">Estimate</td>
+                    <td className="py-1 text-right font-medium">₹{pricingSummary.estimatePrice.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1 text-gray-500">Extra Spare</td>
+                    <td className="py-1 text-right font-medium">₹{pricingSummary.extraSpareTotal.toFixed(2)}</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="py-1 font-medium">Total</td>
+                    <td className="py-1 text-right font-semibold">₹{pricingSummary.totalAmount.toFixed(2)}</td>
+                  </tr>
+                  {pricingSummary.discount > 0 && (
+                    <tr>
+                      <td className="py-1 text-red-600">Discount</td>
+                      <td className="py-1 text-right text-red-600">-₹{pricingSummary.discount.toFixed(2)}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="py-1 text-green-600">Paid</td>
+                    <td className="py-1 text-right text-green-600">₹{pricingSummary.advancePaid.toFixed(2)}</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="py-2 font-bold">Balance Due</td>
+                    <td className={`py-2 text-right font-bold text-lg ${pricingSummary.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      ₹{pricingSummary.balanceDue.toFixed(2)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
