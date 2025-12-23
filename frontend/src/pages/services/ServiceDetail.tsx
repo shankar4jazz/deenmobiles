@@ -377,7 +377,7 @@ export default function ServiceDetail() {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
               Device Intake
             </h3>
-            <div className="grid grid-cols-4 gap-3 mb-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-3">
               {/* Password - compact */}
               <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                 <div className="text-xs text-gray-500">Password/PIN</div>
@@ -409,6 +409,21 @@ export default function ServiceDetail() {
                     <span className="text-green-600">Accepted</span>
                   ) : (
                     <span className="text-red-600">Not Accepted</span>
+                  )}
+                </div>
+              </div>
+              {/* Customer Notification */}
+              <div>
+                <div className="text-xs text-gray-500">Notification</div>
+                <div className="flex gap-2 text-sm">
+                  {service.sendSmsNotification && (
+                    <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">SMS</span>
+                  )}
+                  {service.sendWhatsappNotification && (
+                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">WhatsApp</span>
+                  )}
+                  {!service.sendSmsNotification && !service.sendWhatsappNotification && (
+                    <span className="text-gray-400">None</span>
                   )}
                 </div>
               </div>

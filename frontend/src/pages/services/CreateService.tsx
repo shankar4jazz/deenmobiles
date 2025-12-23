@@ -38,7 +38,8 @@ const serviceSchema = z.object({
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
   branchId: z.string().min(1, 'Branch ID is required'),
   dataWarrantyAccepted: z.boolean().default(false),
-  sendNotificationOnAssign: z.boolean().default(true),
+  sendSmsNotification: z.boolean().default(true),
+  sendWhatsappNotification: z.boolean().default(false),
 });
 
 type ServiceFormData = z.infer<typeof serviceSchema>;
@@ -86,7 +87,8 @@ export default function CreateService() {
       estimatedCost: 0,
       branchId: '',
       dataWarrantyAccepted: false,
-      sendNotificationOnAssign: true,
+      sendSmsNotification: true,
+      sendWhatsappNotification: false,
     },
   });
 
@@ -186,12 +188,13 @@ export default function CreateService() {
       // Intake fields
       devicePassword: data.devicePassword || undefined,
       devicePattern: data.devicePattern || undefined,
-      conditionId: data.deviceConditionId || undefined,
+      deviceCondition: data.deviceConditionId || undefined,
       intakeNotes: data.intakeNotes || undefined,
       accessoryIds: data.accessoryIds && data.accessoryIds.length > 0 ? data.accessoryIds : undefined,
       // New fields
       dataWarrantyAccepted: data.dataWarrantyAccepted,
-      sendNotificationOnAssign: data.sendNotificationOnAssign,
+      sendSmsNotification: data.sendSmsNotification,
+      sendWhatsappNotification: data.sendWhatsappNotification,
     };
 
     createServiceMutation.mutate(submitData);
@@ -432,27 +435,50 @@ export default function CreateService() {
             </FormRow>
 
             <FormRow label="Customer Notification">
-              <Controller
-                control={control}
-                name="sendNotificationOnAssign"
-                render={({ field }) => (
-                  <label className="flex items-center gap-3 h-[38px] cursor-pointer">
-                    <div
-                      onClick={() => field.onChange(!field.value)}
-                      className={`relative w-11 h-6 rounded-full transition-colors ${
-                        field.value ? 'bg-purple-600' : 'bg-gray-200'
-                      }`}
-                    >
+              <div className="flex items-center gap-6">
+                <Controller
+                  control={control}
+                  name="sendSmsNotification"
+                  render={({ field }) => (
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <div
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          field.value ? 'translate-x-5' : 'translate-x-0'
+                        onClick={() => field.onChange(!field.value)}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          field.value ? 'bg-purple-600' : 'bg-gray-200'
                         }`}
-                      />
-                    </div>
-                    <span className="text-sm text-gray-600">Send SMS notification to customer</span>
-                  </label>
-                )}
-              />
+                      >
+                        <div
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                            field.value ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </div>
+                      <span className="text-sm text-gray-600">SMS</span>
+                    </label>
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="sendWhatsappNotification"
+                  render={({ field }) => (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <div
+                        onClick={() => field.onChange(!field.value)}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          field.value ? 'bg-green-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                            field.value ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </div>
+                      <span className="text-sm text-gray-600">WhatsApp</span>
+                    </label>
+                  )}
+                />
+              </div>
             </FormRow>
           </div>
 

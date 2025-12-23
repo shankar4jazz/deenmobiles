@@ -261,7 +261,7 @@ model Service {
   deviceIMEI        String?
   devicePassword    String?
   devicePattern     String?                // Pattern lock (stored as "1,2,3,5,9" format)
-  conditionId       String?                // Device condition at service intake
+  deviceCondition   String?                // Device power state at intake: "on" or "off"
   intakeNotes       String?                // Notes about device condition at intake
   damageCondition   String                 @map("issue") // Damage condition description (e.g., "Screen Damage, Back Door Damage")
   diagnosis         String?
@@ -273,7 +273,8 @@ model Service {
   assignedToId      String?
   createdById       String?                // User who created/booked the service
   dataWarrantyAccepted Boolean             @default(false) // Customer accepts data loss risk
-  sendNotificationOnAssign Boolean         @default(true)  // Whether to notify technician on assignment
+  sendSmsNotification Boolean              @default(true)  // Send SMS notification to customer
+  sendWhatsappNotification Boolean         @default(false) // Send WhatsApp notification to customer
   companyId         String
   branchId          String
   createdAt         DateTime               @default(now())
@@ -295,7 +296,6 @@ model Service {
   company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer          Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
   customerDevice    CustomerDevice?        @relation(fields: [customerDeviceId], references: [id], onDelete: SetNull)
-  condition         DeviceCondition?       @relation(fields: [conditionId], references: [id], onDelete: SetNull)
   paymentEntries    PaymentEntry[]         @relation("ServicePaymentEntries")
   damageConditions  DamageConditionOnService[]
   accessories       ServiceAccessory[]
@@ -307,7 +307,6 @@ model Service {
   @@index([branchId])
   @@index([customerId])
   @@index([assignedToId])
-  @@index([conditionId])
   @@index([ticketNumber])
   @@index([status])
   @@index([createdById])
@@ -1009,7 +1008,6 @@ model DeviceCondition {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  services        Service[]
 
   @@unique([name, companyId])
   @@index([companyId])

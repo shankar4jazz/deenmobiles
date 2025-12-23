@@ -35,12 +35,13 @@ interface CreateServiceData {
   // Intake fields (moved from device level)
   devicePassword?: string;
   devicePattern?: string;
-  conditionId?: string;
+  deviceCondition?: string;
   intakeNotes?: string;
   accessoryIds?: string[];
   // New fields
   dataWarrantyAccepted?: boolean;
-  sendNotificationOnAssign?: boolean;
+  sendSmsNotification?: boolean;
+  sendWhatsappNotification?: boolean;
 }
 
 interface UpdateServiceData {
@@ -54,7 +55,7 @@ interface UpdateServiceData {
   // Intake fields
   devicePassword?: string;
   devicePattern?: string;
-  conditionId?: string;
+  deviceCondition?: string;
   intakeNotes?: string;
   accessoryIds?: string[];
 }
@@ -239,7 +240,7 @@ export class ServiceService {
             deviceIMEI: customerDevice.imei,
             devicePassword: data.devicePassword,
             devicePattern: data.devicePattern,
-            conditionId: data.conditionId,
+            deviceCondition: data.deviceCondition,
             intakeNotes: data.intakeNotes,
             damageCondition: data.damageCondition,
             diagnosis: data.diagnosis,
@@ -251,7 +252,8 @@ export class ServiceService {
             companyId: data.companyId,
             createdById: data.createdBy,
             dataWarrantyAccepted: data.dataWarrantyAccepted ?? false,
-            sendNotificationOnAssign: data.sendNotificationOnAssign ?? true,
+            sendSmsNotification: data.sendSmsNotification ?? true,
+            sendWhatsappNotification: data.sendWhatsappNotification ?? false,
             // Create fault connections
             faults: {
               create: data.faultIds.map((faultId) => ({
@@ -1866,8 +1868,8 @@ export class ServiceService {
 
       Logger.info('Service assigned to technician', { serviceId, technicianId });
 
-      // Send notification to technician (async, don't block response) if enabled
-      if (service.sendNotificationOnAssign !== false) {
+      // Send notification to customer (async, don't block response) if enabled
+      if (service.sendSmsNotification || service.sendWhatsappNotification) {
         TechnicianNotificationService.notifyServiceAssigned(
           technicianId,
           serviceId,
