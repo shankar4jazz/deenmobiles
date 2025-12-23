@@ -878,14 +878,14 @@ export default function ServiceDetail() {
               );
             })()}
 
-            {/* Add Payment Button */}
+            {/* Add Payment & Delivery Button */}
             {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
               <button
                 onClick={() => setShowAddPaymentModal(true)}
-                className="w-full mt-3 py-2 px-3 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg border border-green-200 flex items-center justify-center gap-2 transition-colors"
+                className="w-full mt-3 py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow-md flex items-center justify-center gap-2 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Add Payment
+                Add Payment & Delivery
               </button>
             )}
 
