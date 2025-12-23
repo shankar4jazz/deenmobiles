@@ -267,15 +267,30 @@ export default function CreateService() {
                 control={control}
                 name="deviceConditionId"
                 render={({ field }) => (
-                  <select
-                    value={field.value || ''}
-                    onChange={(e) => field.onChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
-                  >
-                    <option value="">Select condition...</option>
-                    <option value="on">On</option>
-                    <option value="off">Off</option>
-                  </select>
+                  <div className="flex items-center gap-4 h-[38px]">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="deviceCondition"
+                        value="on"
+                        checked={field.value === 'on'}
+                        onChange={() => field.onChange('on')}
+                        className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                      />
+                      <span className="text-sm text-gray-700">On</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="deviceCondition"
+                        value="off"
+                        checked={field.value === 'off'}
+                        onChange={() => field.onChange('off')}
+                        className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                      />
+                      <span className="text-sm text-gray-700">Off</span>
+                    </label>
+                  </div>
                 )}
               />
             </FormRow>
