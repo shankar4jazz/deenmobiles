@@ -109,10 +109,10 @@ export default function TechnicianAssignment({
       {canAssign && (
         <button
           onClick={() => setShowAssignDrawer(true)}
-          className={`mt-3 w-full py-2.5 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all ${
+          className={`mt-3 w-full py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors ${
             currentAssignee
-              ? 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-md hover:shadow-lg'
-              : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg'
+              ? 'bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200'
+              : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
           }`}
         >
           <UserPlus className="w-4 h-4" />
