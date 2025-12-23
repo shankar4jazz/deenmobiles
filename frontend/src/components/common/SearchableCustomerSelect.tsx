@@ -119,7 +119,11 @@ export default function SearchableCustomerSelect({
                 ref={inputRef}
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^d+$/.test(val) && val.length > 10) return;
+                  setSearchTerm(val);
+                }}
                 placeholder="Search by name, phone, or email..."
                 className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
