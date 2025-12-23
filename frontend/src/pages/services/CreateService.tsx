@@ -8,7 +8,8 @@ import { toast } from 'sonner';
 import { serviceApi, CreateServiceData, PreviousServiceInfo } from '@/services/serviceApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { CustomerDevice, Customer } from '@/types';
 import { Fault, DamageCondition, Accessory } from '@/types/masters';
 
@@ -298,17 +299,49 @@ export default function CreateService() {
 
           {/* Repeated Service Warning */}
           {previousServiceInfo?.isRepeated && previousServiceInfo.lastService && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-semibold text-amber-800">Repeated Service</h4>
-                <p className="text-sm text-amber-700 mt-1">
-                  This device was serviced <strong>{previousServiceInfo.daysSinceLastService} days ago</strong>
-                  {' '}(Ticket: <span className="font-medium">{previousServiceInfo.lastService.ticketNumber}</span>)
-                </p>
-                <p className="text-xs text-amber-600 mt-1">
-                  Previous issue: {previousServiceInfo.lastService.damageCondition}
-                </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-amber-800">Repeated Service</h4>
+                    <Link
+                      to={`/branch/services/${previousServiceInfo.lastService.id}`}
+                      target="_blank"
+                      className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium"
+                    >
+                      View Previous Service
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                  <p className="text-sm text-amber-700 mt-1">
+                    This device was serviced <strong>{previousServiceInfo.daysSinceLastService} days ago</strong>
+                  </p>
+                  <div className="mt-2 p-2 bg-white/60 rounded border border-amber-100">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">Ticket:</span>
+                      <span className="font-semibold text-gray-800">{previousServiceInfo.lastService.ticketNumber}</span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-500">Status:</span>
+                      <span className="font-medium text-gray-700">{previousServiceInfo.lastService.status.replace(/_/g, ' ')}</span>
+                    </div>
+                    {previousServiceInfo.lastService.faults && previousServiceInfo.lastService.faults.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-xs text-gray-500">Previous Faults:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {previousServiceInfo.lastService.faults.map((fault) => (
+                            <span
+                              key={fault.id}
+                              className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full"
+                            >
+                              {fault.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

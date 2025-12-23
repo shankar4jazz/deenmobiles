@@ -396,20 +396,39 @@ export default function ServiceDetail() {
             {/* Previous Service Info (if repeated) */}
             {service.isRepeatedService && service.previousServiceId && (
               <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-2 text-sm">
-                  <RefreshCw className="h-4 w-4 text-amber-600" />
-                  <span className="text-gray-600">Previous Service:</span>
-                  <Link
-                    to={`/branch/services/${service.previousServiceId}`}
-                    className="text-purple-600 hover:text-purple-800 font-medium hover:underline"
-                  >
-                    {service.previousService?.ticketNumber || 'View Previous Service'}
-                  </Link>
-                  {service.previousService?.createdAt && (
-                    <span className="text-gray-400 text-xs">
-                      ({new Date(service.previousService.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })})
-                    </span>
-                  )}
+                <div className="flex items-start gap-2">
+                  <RefreshCw className="h-4 w-4 text-amber-600 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Previous Service:</span>
+                      <Link
+                        to={`/branch/services/${service.previousServiceId}`}
+                        className="text-purple-600 hover:text-purple-800 font-medium hover:underline"
+                      >
+                        {service.previousService?.ticketNumber || 'View Previous Service'}
+                      </Link>
+                      {service.previousService?.createdAt && (
+                        <span className="text-gray-400 text-xs">
+                          ({new Date(service.previousService.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })})
+                        </span>
+                      )}
+                    </div>
+                    {service.previousService?.faults && service.previousService.faults.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-xs text-gray-500">Previous Faults:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {service.previousService.faults.map((f: any) => (
+                            <span
+                              key={f.fault.id}
+                              className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded-full border border-red-100"
+                            >
+                              {f.fault.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

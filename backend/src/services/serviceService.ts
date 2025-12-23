@@ -752,6 +752,16 @@ export class ServiceService {
               status: true,
               damageCondition: true,
               completedAt: true,
+              faults: {
+                select: {
+                  fault: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -2714,6 +2724,7 @@ export class ServiceService {
       status: ServiceStatus;
       damageCondition: string;
       completedAt?: Date;
+      faults?: { id: string; name: string }[];
     } | null;
     daysSinceLastService: number | null;
   }> {
@@ -2744,6 +2755,16 @@ export class ServiceService {
           status: true,
           damageCondition: true,
           completedAt: true,
+          faults: {
+            select: {
+              fault: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -2770,6 +2791,10 @@ export class ServiceService {
           status: previousService.status,
           damageCondition: previousService.damageCondition,
           completedAt: previousService.completedAt || undefined,
+          faults: previousService.faults.map((f) => ({
+            id: f.fault.id,
+            name: f.fault.name,
+          })),
         },
         daysSinceLastService,
       };

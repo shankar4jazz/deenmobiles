@@ -43,6 +43,7 @@ export interface Service {
     status: ServiceStatus;
     damageCondition: string;
     completedAt?: string;
+    faults?: { fault: { id: string; name: string } }[];
   };
   dataWarrantyAccepted?: boolean;
   sendNotificationOnAssign?: boolean;
@@ -334,6 +335,7 @@ export interface PreviousServiceInfo {
     status: ServiceStatus;
     damageCondition: string;
     completedAt?: string;
+    faults?: { id: string; name: string }[];
   } | null;
   daysSinceLastService: number | null;
 }
