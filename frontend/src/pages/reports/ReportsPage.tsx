@@ -20,6 +20,7 @@ import { branchApi } from '../../services/branchApi';
 import { reportApi, type ReportFilters, type DateFilter, type MonthFilter } from '../../services/reportApi';
 
 type ReportType = 'booking-person' | 'technician' | 'brand' | 'fault' | 'daily-transaction' | 'monthly-transaction' | 'cash-settlement';
+type DatePreset = 'today' | 'yesterday' | 'last-week' | 'last-month' | 'custom';
 
 const reportTabs: { id: ReportType; label: string; icon: React.ReactNode }[] = [
   { id: 'booking-person', label: 'Booking Person', icon: <Users className="w-4 h-4" /> },
@@ -41,8 +42,8 @@ export default function ReportsPage() {
 
   // Date filters
   const today = new Date();
-  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
+  const [datePreset, setDatePreset] = useState<DatePreset>('today');
+  const [startDate, setStartDate] = useState(today.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   const [selectedDate, setSelectedDate] = useState(today.toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
@@ -50,6 +51,55 @@ export default function ReportsPage() {
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(
     user?.branchId || undefined
   );
+
+  // Apply date preset
+  const applyDatePreset = (preset: DatePreset) => {
+    setDatePreset(preset);
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+
+    switch (preset) {
+      case 'today':
+        start = end = now;
+        break;
+      case 'yesterday':
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        start = end = yesterday;
+        break;
+      case 'last-week':
+        end = now;
+        start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        break;
+      case 'last-month':
+        end = now;
+        start = new Date(now);
+        start.setMonth(start.getMonth() - 1);
+        break;
+      case 'custom':
+        return; // Keep current dates
+    }
+
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
+
+    setStartDate(startStr);
+    setEndDate(endStr);
+    setSelectedDate(startStr);
+
+    // For monthly transaction, set the month/year
+    if (preset === 'last-month') {
+      const lastMonth = new Date(now);
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      setSelectedMonth(lastMonth.getMonth() + 1);
+      setSelectedYear(lastMonth.getFullYear());
+    } else {
+      setSelectedMonth(start.getMonth() + 1);
+      setSelectedYear(start.getFullYear());
+    }
+  };
 
   const canSelectBranch = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
@@ -138,79 +188,121 @@ export default function ReportsPage() {
     }).format(amount);
   };
 
+  const datePresets: { id: DatePreset; label: string }[] = [
+    { id: 'today', label: 'Today' },
+    { id: 'yesterday', label: 'Yesterday' },
+    { id: 'last-week', label: 'Last 7 Days' },
+    { id: 'last-month', label: 'Last 30 Days' },
+    { id: 'custom', label: 'Custom' },
+  ];
+
   const renderDateFilters = () => {
+    // Quick preset buttons for all report types
+    const presetButtons = (
+      <div className="flex items-center gap-1 flex-wrap">
+        {datePresets.map((preset) => (
+          <button
+            key={preset.id}
+            onClick={() => applyDatePreset(preset.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              datePreset === preset.id
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+    );
+
     if (activeTab === 'daily-transaction' || activeTab === 'cash-settlement') {
       return (
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          />
+        <div className="flex flex-col gap-3 w-full">
+          {presetButtons}
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Date:</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+          )}
         </div>
       );
     }
 
     if (activeTab === 'monthly-transaction') {
       return (
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Month:</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={i + 1}>
-                  {new Date(2000, i).toLocaleString('default', { month: 'long' })}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Year:</label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              {Array.from({ length: 5 }, (_, i) => {
-                const year = today.getFullYear() - i;
-                return (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
+        <div className="flex flex-col gap-3 w-full">
+          {presetButtons}
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Month:</label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {new Date(2000, i).toLocaleString('default', { month: 'long' })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Year:</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const year = today.getFullYear() - i;
+                    return (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
     return (
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">From:</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">To:</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          />
-        </div>
+      <div className="flex flex-col gap-3 w-full">
+        {presetButtons}
+        {datePreset === 'custom' && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">From:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">To:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -469,33 +561,37 @@ export default function ReportsPage() {
 
         {/* Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="flex flex-wrap items-center gap-4">
-            {renderDateFilters()}
-
-            {canSelectBranch && (
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Branch:</label>
-                <select
-                  value={selectedBranchId || ''}
-                  onChange={(e) => setSelectedBranchId(e.target.value || undefined)}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">All Branches</option>
-                  {branches.map((branch: any) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                {renderDateFilters()}
               </div>
-            )}
-
-            <button
-              onClick={() => refetch()}
-              className="ml-auto px-4 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
-            >
-              Generate Report
-            </button>
+              <div className="flex items-center gap-3">
+                {canSelectBranch && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Branch:</label>
+                    <select
+                      value={selectedBranchId || ''}
+                      onChange={(e) => setSelectedBranchId(e.target.value || undefined)}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">All Branches</option>
+                      {branches.map((branch: any) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium whitespace-nowrap"
+                >
+                  Generate Report
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
