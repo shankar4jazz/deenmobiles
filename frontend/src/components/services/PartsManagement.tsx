@@ -779,7 +779,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
               </div>
             ))}
           </div>
-        )}
+        ) : null}
 
         {/* Tagged Parts Total */}
         {taggedParts.length > 0 && (
