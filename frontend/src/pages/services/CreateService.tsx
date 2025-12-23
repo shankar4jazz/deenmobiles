@@ -135,10 +135,13 @@ export default function CreateService() {
 
   // Check for previous services when device is selected or faults change
   const faultIds = watch('faultIds');
+  // Stringify faultIds to prevent infinite re-renders (arrays compared by reference)
+  const faultIdsKey = JSON.stringify(faultIds || []);
   useEffect(() => {
     if (selectedDevice?.id) {
       setIsCheckingPreviousServices(true);
-      serviceApi.checkPreviousServices(selectedDevice.id, faultIds)
+      const parsedFaultIds = JSON.parse(faultIdsKey) as string[];
+      serviceApi.checkPreviousServices(selectedDevice.id, parsedFaultIds)
         .then((info) => {
           setPreviousServiceInfo(info);
           // Auto-detect warranty if matching faults found
@@ -160,7 +163,7 @@ export default function CreateService() {
     } else {
       setPreviousServiceInfo(null);
     }
-  }, [selectedDevice?.id, faultIds]);
+  }, [selectedDevice?.id, faultIdsKey]);
 
   // Create service mutation
   const createServiceMutation = useMutation({
