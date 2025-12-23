@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, X, Check, Database, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 import { masterDataApi, accessoryApi } from '../../services/masterDataApi';
 import {
   ItemCategory,
@@ -446,6 +447,10 @@ function CategorySection({
     mutationFn: (id: string) => masterDataApi.categories.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      toast.success('Category deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete category');
     },
   });
 
@@ -563,6 +568,10 @@ function UnitSection({
     mutationFn: (id: string) => masterDataApi.units.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['units'] });
+      toast.success('Unit deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete unit');
     },
   });
 
@@ -677,6 +686,10 @@ function GSTRateSection({
     mutationFn: (id: string) => masterDataApi.gstRates.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gstRates'] });
+      toast.success('GST rate deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete GST rate');
     },
   });
 
@@ -791,6 +804,10 @@ function BrandSection({
     mutationFn: (id: string) => masterDataApi.brands.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
+      toast.success('Brand deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete brand');
     },
   });
 
@@ -907,6 +924,10 @@ function ModelSection({
     mutationFn: (id: string) => masterDataApi.models.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['models'] });
+      toast.success('Model deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete model');
     },
   });
 
@@ -1027,6 +1048,10 @@ function FaultSection({
     mutationFn: (id: string) => masterDataApi.faults.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faults'] });
+      toast.success('Fault deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete fault');
     },
   });
 
@@ -1174,6 +1199,10 @@ function PaymentMethodSection({
     mutationFn: (id: string) => masterDataApi.paymentMethods.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['paymentMethods'] });
+      toast.success('Payment method deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete payment method');
     },
   });
 
@@ -1299,6 +1328,10 @@ function ExpenseCategorySection({
     mutationFn: (id: string) => masterDataApi.expenseCategories.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenseCategories'] });
+      toast.success('Expense category deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete expense category');
     },
   });
 
@@ -1424,6 +1457,10 @@ function ServiceIssueSection({
     mutationFn: (id: string) => masterDataApi.serviceIssues.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['serviceIssues'] });
+      toast.success('Service issue deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete service issue');
     },
   });
 
@@ -1543,6 +1580,10 @@ function AccessorySection({
     mutationFn: (id: string) => accessoryApi.deactivate(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accessories'] });
+      toast.success('Accessory deactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete accessory');
     },
   });
 
