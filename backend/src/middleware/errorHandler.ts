@@ -29,8 +29,18 @@ export const errorHandler = (
 
   // Prisma errors
   if (err.name === 'PrismaClientKnownRequestError') {
-    Logger.error('Database error', { error: err.message });
-    return ApiResponse.error(res, 'Database error occurred', 500);
+    const prismaError = err as any;
+    Logger.error('Database error', {
+      error: err.message,
+      code: prismaError.code,
+      meta: prismaError.meta,
+      path: req.path,
+    });
+    // Include more detail in development
+    const message = process.env.NODE_ENV === 'development'
+      ? `Database error: ${prismaError.code} - ${err.message}`
+      : 'Database error occurred';
+    return ApiResponse.error(res, message, 500);
   }
 
   // JWT errors
