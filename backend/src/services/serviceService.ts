@@ -676,7 +676,7 @@ export class ServiceService {
                 select: {
                   id: true,
                   name: true,
-                  price: true,
+                  defaultPrice: true,
                 },
               },
             },
