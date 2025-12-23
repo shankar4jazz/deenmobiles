@@ -256,7 +256,6 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
   // Calculate totals
   const taggedPartsTotal = taggedParts.reduce((sum, part) => sum + part.totalPrice, 0);
   const extraSpareTotal = extraSpareParts.reduce((sum, part) => sum + part.totalPrice, 0);
-  const totalPartsValue = taggedPartsTotal + extraSpareTotal;
 
   // Helper to render part selection dropdown
   const renderPartDropdown = (
@@ -928,16 +927,6 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
           </div>
         )}
       </div>
-
-      {/* Grand Total */}
-      {(taggedParts.length > 0 || extraSpareParts.length > 0) && (
-        <div className="bg-gray-900 text-white rounded-lg p-4">
-          <div className="flex justify-between items-center">
-            <span className="font-medium">Total Parts Value:</span>
-            <span className="text-2xl font-bold">₹{totalPartsValue.toFixed(2)}</span>
-          </div>
-        </div>
-      )}
 
       {/* Error Messages */}
       {(addPartMutation.isError || updatePartMutation.isError || approvePartMutation.isError || approveWarrantyMutation.isError) && (
