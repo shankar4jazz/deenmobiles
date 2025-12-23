@@ -660,13 +660,6 @@ export class ServiceService {
               createdAt: 'desc',
             },
           },
-          condition: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-            },
-          },
           accessories: {
             include: {
               accessory: {
@@ -763,7 +756,6 @@ export class ServiceService {
             customer: true,
             assignedTo: true,
             branch: true,
-            condition: true,
             accessories: {
               include: {
                 accessory: true,

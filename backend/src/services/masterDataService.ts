@@ -2069,15 +2069,6 @@ export class MasterDataService {
         throw new AppError(404, 'Device condition not found');
       }
 
-      // Check if device condition is being used in services
-      const usageCount = await prisma.service.count({
-        where: { conditionId: id },
-      });
-
-      if (usageCount > 0) {
-        throw new AppError(400, `Cannot deactivate device condition. It is being used by ${usageCount} service(s)`);
-      }
-
       const deviceCondition = await prisma.deviceCondition.update({
         where: { id },
         data: { isActive: false },
