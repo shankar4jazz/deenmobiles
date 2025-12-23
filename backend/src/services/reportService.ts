@@ -80,6 +80,24 @@ interface DailyCashSettlementReport {
 
 export class ReportService {
   /**
+   * Helper to get start of day
+   */
+  private getStartOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  /**
+   * Helper to get end of day
+   */
+  private getEndOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+
+  /**
    * 1. Booking Person Wise Report
    * Services created by each receptionist/user with revenue breakdown
    */
@@ -89,8 +107,8 @@ export class ReportService {
     const where: any = {
       companyId,
       createdAt: {
-        gte: startDate,
-        lte: endDate,
+        gte: this.getStartOfDay(startDate),
+        lte: this.getEndOfDay(endDate),
       },
       createdById: { not: null },
     };
@@ -196,8 +214,8 @@ export class ReportService {
     const where: any = {
       companyId,
       createdAt: {
-        gte: startDate,
-        lte: endDate,
+        gte: this.getStartOfDay(startDate),
+        lte: this.getEndOfDay(endDate),
       },
       assignedToId: { not: null },
     };
@@ -330,8 +348,8 @@ export class ReportService {
     const where: any = {
       companyId,
       createdAt: {
-        gte: startDate,
-        lte: endDate,
+        gte: this.getStartOfDay(startDate),
+        lte: this.getEndOfDay(endDate),
       },
       customerDeviceId: { not: null },
     };
@@ -435,8 +453,8 @@ export class ReportService {
     const where: any = {
       companyId,
       createdAt: {
-        gte: startDate,
-        lte: endDate,
+        gte: this.getStartOfDay(startDate),
+        lte: this.getEndOfDay(endDate),
       },
     };
 
