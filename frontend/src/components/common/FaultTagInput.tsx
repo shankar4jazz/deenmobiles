@@ -94,6 +94,15 @@ export function FaultTagInput({
     }
   }, [value, allFaults]);
 
+  // Recalculate and notify parent when warranty status changes
+  useEffect(() => {
+    if (selectedFaults.length > 0) {
+      const newTotalPrice = calculateTotalPrice(selectedFaults);
+      onChange(value, selectedFaults, newTotalPrice);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWarrantyRepair, matchingFaultIds]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
