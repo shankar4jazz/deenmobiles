@@ -428,11 +428,11 @@ export class ServiceService {
       // Search term across multiple fields
       if (searchTerm) {
         where.OR = [
-          { ticketNumber: { contains: searchTerm } },
-          { deviceModel: { contains: searchTerm } },
-          { deviceIMEI: { contains: searchTerm } },
-          { customer: { name: { contains: searchTerm } } },
-          { customer: { phoneNumber: { contains: searchTerm } } },
+          { ticketNumber: { contains: searchTerm, mode: 'insensitive' } },
+          { deviceModel: { contains: searchTerm, mode: 'insensitive' } },
+          { deviceIMEI: { contains: searchTerm, mode: 'insensitive' } },
+          { customer: { name: { contains: searchTerm, mode: 'insensitive' } } },
+          { customer: { phone: { contains: searchTerm, mode: 'insensitive' } } },
         ];
       }
 
