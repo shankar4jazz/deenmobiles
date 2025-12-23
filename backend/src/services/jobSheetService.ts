@@ -167,35 +167,61 @@ export class JobSheetService {
       // Generate PDF
       const pdfUrl = await pdfGenerationService.generateJobSheetPDF(pdfData);
 
-      // Create job sheet record
-      const jobSheet = await prisma.jobSheet.create({
-        data: {
-          jobSheetNumber,
-          serviceId,
-          generatedBy: userId,
-          pdfUrl,
-          templateId: template?.id,
-          companyId: service.companyId,
-          branchId: service.branchId,
-        },
-        include: {
-          service: {
-            select: {
-              ticketNumber: true,
-              deviceModel: true,
+      // Create job sheet record (with race condition handling)
+      try {
+        const jobSheet = await prisma.jobSheet.create({
+          data: {
+            jobSheetNumber,
+            serviceId,
+            generatedBy: userId,
+            pdfUrl,
+            templateId: template?.id,
+            companyId: service.companyId,
+            branchId: service.branchId,
+          },
+          include: {
+            service: {
+              select: {
+                ticketNumber: true,
+                deviceModel: true,
+              },
+            },
+            generatedByUser: {
+              select: {
+                name: true,
+              },
             },
           },
-          generatedByUser: {
-            select: {
-              name: true,
+        });
+
+        Logger.info(`Job sheet ${jobSheetNumber} generated for service ${service.ticketNumber}`);
+        return jobSheet;
+      } catch (createError: any) {
+        // Handle race condition - job sheet was created by another request
+        if (createError.code === 'P2002') {
+          Logger.info(`Job sheet already exists for service ${serviceId}, returning existing`);
+          const existing = await prisma.jobSheet.findUnique({
+            where: { serviceId },
+            include: {
+              service: {
+                select: {
+                  ticketNumber: true,
+                  deviceModel: true,
+                },
+              },
+              generatedByUser: {
+                select: {
+                  name: true,
+                },
+              },
             },
-          },
-        },
-      });
-
-      Logger.info(`Job sheet ${jobSheetNumber} generated for service ${service.ticketNumber}`);
-
-      return jobSheet;
+          });
+          if (existing) {
+            return existing;
+          }
+        }
+        throw createError;
+      }
     } catch (error) {
       Logger.error('Error generating job sheet:', error);
       throw error;
