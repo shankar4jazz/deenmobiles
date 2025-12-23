@@ -297,12 +297,6 @@ export default function ServiceDetail() {
     );
   }
 
-  // Initialize diagnosis fields if editing
-  if (isEditingDiagnosis && !diagnosis) {
-    setDiagnosis(service.diagnosis || '');
-    setEstimatedCost(service.estimatedCost);
-  }
-
   // Combine all images for unified grid
   const allServiceImages = service.images || [];
   const allDeviceImages = service.deviceImages || [];
@@ -462,7 +456,11 @@ export default function ServiceDetail() {
               </h3>
               {canUpdateDiagnosis && !isEditingDiagnosis && (
                 <button
-                  onClick={() => setIsEditingDiagnosis(true)}
+                  onClick={() => {
+                    setDiagnosis(service.diagnosis || '');
+                    setEstimatedCost(service.estimatedCost);
+                    setIsEditingDiagnosis(true);
+                  }}
                   className="flex items-center gap-1 text-purple-600 hover:text-purple-700 text-xs font-medium"
                 >
                   <Edit className="w-3 h-3" />
