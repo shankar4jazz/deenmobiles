@@ -192,7 +192,7 @@ export default function ManagerBranchDashboard() {
               className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-left"
             >
               <Calendar className="h-4 w-4 text-blue-600" />
-              <span className="text-xs font-medium text-gray-900">Daily Transactions</span>
+              <span className="text-xs font-medium text-gray-900">Transactions</span>
             </button>
             <button
               onClick={() => navigate('/branch/reports?type=cash-settlement')}

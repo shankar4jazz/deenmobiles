@@ -24,7 +24,7 @@ const reportTabs: { id: ReportType; label: string; icon: React.ReactNode }[] = [
   { id: 'technician', label: 'Technician', icon: <Wrench className="w-4 h-4" /> },
   { id: 'brand', label: 'Brand', icon: <Smartphone className="w-4 h-4" /> },
   { id: 'fault', label: 'Fault', icon: <AlertCircle className="w-4 h-4" /> },
-  { id: 'daily-transaction', label: 'Daily Transaction', icon: <Calendar className="w-4 h-4" /> },
+  { id: 'daily-transaction', label: 'Transactions', icon: <Calendar className="w-4 h-4" /> },
   { id: 'cash-settlement', label: 'Cash Settlement', icon: <Wallet className="w-4 h-4" /> },
 ];
 
