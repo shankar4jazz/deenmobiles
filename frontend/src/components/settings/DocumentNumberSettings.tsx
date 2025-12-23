@@ -116,7 +116,7 @@ export default function DocumentNumberSettings() {
       const month = (now.getMonth() + 1).toString().padStart(2, '0');
       const day = now.getDate().toString().padStart(2, '0');
 
-      const parts: string[] = [formData.prefix];
+      const parts: string[] = [];
 
       if (formData.includeBranch) {
         parts.push('DS1'); // Sample branch code
