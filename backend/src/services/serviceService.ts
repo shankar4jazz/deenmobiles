@@ -670,6 +670,17 @@ export class ServiceService {
               },
             },
           },
+          faults: {
+            include: {
+              fault: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
+                },
+              },
+            },
+          },
           paymentEntries: {
             include: {
               paymentMethod: {
