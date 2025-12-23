@@ -475,7 +475,7 @@ export default function ServiceList() {
                       <td className="px-4 py-4">
                         <div className="space-y-2">
                           {/* Faults */}
-                          {service.faults && service.faults.length > 0 && (
+                          {service.faults && service.faults.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {service.faults.slice(0, 3).map((f: any) => (
                                 <span
@@ -491,9 +491,12 @@ export default function ServiceList() {
                                 </span>
                               )}
                             </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">No faults</span>
                           )}
-                          <div className="text-sm text-gray-900 line-clamp-1">
-                            {service.damageCondition}
+                          {/* Estimated Price */}
+                          <div className="text-sm font-medium text-gray-900">
+                            ₹{service.estimatedCost || 0}
                           </div>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
                             {STATUS_LABELS[service.status]}
@@ -670,7 +673,7 @@ export default function ServiceList() {
                     </div>
 
                     {/* Faults */}
-                    {service.faults && service.faults.length > 0 && (
+                    {service.faults && service.faults.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {service.faults.slice(0, 3).map((f: any) => (
                           <span
@@ -686,10 +689,13 @@ export default function ServiceList() {
                           </span>
                         )}
                       </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">No faults</span>
                     )}
 
-                    <div className="text-sm text-gray-900 line-clamp-2">
-                      {service.damageCondition}
+                    {/* Estimated Price */}
+                    <div className="text-sm font-medium text-gray-900">
+                      ₹{service.estimatedCost || 0}
                     </div>
                     {service.createdBy && (
                       <div className="text-xs text-gray-500">
