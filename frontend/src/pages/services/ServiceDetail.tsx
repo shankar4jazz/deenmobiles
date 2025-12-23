@@ -653,6 +653,14 @@ export default function ServiceDetail() {
               )}
             </div>
 
+            {/* Booked By */}
+            {service.createdBy && (
+              <div className="mb-3 pt-3 border-t border-gray-100">
+                <span className="text-xs text-gray-500">Booked By</span>
+                <p className="text-sm font-medium text-gray-900">{service.createdBy.name}</p>
+              </div>
+            )}
+
             {/* Status Change Form */}
             {canUpdateStatus && showStatusChange && (
               <div className="space-y-3 pt-3 border-t border-gray-100">
