@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
+import { warrantyApi, WarrantyRecord, getWarrantyStatusColor, formatWarrantyDays } from '@/services/warrantyApi';
 import { useAuthStore } from '@/store/authStore';
 import PartsManagement from '@/components/services/PartsManagement';
 import TechnicianAssignment from '@/components/services/TechnicianAssignment';
@@ -13,7 +14,7 @@ import {
   ArrowLeft, Edit, Save, X, Camera, Clock,
   Smartphone, FileText, DollarSign, CheckCircle, Trash2,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download,
-  Pencil, Plus, RefreshCw, Check,
+  Pencil, Plus, RefreshCw, Check, Shield, ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
@@ -75,6 +76,13 @@ export default function ServiceDetail() {
     queryFn: () => serviceApi.getServiceById(id!),
     enabled: !!id,
     refetchInterval: 30000,
+  });
+
+  // Fetch warranty records for delivered services
+  const { data: serviceWarranties } = useQuery({
+    queryKey: ['service-warranties', id],
+    queryFn: () => warrantyApi.getServiceWarranties(id!),
+    enabled: !!id && service?.status === ServiceStatus.DELIVERED,
   });
 
   // Calculate pricing summary for payment modal
@@ -575,6 +583,73 @@ export default function ServiceDetail() {
             canEdit={user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
             isWarrantyRepair={service.isWarrantyRepair}
           />
+
+          {/* Warranty Status - Show after delivery */}
+          {service.status === ServiceStatus.DELIVERED && serviceWarranties && serviceWarranties.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5" />
+                  Warranty Status
+                </h3>
+                <span className="text-xs text-gray-400">
+                  Delivered: {service.deliveredAt && new Date(service.deliveredAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {serviceWarranties.map((warranty: WarrantyRecord) => {
+                  const daysRemaining = warranty.daysRemaining ?? 0;
+                  const isExpired = warranty.isExpired;
+                  const isClaimed = warranty.isClaimed;
+
+                  return (
+                    <div
+                      key={warranty.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        isClaimed
+                          ? 'bg-blue-50 border-blue-200'
+                          : isExpired
+                          ? 'bg-gray-50 border-gray-200'
+                          : 'bg-green-50 border-green-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {isClaimed ? (
+                          <ShieldAlert className="w-4 h-4 text-blue-600" />
+                        ) : isExpired ? (
+                          <ShieldAlert className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ShieldCheck className="w-4 h-4 text-green-600" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {warranty.item?.itemName || 'Unknown Item'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatWarrantyDays(warranty.warrantyDays)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {isClaimed ? (
+                          <span className="text-xs font-medium text-blue-700">Claimed</span>
+                        ) : isExpired ? (
+                          <span className="text-xs font-medium text-gray-500">Expired</span>
+                        ) : (
+                          <>
+                            <span className="text-xs font-semibold text-green-700">{daysRemaining} days</span>
+                            <p className="text-xs text-gray-400">
+                              Expires {new Date(warranty.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Technician Notes */}
           <TechnicianNotes serviceId={service.id} />

@@ -301,6 +301,10 @@ export interface CreateServiceData {
   isWarrantyRepair?: boolean;
   warrantyReason?: string;
   matchingFaultIds?: string[];
+  originalWarrantyId?: string;
+  // Notification preferences
+  sendSmsNotification?: boolean;
+  sendWhatsappNotification?: boolean;
 }
 
 export interface UpdateServiceData {

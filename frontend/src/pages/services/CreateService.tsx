@@ -6,9 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { serviceApi, CreateServiceData, PreviousServiceInfo } from '@/services/serviceApi';
+import { warrantyApi, WarrantyRecord, formatWarrantyDays } from '@/services/warrantyApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
-import { ArrowLeft, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, ExternalLink, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CustomerDevice, Customer } from '@/types';
 import { Fault, DamageCondition, Accessory } from '@/types/masters';
@@ -82,6 +83,22 @@ export default function CreateService() {
   // Job sheet modal state
   const [showJobSheetModal, setShowJobSheetModal] = useState(false);
   const [createdServiceId, setCreatedServiceId] = useState<string | null>(null);
+
+  // Active warranty claim state
+  const [selectedWarrantyId, setSelectedWarrantyId] = useState<string | null>(null);
+
+  // Fetch active warranties for selected customer
+  const { data: customerWarranties, isLoading: isLoadingWarranties } = useQuery({
+    queryKey: ['customer-warranties', selectedCustomer?.id],
+    queryFn: () => warrantyApi.getCustomerWarranties(selectedCustomer!.id),
+    enabled: !!selectedCustomer?.id,
+    staleTime: 30000,
+  });
+
+  // Filter to only show active (non-expired, non-claimed) warranties
+  const activeWarranties = customerWarranties?.filter(
+    (w: WarrantyRecord) => !w.isExpired && !w.isClaimed
+  ) || [];
 
   const {
     control,
@@ -255,6 +272,8 @@ export default function CreateService() {
       isWarrantyRepair,
       warrantyReason: isWarrantyRepair ? warrantyReason : undefined,
       matchingFaultIds: previousServiceInfo?.matchingFaultIds,
+      // Warranty claim fields
+      originalWarrantyId: selectedWarrantyId || undefined,
     };
 
     createServiceMutation.mutate(submitData);
@@ -324,6 +343,90 @@ export default function CreateService() {
               />
             </FormRow>
           </div>
+
+          {/* Active Warranty Alert */}
+          {selectedCustomer && activeWarranties.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-green-800">Active Warranty Found!</h4>
+                  <p className="text-sm text-green-700 mt-1">
+                    This customer has {activeWarranties.length} active warranty record{activeWarranties.length > 1 ? 's' : ''}:
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {activeWarranties.map((warranty: WarrantyRecord) => (
+                      <div
+                        key={warranty.id}
+                        className={`p-3 rounded-lg border ${
+                          selectedWarrantyId === warranty.id
+                            ? 'bg-green-100 border-green-400'
+                            : 'bg-white border-green-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              id={`warranty-${warranty.id}`}
+                              name="warrantySelection"
+                              checked={selectedWarrantyId === warranty.id}
+                              onChange={() => {
+                                setSelectedWarrantyId(warranty.id);
+                                setIsWarrantyRepair(true);
+                                setWarrantyReason('WARRANTY_CLAIM');
+                              }}
+                              className="w-4 h-4 text-green-600 focus:ring-green-500"
+                            />
+                            <label htmlFor={`warranty-${warranty.id}`} className="cursor-pointer">
+                              <span className="font-medium text-gray-900">{warranty.item?.itemName || 'Unknown Item'}</span>
+                              <span className="text-gray-500 text-sm ml-2">({formatWarrantyDays(warranty.warrantyDays)})</span>
+                            </label>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-semibold text-green-700">{warranty.daysRemaining} days left</span>
+                            <p className="text-xs text-gray-400">
+                              {warranty.sourceType === 'SERVICE' ? (
+                                <Link
+                                  to={`/branch/services/${warranty.serviceId}`}
+                                  target="_blank"
+                                  className="text-purple-600 hover:underline flex items-center gap-1"
+                                >
+                                  {warranty.service?.serviceNumber || 'View Service'}
+                                  <ExternalLink className="w-3 h-3" />
+                                </Link>
+                              ) : (
+                                <span>Invoice #{warranty.invoice?.invoiceNumber}</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedWarrantyId && (
+                    <div className="mt-3 flex items-center gap-2 text-sm text-green-800 bg-green-100 px-3 py-2 rounded-lg">
+                      <ShieldAlert className="w-4 h-4" />
+                      This service will be marked as a <strong>Warranty Claim</strong> (No Charge)
+                    </div>
+                  )}
+                  {selectedWarrantyId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedWarrantyId(null);
+                        setIsWarrantyRepair(false);
+                        setWarrantyReason('');
+                      }}
+                      className="mt-2 text-sm text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Clear warranty selection
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Repeated Service Warning */}
           {previousServiceInfo?.isRepeated && previousServiceInfo.lastService && (
