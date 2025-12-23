@@ -301,14 +301,18 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
   );
 
   // Helper to render parts table
-  const renderPartsTable = (partsList: any[], showApproval: boolean) => (
+  const renderPartsTable = (partsList: any[], showApproval: boolean, showPricing: boolean = true) => (
     <table className="w-full">
       <thead className="bg-gray-50 border-b border-gray-200">
         <tr>
           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Part Name</th>
-          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Qty</th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+          {showPricing && (
+            <>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Qty</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+            </>
+          )}
           {showApproval && (
             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Approval</th>
           )}
@@ -326,61 +330,65 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
                 <span className="text-xs text-gray-500 block">{getPartCode(part)}</span>
               )}
             </td>
-            <td className="px-4 py-3 text-sm text-gray-600">
-              {editingPartId === part.id ? (
-                <input
-                  type="number"
-                  min="1"
-                  value={editQuantity}
-                  onChange={(e) => setEditQuantity(parseInt(e.target.value) || 1)}
-                  className="w-20 px-2 py-1 border border-gray-300 rounded text-center"
-                />
-              ) : canEdit ? (
-                <div className="flex items-center justify-center gap-1">
-                  <button
-                    onClick={() => updatePartMutation.mutate({ partId: part.id, data: { quantity: part.quantity - 1 } })}
-                    disabled={part.quantity <= 1 || updatePartMutation.isPending}
-                    className="p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded disabled:opacity-30"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="w-8 text-center font-medium">{part.quantity}</span>
-                  <button
-                    onClick={() => updatePartMutation.mutate({ partId: part.id, data: { quantity: part.quantity + 1 } })}
-                    disabled={updatePartMutation.isPending}
-                    className="p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <span className="text-center block">{part.quantity}</span>
-              )}
-            </td>
-            <td className="px-4 py-3 text-sm text-gray-600">
-              {editingPartId === part.id ? (
-                <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={editUnitPrice}
-                    onChange={(e) => setEditUnitPrice(parseFloat(e.target.value) || 0)}
-                    className="w-24 pl-5 pr-2 py-1 border border-gray-300 rounded"
-                  />
-                </div>
-              ) : (
-                <span>₹{part.unitPrice.toFixed(2)}</span>
-              )}
-            </td>
-            <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-              {editingPartId === part.id ? (
-                <span>₹{(editQuantity * editUnitPrice).toFixed(2)}</span>
-              ) : (
-                <span>₹{part.totalPrice.toFixed(2)}</span>
-              )}
-            </td>
+            {showPricing && (
+              <>
+                <td className="px-4 py-3 text-sm text-gray-600">
+                  {editingPartId === part.id ? (
+                    <input
+                      type="number"
+                      min="1"
+                      value={editQuantity}
+                      onChange={(e) => setEditQuantity(parseInt(e.target.value) || 1)}
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-center"
+                    />
+                  ) : canEdit ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => updatePartMutation.mutate({ partId: part.id, data: { quantity: part.quantity - 1 } })}
+                        disabled={part.quantity <= 1 || updatePartMutation.isPending}
+                        className="p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded disabled:opacity-30"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-8 text-center font-medium">{part.quantity}</span>
+                      <button
+                        onClick={() => updatePartMutation.mutate({ partId: part.id, data: { quantity: part.quantity + 1 } })}
+                        disabled={updatePartMutation.isPending}
+                        className="p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-center block">{part.quantity}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600">
+                  {editingPartId === part.id ? (
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={editUnitPrice}
+                        onChange={(e) => setEditUnitPrice(parseFloat(e.target.value) || 0)}
+                        className="w-24 pl-5 pr-2 py-1 border border-gray-300 rounded"
+                      />
+                    </div>
+                  ) : (
+                    <span>₹{part.unitPrice.toFixed(2)}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                  {editingPartId === part.id ? (
+                    <span>₹{(editQuantity * editUnitPrice).toFixed(2)}</span>
+                  ) : (
+                    <span>₹{part.totalPrice.toFixed(2)}</span>
+                  )}
+                </td>
+              </>
+            )}
             {showApproval && (
               <td className="px-4 py-3">
                 {part.isApproved ? (
@@ -636,7 +644,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
               </span>
             </div>
             <div className="overflow-x-auto">
-              {renderPartsTable(otherTaggedParts, false)}
+              {renderPartsTable(otherTaggedParts, false, false)}
             </div>
           </div>
         )}
@@ -661,7 +669,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
                   </span>
                 </div>
                 <div className="overflow-x-auto">
-                  {renderPartsTable(otherTaggedParts, false)}
+                  {renderPartsTable(otherTaggedParts, false, false)}
                 </div>
               </div>
             )}
@@ -769,7 +777,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
                 {/* Parts list for this tag */}
                 {partsByTag[tag]?.length > 0 ? (
                   <div className="overflow-x-auto">
-                    {renderPartsTable(partsByTag[tag], false)}
+                    {renderPartsTable(partsByTag[tag], false, false)}
                   </div>
                 ) : (
                   <div className="text-center py-4 text-gray-400 text-sm">
@@ -781,15 +789,6 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
           </div>
         ) : null}
 
-        {/* Tagged Parts Total */}
-        {taggedParts.length > 0 && (
-          <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-600">Tagged Parts Total:</span>
-              <span className="text-lg font-bold text-purple-600">₹{taggedPartsTotal.toFixed(2)}</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* EXTRA SPARE PARTS Section */}
