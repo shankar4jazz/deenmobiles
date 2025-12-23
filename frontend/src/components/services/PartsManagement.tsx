@@ -62,6 +62,11 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
     return grouped;
   }, [taggedParts, uniqueTags]);
 
+  // Get parts without specific tag (manually added)
+  const otherTaggedParts = useMemo(() => {
+    return taggedParts.filter((p) => !p.faultTag);
+  }, [taggedParts]);
+
   // State for adding tagged parts (per tag)
   const [activeTagForm, setActiveTagForm] = useState<string | null>(null);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
@@ -123,6 +128,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
       queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
       resetTagForm();
       resetExtraForm();
+      resetManualForm();
     },
   });
 
@@ -520,21 +526,146 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
       {/* PARTS BASED ON FAULTS Section */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-purple-50 px-6 py-4 border-b border-purple-200">
-          <div className="flex items-center gap-3">
-            <Tag className="h-5 w-5 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Parts Based on Faults</h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Tag className="h-5 w-5 text-purple-600" />
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Parts Based on Faults</h3>
+                <p className="text-sm text-gray-600">Parts added based on fault tags (included in estimate price)</p>
+              </div>
+            </div>
+            {canEdit && !showManualAddForm && (
+              <button
+                onClick={() => {
+                  setShowManualAddForm(true);
+                  setShowManualDropdown(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                Add Part
+              </button>
+            )}
           </div>
-          <p className="text-sm text-gray-600 mt-1">Parts added based on fault tags (included in estimate price)</p>
         </div>
 
-        {uniqueTags.length === 0 ? (
+        {/* Manual Add Form */}
+        {showManualAddForm && canEdit && (
+          <div className="p-4 bg-purple-50 border-b border-purple-200">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-gray-900">Add Part Manually</h4>
+              <button onClick={resetManualForm} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {!manualSelectedPart ? (
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search parts..."
+                    value={manualSearchQuery}
+                    onChange={(e) => setManualSearchQuery(e.target.value)}
+                    onFocus={() => setShowManualDropdown(true)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                {showManualDropdown && renderPartDropdown(
+                  manualAvailableParts,
+                  isLoadingManualParts,
+                  manualSearchQuery,
+                  (part) => {
+                    setManualSelectedPart(part);
+                    setShowManualDropdown(false);
+                  },
+                  () => setShowManualDropdown(false)
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-white border border-purple-200 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-semibold text-gray-900">{manualSelectedPart.item.itemName}</div>
+                    <div className="text-sm text-gray-600">
+                      Stock: {Number(manualSelectedPart.stockQuantity)}
+                    </div>
+                  </div>
+                  <button onClick={() => setManualSelectedPart(null)} className="text-gray-400 hover:text-gray-600">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Qty:</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={Number(manualSelectedPart.stockQuantity)}
+                      value={manualQuantity}
+                      onChange={(e) => setManualQuantity(parseInt(e.target.value) || 1)}
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-center"
+                    />
+                  </div>
+                  <button
+                    onClick={handleAddManualPart}
+                    disabled={addPartMutation.isPending || manualQuantity > Number(manualSelectedPart.stockQuantity)}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addPartMutation.isPending ? 'Adding...' : 'Add Part'}
+                  </button>
+                </div>
+                {manualQuantity > Number(manualSelectedPart.stockQuantity) && (
+                  <p className="text-xs text-red-600 mt-2">Insufficient stock!</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Show Other Parts section when there are manually added parts but no tags */}
+        {uniqueTags.length === 0 && otherTaggedParts.length > 0 && (
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                OTHER
+              </span>
+              <span className="text-sm text-gray-500">
+                ({otherTaggedParts.length} parts - manually added)
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              {renderPartsTable(otherTaggedParts, false)}
+            </div>
+          </div>
+        )}
+
+        {uniqueTags.length === 0 && otherTaggedParts.length === 0 ? (
           <div className="p-6 text-center">
             <Tag className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No fault tags defined</p>
-            <p className="text-sm text-gray-400 mt-1">Add tags to faults in Master Data to enable tagged parts</p>
+            <p className="text-gray-500">No parts added yet</p>
+            <p className="text-sm text-gray-400 mt-1">Use the "Add Part" button to add parts manually</p>
           </div>
-        ) : (
+        ) : uniqueTags.length > 0 ? (
           <div className="divide-y divide-gray-200">
+            {/* Other Parts (manually added without tag) */}
+            {otherTaggedParts.length > 0 && (
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                    OTHER
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    ({otherTaggedParts.length} parts - manually added)
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  {renderPartsTable(otherTaggedParts, false)}
+                </div>
+              </div>
+            )}
+
             {uniqueTags.map((tag) => (
               <div key={tag} className="p-4">
                 <div className="flex items-center justify-between mb-3">
