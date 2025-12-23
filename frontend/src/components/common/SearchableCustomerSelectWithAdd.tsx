@@ -161,7 +161,7 @@ export function SearchableCustomerSelectWithAdd({
                 value={searchTerm}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (/^d+$/.test(val) && val.length > 10) return;
+                  if (/^\d+$/.test(val) && val.length > 10) return;
                   setSearchTerm(val);
                 }}
                 placeholder="Search by name or phone..."
