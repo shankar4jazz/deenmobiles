@@ -474,7 +474,25 @@ export default function ServiceList() {
                       {/* Column 2: Details */}
                       <td className="px-4 py-4">
                         <div className="space-y-2">
-                          <div className="text-sm text-gray-900 line-clamp-2">
+                          {/* Faults */}
+                          {service.faults && service.faults.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {service.faults.slice(0, 3).map((f: any) => (
+                                <span
+                                  key={f.fault?.id || f.faultId}
+                                  className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
+                                >
+                                  {f.fault?.name || 'Unknown'}
+                                </span>
+                              ))}
+                              {service.faults.length > 3 && (
+                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                                  +{service.faults.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className="text-sm text-gray-900 line-clamp-1">
                             {service.damageCondition}
                           </div>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
@@ -650,6 +668,25 @@ export default function ServiceList() {
                       <Smartphone className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600">{service.deviceModel}</span>
                     </div>
+
+                    {/* Faults */}
+                    {service.faults && service.faults.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {service.faults.slice(0, 3).map((f: any) => (
+                          <span
+                            key={f.fault?.id || f.faultId}
+                            className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
+                          >
+                            {f.fault?.name || 'Unknown'}
+                          </span>
+                        ))}
+                        {service.faults.length > 3 && (
+                          <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                            +{service.faults.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="text-sm text-gray-900 line-clamp-2">
                       {service.damageCondition}

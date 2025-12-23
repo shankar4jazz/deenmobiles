@@ -483,6 +483,16 @@ export class ServiceService {
               code: true,
             },
           },
+          faults: {
+            include: {
+              fault: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           _count: {
             select: {
               images: true,
