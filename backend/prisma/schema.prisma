@@ -14,6 +14,8 @@ model Company {
   phone               String
   address             String
   logo                String?
+  gstin               String?                    // Company GSTIN for GST reporting
+  stateCode           String?                    // 2-digit state code for place of supply
   isActive            Boolean                    @default(true)
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
@@ -60,6 +62,8 @@ model Company {
   dailyOpeningBalances        DailyOpeningBalance[]
   tasks                       Task[]
   cashSettlements             CashSettlement[]
+  warrantyRecords             WarrantyRecord[]
+  salesReturns                SalesReturn[]
 
   @@map("companies")
 }
@@ -71,6 +75,8 @@ model Branch {
   address             String
   phone               String
   email               String
+  gstin               String?                    // Branch GSTIN (if different from company)
+  stateCode           String?                    // 2-digit state code for place of supply
   isActive            Boolean                    @default(true)
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
@@ -103,6 +109,8 @@ model Branch {
   dailyOpeningBalances DailyOpeningBalance[]
   tasks               Task[]
   cashSettlements     CashSettlement[]
+  warrantyRecords     WarrantyRecord[]
+  salesReturns        SalesReturn[]
 
   @@index([companyId])
   @@index([managerId])
@@ -161,6 +169,8 @@ model User {
   serviceNotes               ServiceNote[]              @relation("ServiceNotesByUser")
   deviceReturns              Service[]                  @relation("DeviceReturnedBy")
   serviceRefundsProcessed    Service[]                  @relation("ServiceRefundsBy")
+  createdSalesReturns        SalesReturn[]              @relation("UserCreatedSalesReturns")
+  processedSalesReturns      SalesReturn[]              @relation("UserProcessedSalesReturns")
   approvedParts              ServicePart[]              @relation("UserPartApprovals")
   tasksAssigned              Task[]                     @relation("TaskAssignee")
   tasksCreated               Task[]                     @relation("TaskCreator")
@@ -244,6 +254,8 @@ model Customer {
   email           String?
   phone           String
   address         String?
+  gstin           String?          // GSTIN for B2B customers (15 chars)
+  stateCode       String?          // 2-digit state code for place of supply
   companyId       String
   branchId        String?
   createdAt       DateTime         @default(now())
@@ -258,6 +270,8 @@ model Customer {
   devices         CustomerDevice[]
   invoices        Invoice[]        @relation("InvoiceCustomer")
   estimates       Estimate[]       @relation("EstimateCustomer")
+  warrantyRecords WarrantyRecord[]
+  salesReturns    SalesReturn[]    @relation("SalesReturnCustomer")
 
   @@unique([phone, companyId])
   @@index([companyId])
@@ -340,6 +354,8 @@ model Service {
   pointsHistory     TechnicianPointsHistory[]
   notes             ServiceNote[]
   faults            FaultOnService[]
+  warrantyRecords   WarrantyRecord[]   @relation("ServiceWarrantyRecords")
+  warrantyClaimFor  WarrantyRecord[]   @relation("WarrantyClaimService")
 
   @@index([companyId])
   @@index([branchId])
@@ -416,6 +432,7 @@ model ServicePart {
   item              Item?            @relation(fields: [itemId], references: [id], onDelete: SetNull)
   service           Service          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   approvedBy        User?            @relation("UserPartApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+  warrantyRecord    WarrantyRecord?
 
   @@index([serviceId])
   @@index([partId])
@@ -475,6 +492,14 @@ model Invoice {
   balanceAmount    Float
   paymentStatus    PaymentStatus @default(PENDING)
   isWarrantyInvoice Boolean      @default(false) // True if warranty repair invoice
+  // GST fields for GSTR1 reporting
+  taxableValue     Float?        // Total taxable value (before tax)
+  cgstTotal        Float?        // Total CGST amount
+  sgstTotal        Float?        // Total SGST amount
+  igstTotal        Float?        // Total IGST amount
+  cessTotal        Float?        // Total Cess amount
+  placeOfSupply    String?       // 2-digit state code
+  reverseCharge    Boolean       @default(false) // Reverse charge applicability
   companyId        String
   branchId         String? // For standalone invoices
   themeId          String? // PDF theme
@@ -489,6 +514,8 @@ model Invoice {
   theme         Theme?        @relation("InvoiceTheme", fields: [themeId], references: [id], onDelete: SetNull)
   payments      Payment[]
   items         InvoiceItem[] // Line items for standalone invoices
+  warrantyRecords WarrantyRecord[]
+  salesReturns  SalesReturn[]
 
   @@index([companyId])
   @@index([serviceId])
@@ -500,16 +527,32 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id          String  @id @default(uuid())
-  invoiceId   String
-  description String
-  quantity    Float
-  unitPrice   Float
-  amount      Float
-  createdAt   DateTime @default(now())
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  invoiceId    String
+  itemId       String?  // Optional - links to Item catalog for warranty tracking
+  description  String
+  quantity     Float
+  unitPrice    Float
+  amount       Float
+  // GST fields for GSTR1 reporting
+  hsnCode      String?  // HSN/SAC code
+  taxableValue Float?   // Base amount before tax
+  gstRate      Float?   // GST percentage (0, 5, 12, 18, 28)
+  cgstRate     Float?   // CGST rate (half of GST for intra-state)
+  sgstRate     Float?   // SGST rate (half of GST for intra-state)
+  igstRate     Float?   // IGST rate (full GST for inter-state)
+  cgstAmount   Float?   // CGST amount
+  sgstAmount   Float?   // SGST amount
+  igstAmount   Float?   // IGST amount
+  cessAmount   Float?   // Cess amount (if applicable)
+  createdAt    DateTime @default(now())
+  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  item         Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  salesReturnItems SalesReturnItem[]
 
   @@index([invoiceId])
+  @@index([hsnCode])
+  @@index([itemId])
   @@map("invoice_items")
 }
 
@@ -875,6 +918,7 @@ model PaymentMethod {
   refundTransactions RefundTransaction[] @relation("RefundPaymentMethod")
   paymentEntries     PaymentEntry[]      @relation("PaymentEntries")
   serviceRefunds     Service[]           @relation("ServiceRefunds")
+  salesReturnRefunds SalesReturn[]       @relation("SalesReturnRefunds")
   openingBalances    DailyOpeningBalance[] @relation("PaymentMethodOpeningBalances")
   settlementMethods  CashSettlementMethod[] @relation("SettlementMethods")
 
@@ -1139,6 +1183,10 @@ model Item {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Warranty fields
+  warrantyDays  Int?     @default(0)    // 0 = No warranty, 30/90/180/365 = months, custom days
+  warrantyType  String?  // "NONE", "1_MONTH", "3_MONTHS", "6_MONTHS", "1_YEAR", "CUSTOM"
+
   company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   itemCategory       ItemCategory?       @relation("ItemCategoryItems", fields: [categoryId], references: [id])
   itemUnit           ItemUnit?           @relation("ItemUnitItems", fields: [unitId], references: [id])
@@ -1148,6 +1196,8 @@ model Item {
   branchInventories  BranchInventory[]
   purchaseOrderItems PurchaseOrderItem[]
   serviceParts       ServicePart[]       // Parts used in services
+  invoiceItems       InvoiceItem[]       // Items used in invoices (for warranty tracking)
+  warrantyRecords    WarrantyRecord[]
 
   @@index([companyId])
   @@index([itemCode])
@@ -1401,6 +1451,21 @@ enum PurchaseReturnType {
 }
 
 enum PurchaseReturnStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum SalesReturnReason {
+  DEFECTIVE
+  WRONG_ITEM
+  CUSTOMER_CHANGED_MIND
+  DUPLICATE_BILLING
+  PRICE_ADJUSTMENT
+  OTHER
+}
+
+enum SalesReturnStatus {
   PENDING
   CONFIRMED
   REJECTED
@@ -2166,4 +2231,133 @@ model CashDenomination {
 
   @@index([cashSettlementId])
   @@map("cash_denominations")
+}
+
+// ============================================
+// Warranty Management
+// ============================================
+
+model WarrantyRecord {
+  id                String      @id @default(uuid())
+  warrantyNumber    String      @unique  // WRT-1-20251223-001
+
+  // Source - either service part OR invoice item
+  sourceType        String      // "SERVICE" or "SALE"
+  serviceId         String?     // If from service
+  servicePartId     String?     @unique // Specific part in service (one warranty per part)
+  invoiceId         String?     // If from direct sale
+  invoiceItemId     String?     // Specific item in invoice
+
+  // Item & Customer
+  itemId            String
+  customerId        String
+
+  // Warranty Period
+  warrantyDays      Int
+  startDate         DateTime    // Delivery date (service) or Invoice date (sale)
+  endDate           DateTime    // Calculated: startDate + warrantyDays
+
+  // Claim tracking
+  isClaimed         Boolean     @default(false)
+  claimedAt         DateTime?
+  claimServiceId    String?     // Service created for warranty claim
+  claimReason       String?
+
+  // Multi-tenancy
+  companyId         String
+  branchId          String
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  item              Item        @relation(fields: [itemId], references: [id])
+  customer          Customer    @relation(fields: [customerId], references: [id])
+  service           Service?    @relation("ServiceWarrantyRecords", fields: [serviceId], references: [id], onDelete: SetNull)
+  servicePart       ServicePart? @relation(fields: [servicePartId], references: [id], onDelete: SetNull)
+  invoice           Invoice?    @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  claimService      Service?    @relation("WarrantyClaimService", fields: [claimServiceId], references: [id], onDelete: SetNull)
+  company           Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch            Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([itemId])
+  @@index([serviceId])
+  @@index([invoiceId])
+  @@index([endDate])
+  @@index([companyId])
+  @@index([branchId])
+  @@index([isClaimed])
+  @@map("warranty_records")
+}
+
+// ============================================
+// Sales Return Models
+// ============================================
+
+model SalesReturn {
+  id                String             @id @default(uuid())
+  returnNumber      String             @unique
+  invoiceId         String
+  customerId        String
+
+  returnStatus      SalesReturnStatus  @default(PENDING)
+  returnReason      SalesReturnReason
+  totalReturnAmount Decimal            @db.Decimal(12, 2)
+  refundedAmount    Decimal            @default(0) @db.Decimal(12, 2)
+  refundProcessed   Boolean            @default(false)
+
+  paymentMethodId   String?
+  referenceNumber   String?
+  notes             String?            @db.Text
+  returnDate        DateTime           @default(now())
+
+  branchId          String
+  companyId         String
+  createdById       String
+  processedById     String?
+  processedAt       DateTime?
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  invoice           Invoice            @relation(fields: [invoiceId], references: [id])
+  customer          Customer           @relation("SalesReturnCustomer", fields: [customerId], references: [id])
+  paymentMethod     PaymentMethod?     @relation("SalesReturnRefunds", fields: [paymentMethodId], references: [id])
+  branch            Branch             @relation(fields: [branchId], references: [id])
+  company           Company            @relation(fields: [companyId], references: [id])
+  createdBy         User               @relation("UserCreatedSalesReturns", fields: [createdById], references: [id])
+  processedBy       User?              @relation("UserProcessedSalesReturns", fields: [processedById], references: [id])
+
+  items             SalesReturnItem[]
+
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([branchId, companyId])
+  @@index([returnStatus])
+  @@index([returnNumber])
+  @@map("sales_returns")
+}
+
+model SalesReturnItem {
+  id              String       @id @default(uuid())
+  salesReturnId   String
+  invoiceItemId   String
+
+  returnQuantity  Float
+  unitPrice       Float
+  returnAmount    Float
+  reason          String?
+
+  createdAt       DateTime     @default(now())
+
+  // Relations
+  salesReturn     SalesReturn  @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  invoiceItem     InvoiceItem  @relation(fields: [invoiceItemId], references: [id])
+
+  @@unique([salesReturnId, invoiceItemId])
+  @@index([salesReturnId])
+  @@index([invoiceItemId])
+  @@map("sales_return_items")
 }

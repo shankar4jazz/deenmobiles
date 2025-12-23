@@ -18,6 +18,9 @@ interface CreateItemData {
   gstRateId?: string;
   taxType?: TaxType;
   companyId: string;
+  // Warranty fields
+  warrantyDays?: number;
+  warrantyType?: string;
 }
 
 interface UpdateItemData {
@@ -34,6 +37,9 @@ interface UpdateItemData {
   gstRateId?: string;
   taxType?: TaxType;
   isActive?: boolean;
+  // Warranty fields
+  warrantyDays?: number;
+  warrantyType?: string;
 }
 
 interface ItemFilters {
@@ -265,6 +271,8 @@ export class ItemService {
         gstRateId,
         taxType,
         companyId,
+        warrantyDays,
+        warrantyType,
       } = data;
 
       // Validate that item name doesn't already exist for this company
@@ -299,6 +307,8 @@ export class ItemService {
           gstRateId,
           taxType,
           companyId,
+          warrantyDays: warrantyDays || 0,
+          warrantyType: warrantyType || 'NONE',
         },
         include: {
           itemCategory: {
@@ -363,6 +373,13 @@ export class ItemService {
       }
       if (data.salesPrice !== undefined) {
         updateData.salesPrice = data.salesPrice ? new Decimal(data.salesPrice) : null;
+      }
+      // Handle warranty fields
+      if (data.warrantyDays !== undefined) {
+        updateData.warrantyDays = data.warrantyDays;
+      }
+      if (data.warrantyType !== undefined) {
+        updateData.warrantyType = data.warrantyType;
       }
 
       // Update item
@@ -464,6 +481,8 @@ export class ItemService {
           purchasePrice: true,
           hsnCode: true,
           taxType: true,
+          warrantyDays: true,
+          warrantyType: true,
           itemUnit: {
             select: { name: true, symbol: true },
           },

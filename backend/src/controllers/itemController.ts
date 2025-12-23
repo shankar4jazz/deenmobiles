@@ -68,6 +68,8 @@ export class ItemController {
       hsnCode,
       gstRateId,
       taxType,
+      warrantyDays,
+      warrantyType,
     } = req.body;
 
     const item = await ItemService.createItem({
@@ -84,6 +86,8 @@ export class ItemController {
       gstRateId,
       taxType,
       companyId,
+      warrantyDays: warrantyDays !== undefined ? parseInt(warrantyDays) : undefined,
+      warrantyType,
     });
 
     return ApiResponse.created(res, item, 'Item created successfully');
@@ -109,6 +113,8 @@ export class ItemController {
       gstRateId,
       taxType,
       isActive,
+      warrantyDays,
+      warrantyType,
     } = req.body;
 
     const item = await ItemService.updateItem(id, companyId, {
@@ -125,6 +131,8 @@ export class ItemController {
       gstRateId,
       taxType,
       isActive,
+      warrantyDays: warrantyDays !== undefined ? parseInt(warrantyDays) : undefined,
+      warrantyType,
     });
 
     return ApiResponse.success(res, item, 'Item updated successfully');

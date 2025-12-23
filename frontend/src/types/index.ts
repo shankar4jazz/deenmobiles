@@ -1042,6 +1042,9 @@ export interface Item {
   companyId: string;
   createdAt: string;
   updatedAt: string;
+  // Warranty fields
+  warrantyDays?: number;
+  warrantyType?: string;
   itemCategory?: {
     id: string;
     name: string;
@@ -1098,6 +1101,9 @@ export interface ItemFormData {
   gstRateId?: string;
   taxType?: TaxType;
   isActive?: boolean;
+  // Warranty fields
+  warrantyDays?: number;
+  warrantyType?: string;
 }
 
 export interface ItemFilters {

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { itemsApi } from '@/services/itemsApi';
 import { categoryApi, unitApi, gstRateApi, brandApi, modelApi } from '@/services/masterDataApi';
-import { X, Package, Loader2 } from 'lucide-react';
+import { WARRANTY_TYPE_OPTIONS, getWarrantyDaysFromType } from '@/services/warrantyApi';
+import { X, Package, Loader2, Shield } from 'lucide-react';
 
 interface AddItemModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ interface ItemFormData {
   hsnCode?: string;
   gstRateId?: string;
   taxType?: 'CGST_SGST' | 'IGST';
+  warrantyType?: string;
+  warrantyDays?: number;
 }
 
 const formatCurrency = (value?: number) => {
@@ -55,6 +58,8 @@ export default function AddItemModal({
     salesPrice: undefined,
     hsnCode: '',
     taxType: 'CGST_SGST',
+    warrantyType: 'NONE',
+    warrantyDays: 0,
   });
 
   // Fetch master data from API
@@ -105,6 +110,8 @@ export default function AddItemModal({
         salesPrice: undefined,
         hsnCode: '',
         taxType: 'CGST_SGST',
+        warrantyType: 'NONE',
+        warrantyDays: 0,
       });
     },
     onError: (error: any) => {
@@ -439,6 +446,70 @@ export default function AddItemModal({
                         {formatCurrency(margin)}
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Warranty */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield className="h-5 w-5 text-green-600" />
+              Warranty
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Warranty Period
+                </label>
+                <select
+                  value={formData.warrantyType || 'NONE'}
+                  onChange={(e) => {
+                    const type = e.target.value;
+                    const days = getWarrantyDaysFromType(type);
+                    setFormData({
+                      ...formData,
+                      warrantyType: type,
+                      warrantyDays: type === 'CUSTOM' ? (formData.warrantyDays || 0) : days,
+                    });
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {WARRANTY_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {formData.warrantyType === 'CUSTOM' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Custom Warranty Days
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.warrantyDays || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      warrantyDays: e.target.value ? parseInt(e.target.value) : 0
+                    })}
+                    placeholder="Enter number of days"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+
+              {formData.warrantyType && formData.warrantyType !== 'NONE' && formData.warrantyDays && formData.warrantyDays > 0 && (
+                <div className="md:col-span-2 bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <Shield className="h-5 w-5" />
+                    <span className="font-medium">
+                      This item will have a {formData.warrantyDays} day warranty from delivery date
+                    </span>
                   </div>
                 </div>
               )}

@@ -4,6 +4,7 @@ import { Logger } from '../utils/logger';
 import { PaymentStatus, DocumentType } from '@prisma/client';
 import pdfGenerationService from './pdfGenerationService';
 import { DocumentNumberService } from './documentNumberService';
+import { WarrantyService } from './warrantyService';
 
 interface GenerateInvoiceFromServiceData {
   serviceId: string;
@@ -23,6 +24,7 @@ interface CreateInvoiceData {
 }
 
 interface InvoiceItemData {
+  itemId?: string;  // Optional - links to Item catalog for warranty tracking
   description: string;
   quantity: number;
   unitPrice: number;
@@ -478,6 +480,7 @@ export class InvoiceService {
           await tx.invoiceItem.createMany({
             data: items.map((item) => ({
               invoiceId: newInvoice.id,
+              itemId: item.itemId || null,  // Link to Item catalog for warranty tracking
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
@@ -493,6 +496,14 @@ export class InvoiceService {
         invoiceId: invoice.id,
         standalone: !serviceId,
       });
+
+      // Create warranty records for standalone invoices (direct sales)
+      // For service invoices, warranty is created when service is delivered
+      if (!serviceId) {
+        WarrantyService.createSaleWarrantyRecords(invoice.id).catch((err) => {
+          Logger.error('Failed to create sale warranty records', { error: err, invoiceId: invoice.id });
+        });
+      }
 
       return invoice;
     } catch (error) {

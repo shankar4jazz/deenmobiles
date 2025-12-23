@@ -27,6 +27,7 @@ import pettyCashTransferRoutes from './routes/pettyCashTransferRoutes';
 import pettyCashRequestRoutes from './routes/pettyCashRequestRoutes';
 import expenseRoutes from './routes/expenseRoutes';
 import purchaseReturnRoutes from './routes/purchaseReturnRoutes';
+import salesReturnRoutes from './routes/salesReturnRoutes';
 import serviceRoutes from './routes/serviceRoutes';
 import jobSheetRoutes from './routes/jobSheetRoutes';
 import invoiceRoutes from './routes/invoiceRoutes';
@@ -43,6 +44,8 @@ import documentNumberRoutes from './routes/documentNumberRoutes';
 import reportRoutes from './routes/reportRoutes';
 import taskRoutes from './routes/taskRoutes';
 import cashSettlementRoutes from './routes/cashSettlementRoutes';
+import gstr1Routes from './routes/gstr1Routes';
+import warrantyRoutes from './routes/warrantyRoutes';
 
 const app: Application = express();
 
@@ -106,6 +109,7 @@ app.use(`/api/${config.apiVersion}/petty-cash-transfers`, pettyCashTransferRoute
 app.use(`/api/${config.apiVersion}/petty-cash-requests`, pettyCashRequestRoutes);
 app.use(`/api/${config.apiVersion}/expenses`, expenseRoutes);
 app.use(`/api/${config.apiVersion}/purchase-returns`, purchaseReturnRoutes);
+app.use(`/api/${config.apiVersion}/sales-returns`, salesReturnRoutes);
 app.use(`/api/${config.apiVersion}/services`, serviceRoutes);
 app.use(`/api/${config.apiVersion}/jobsheets`, jobSheetRoutes);
 app.use(`/api/${config.apiVersion}/invoices`, invoiceRoutes);
@@ -119,8 +123,10 @@ app.use(`/api/${config.apiVersion}/job-sheet-template-categories`, jobSheetTempl
 app.use(`/api/${config.apiVersion}/technicians`, technicianRoutes);
 app.use(`/api/${config.apiVersion}/document-numbers`, documentNumberRoutes);
 app.use(`/api/${config.apiVersion}/reports`, reportRoutes);
+app.use(`/api/${config.apiVersion}/reports/gstr1`, gstr1Routes);
 app.use(`/api/${config.apiVersion}/tasks`, taskRoutes);
 app.use(`/api/${config.apiVersion}/cash-settlements`, cashSettlementRoutes);
+app.use(`/api/${config.apiVersion}/warranties`, warrantyRoutes);
 
 // Public routes (no authentication required)
 app.use(`/api/${config.apiVersion}/public`, publicRoutes);

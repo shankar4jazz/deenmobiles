@@ -8,6 +8,7 @@ import { S3Service } from './s3Service';
 import { PointsService } from './pointsService';
 import { TechnicianNotificationService } from './technicianNotificationService';
 import { DocumentNumberService } from './documentNumberService';
+import { WarrantyService } from './warrantyService';
 import path from 'path';
 import fs from 'fs';
 
@@ -2211,6 +2212,13 @@ export class ServiceService {
         });
       }
 
+      // Create warranty records when service is delivered (async, don't block response)
+      if (status === ServiceStatus.DELIVERED) {
+        WarrantyService.createServiceWarrantyRecords(serviceId).catch((err) => {
+          Logger.error('Failed to create warranty records', { error: err, serviceId });
+        });
+      }
+
       return result;
     } catch (error) {
       Logger.error('Error updating service status', { error, serviceId, status });
@@ -2877,6 +2885,13 @@ export class ServiceService {
         if (data.markAsDelivered && service.status !== ServiceStatus.DELIVERED && service.assignedToId) {
           PointsService.onServiceDelivered(data.serviceId).catch((err) => {
             Logger.error('Failed to award delivery points', { error: err, serviceId: data.serviceId });
+          });
+        }
+
+        // Create warranty records if marked as delivered (async, don't block)
+        if (data.markAsDelivered && service.status !== ServiceStatus.DELIVERED) {
+          WarrantyService.createServiceWarrantyRecords(data.serviceId).catch((err) => {
+            Logger.error('Failed to create warranty records', { error: err, serviceId: data.serviceId });
           });
         }
 
