@@ -198,20 +198,7 @@ export default function DocumentNumberSettings() {
       </div>
 
       {/* Form */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Prefix */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Prefix</label>
-          <input
-            type="text"
-            value={formData.prefix}
-            onChange={(e) => setFormData({ ...formData, prefix: e.target.value.toUpperCase() })}
-            placeholder="JS"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          />
-          <p className="text-xs text-gray-500 mt-1">The prefix for document numbers</p>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Separator */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Separator</label>
