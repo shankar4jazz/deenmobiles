@@ -411,7 +411,7 @@ export class ServiceService {
         });
 
         return service;
-      });
+      }, { timeout: 30000 }); // Increase timeout to 30 seconds for complex service creation
 
       // Auto-generate job sheet after service creation (async, non-blocking)
       JobSheetService.generateJobSheet({
