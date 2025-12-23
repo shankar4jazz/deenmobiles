@@ -398,7 +398,9 @@ export default function ServiceDetail() {
               <div>
                 <div className="text-xs text-gray-500">Condition</div>
                 <div className="font-medium text-sm">
-                  {service.condition?.name || <span className="text-gray-400 font-normal">-</span>}
+                  {service.deviceCondition
+                    ? service.deviceCondition.charAt(0).toUpperCase() + service.deviceCondition.slice(1)
+                    : <span className="text-gray-400 font-normal">-</span>}
                 </div>
               </div>
               {/* Data Warranty */}
