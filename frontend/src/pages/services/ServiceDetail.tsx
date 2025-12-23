@@ -580,7 +580,10 @@ export default function ServiceDetail() {
             serviceId={service.id}
             parts={service.partsUsed || []}
             faults={service.faults || []}
-            canEdit={user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
+            canEdit={
+              (user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') &&
+              ![ServiceStatus.COMPLETED, ServiceStatus.DELIVERED, ServiceStatus.CANCELLED, ServiceStatus.NOT_SERVICEABLE].includes(service.status)
+            }
             isWarrantyRepair={service.isWarrantyRepair}
           />
 
