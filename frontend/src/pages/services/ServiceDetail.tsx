@@ -47,8 +47,6 @@ export default function ServiceDetail() {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
 
-  const [isEditingDiagnosis, setIsEditingDiagnosis] = useState(false);
-  const [diagnosis, setDiagnosis] = useState('');
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<ServiceStatus | ''>('');
   const [statusNotes, setStatusNotes] = useState('');
@@ -91,15 +89,6 @@ export default function ServiceDetail() {
       balanceDue: totalAmount - advancePaid,
     };
   }, [service]);
-
-  // Update diagnosis mutation
-  const updateDiagnosisMutation = useMutation({
-    mutationFn: () => serviceApi.updateDiagnosis(id!, diagnosis, estimatedCost),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
-      setIsEditingDiagnosis(false);
-    },
-  });
 
   // Update status mutation
   const updateStatusMutation = useMutation({
@@ -291,17 +280,12 @@ export default function ServiceDetail() {
     return `${import.meta.env.VITE_API_BASE_URL}${imageUrl}`;
   };
 
-  const handleSaveDiagnosis = () => {
-    updateDiagnosisMutation.mutate();
-  };
-
   const handleStatusUpdate = () => {
     if (selectedStatus) {
       updateStatusMutation.mutate(selectedStatus as ServiceStatus);
     }
   };
 
-  const canUpdateDiagnosis = user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN';
   const canUpdateStatus = user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN';
 
   if (isLoading) {
@@ -537,77 +521,17 @@ export default function ServiceDetail() {
                 <span className="text-gray-400 text-xs">None</span>
               )}
             </div>
+            {/* Damage Condition */}
+            {service.damageCondition && (
+              <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                <div className="text-xs text-gray-500 mb-1">Damage Condition</div>
+                <div className="text-sm text-red-800">{service.damageCondition}</div>
+              </div>
+            )}
             {/* Intake notes - only if exists */}
             {service.intakeNotes && (
               <div className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-600">
                 {service.intakeNotes}
-              </div>
-            )}
-          </div>
-
-          {/* Damage Condition & Diagnosis - Compact */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Damage Condition & Diagnosis
-              </h3>
-              {canUpdateDiagnosis && !isEditingDiagnosis && (
-                <button
-                  onClick={() => {
-                    setDiagnosis(service.diagnosis || '');
-                    setEstimatedCost(service.estimatedCost);
-                    setIsEditingDiagnosis(true);
-                  }}
-                  className="flex items-center gap-1 text-purple-600 hover:text-purple-700 text-xs font-medium"
-                >
-                  <Edit className="w-3 h-3" />
-                  Edit
-                </button>
-              )}
-            </div>
-
-            {isEditingDiagnosis ? (
-              <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Diagnosis</label>
-                  <textarea
-                    value={diagnosis}
-                    onChange={(e) => setDiagnosis(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Estimated Cost</label>
-                  <input
-                    type="number"
-                    value={estimatedCost}
-                    onChange={(e) => setEstimatedCost(parseFloat(e.target.value))}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSaveDiagnosis}
-                    disabled={updateDiagnosisMutation.isPending}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                  >
-                    <Save className="w-3 h-3" />
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setIsEditingDiagnosis(false)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    <X className="w-3 h-3" />
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm space-y-1">
-                <p><span className="text-gray-500">Damage Condition:</span> {service.damageCondition}</p>
-                <p><span className="text-gray-500">Diagnosis:</span> {service.diagnosis || <span className="text-gray-400 italic">Not yet diagnosed</span>}</p>
               </div>
             )}
           </div>
