@@ -537,10 +537,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Tag className="h-5 w-5 text-purple-600" />
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Parts Based on Faults</h3>
-                <p className="text-sm text-gray-600">Parts added based on fault tags (included in estimate price)</p>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Parts Based on Faults</h3>
             </div>
             {canEdit && !showManualAddForm && (
               <button
@@ -797,10 +794,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ShoppingBag className="h-5 w-5 text-orange-600" />
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Extra Spare Parts</h3>
-                <p className="text-sm text-gray-600">Additional parts beyond fault requirements (charged separately)</p>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Extra Spare Parts</h3>
             </div>
             {canEdit && !showExtraSpareForm && (
               <button
