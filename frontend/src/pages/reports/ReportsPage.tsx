@@ -17,7 +17,7 @@ import { branchApi } from '../../services/branchApi';
 import { reportApi, type ReportFilters, type DateFilter } from '../../services/reportApi';
 
 type ReportType = 'booking-person' | 'technician' | 'brand' | 'fault' | 'daily-transaction' | 'cash-settlement';
-type DatePreset = 'today' | 'yesterday' | 'last-week' | 'last-month' | 'custom';
+type DatePreset = 'today' | 'yesterday' | 'this-month' | 'last-month' | 'custom';
 
 const reportTabs: { id: ReportType; label: string; icon: React.ReactNode }[] = [
   { id: 'booking-person', label: 'Booking Person', icon: <Users className="w-4 h-4" /> },
@@ -62,15 +62,13 @@ export default function ReportsPage() {
         yesterday.setDate(yesterday.getDate() - 1);
         start = end = yesterday;
         break;
-      case 'last-week':
+      case 'this-month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
         end = now;
-        start = new Date(now);
-        start.setDate(start.getDate() - 7);
         break;
       case 'last-month':
-        end = now;
-        start = new Date(now);
-        start.setMonth(start.getMonth() - 1);
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0);
         break;
       case 'custom':
         return; // Keep current dates
@@ -168,8 +166,8 @@ export default function ReportsPage() {
   const datePresets: { id: DatePreset; label: string }[] = [
     { id: 'today', label: 'Today' },
     { id: 'yesterday', label: 'Yesterday' },
-    { id: 'last-week', label: 'Last 7 Days' },
-    { id: 'last-month', label: 'Last 30 Days' },
+    { id: 'this-month', label: 'This Month' },
+    { id: 'last-month', label: 'Last Month' },
     { id: 'custom', label: 'Custom' },
   ];
 
