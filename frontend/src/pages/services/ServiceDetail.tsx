@@ -971,7 +971,7 @@ export default function ServiceDetail() {
                   </div>
                 </div>
               );
-            })())}
+            })()}
 
             {/* Action Buttons based on status */}
             {service.status === ServiceStatus.NOT_SERVICEABLE ? (
