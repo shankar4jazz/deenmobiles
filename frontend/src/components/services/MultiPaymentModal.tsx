@@ -149,7 +149,7 @@ export default function MultiPaymentModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 bg-white">
           <div className="flex items-center gap-3">
@@ -163,82 +163,87 @@ export default function MultiPaymentModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Payment Summary */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Payment Summary</h3>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Estimate Price</span>
-              <span className="font-medium">₹{pricingSummary.estimatePrice.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Extra Spare Parts</span>
-              <span className="font-medium">₹{pricingSummary.extraSpareTotal.toFixed(2)}</span>
-            </div>
-            <div className="border-t border-gray-200 my-2" />
-            <div className="flex justify-between text-sm font-semibold">
-              <span>Total Amount</span>
-              <span>₹{pricingSummary.totalAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-green-600">
-              <span>Already Paid</span>
-              <span>₹{pricingSummary.advancePaid.toFixed(2)}</span>
-            </div>
-            <div className="border-t border-gray-200 my-2" />
-            <div className="flex justify-between text-base font-bold">
-              <span>Balance Due</span>
-              <span className={pricingSummary.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}>
-                ₹{pricingSummary.balanceDue.toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          {/* Payment Methods */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Cash Tender</h3>
-            {isLoadingMethods ? (
-              <div className="text-center py-4 text-gray-500">Loading payment methods...</div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {paymentMethodsData?.data.map((method) => (
-                  <div key={method.id} className="border border-gray-200 rounded-lg p-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {method.name}
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={paymentEntries[method.id]?.amount || ''}
-                        onChange={(e) => updatePaymentEntry(method.id, e.target.value)}
-                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                        placeholder="0.00"
-                      />
+        <form onSubmit={handleSubmit} className="p-6">
+          {/* Two Column Layout: Cash Tender (Left) | Payment Summary (Right) */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* LEFT: Cash Tender */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Cash Tender</h3>
+              {isLoadingMethods ? (
+                <div className="text-center py-4 text-gray-500">Loading payment methods...</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {paymentMethodsData?.data.map((method) => (
+                    <div key={method.id} className="border border-gray-200 rounded-lg p-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {method.name}
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentEntries[method.id]?.amount || ''}
+                          onChange={(e) => updatePaymentEntry(method.id, e.target.value)}
+                          className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
 
-          {/* Collection Summary */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-600">Total Entered</span>
-              <span className="font-semibold text-blue-700">₹{totalEntered.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Remaining</span>
-              <span className={`font-semibold ${remainingBalance <= 0 ? 'text-green-600' : 'text-orange-600'}`}>
-                ₹{remainingBalance.toFixed(2)}
-                {remainingBalance <= 0 && totalEntered > 0 && (
-                  <span className="ml-2 inline-flex items-center gap-1 text-green-600">
-                    <Check className="w-4 h-4" /> Fully Paid
+              {/* Collection Summary */}
+              <div className="bg-blue-50 rounded-lg p-4 mt-4">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600">Total Entered</span>
+                  <span className="font-semibold text-blue-700">₹{totalEntered.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Remaining</span>
+                  <span className={`font-semibold ${remainingBalance <= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                    ₹{remainingBalance.toFixed(2)}
+                    {remainingBalance <= 0 && totalEntered > 0 && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-green-600">
+                        <Check className="w-4 h-4" /> Fully Paid
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT: Payment Summary */}
+            <div>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Payment Summary</h3>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Estimate Price</span>
+                  <span className="font-medium">₹{pricingSummary.estimatePrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Extra Spare Parts</span>
+                  <span className="font-medium">₹{pricingSummary.extraSpareTotal.toFixed(2)}</span>
+                </div>
+                <div className="border-t border-gray-200 my-2" />
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Total Amount</span>
+                  <span>₹{pricingSummary.totalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Already Paid</span>
+                  <span>₹{pricingSummary.advancePaid.toFixed(2)}</span>
+                </div>
+                <div className="border-t border-gray-200 my-2" />
+                <div className="flex justify-between text-base font-bold">
+                  <span>Balance Due</span>
+                  <span className={pricingSummary.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}>
+                    ₹{pricingSummary.balanceDue.toFixed(2)}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
