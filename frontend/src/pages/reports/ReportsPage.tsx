@@ -11,12 +11,14 @@ import {
   Wallet,
   Download,
   Loader2,
+  Receipt,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { branchApi } from '../../services/branchApi';
 import { reportApi, type ReportFilters, type DateFilter } from '../../services/reportApi';
+import GSTR1ReportPage from './GSTR1ReportPage';
 
-type ReportType = 'booking-person' | 'technician' | 'brand' | 'fault' | 'daily-transaction' | 'cash-settlement';
+type ReportType = 'booking-person' | 'technician' | 'brand' | 'fault' | 'daily-transaction' | 'cash-settlement' | 'gstr1';
 type DatePreset = 'today' | 'yesterday' | 'this-month' | 'last-month' | 'custom';
 
 const reportTabs: { id: ReportType; label: string; icon: React.ReactNode }[] = [
@@ -26,6 +28,7 @@ const reportTabs: { id: ReportType; label: string; icon: React.ReactNode }[] = [
   { id: 'fault', label: 'Fault', icon: <AlertCircle className="w-4 h-4" /> },
   { id: 'daily-transaction', label: 'Transactions', icon: <Calendar className="w-4 h-4" /> },
   { id: 'cash-settlement', label: 'Cash Settlement', icon: <Wallet className="w-4 h-4" /> },
+  { id: 'gstr1', label: 'GSTR1', icon: <Receipt className="w-4 h-4" /> },
 ];
 
 export default function ReportsPage() {
@@ -451,24 +454,26 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleExport('excel')}
-              disabled={isLoading || !reportData}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              Excel
-            </button>
-            <button
-              onClick={() => handleExport('pdf')}
-              disabled={isLoading || !reportData}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              PDF
-            </button>
-          </div>
+          {activeTab !== 'gstr1' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleExport('excel')}
+                disabled={isLoading || !reportData}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                Excel
+              </button>
+              <button
+                onClick={() => handleExport('pdf')}
+                disabled={isLoading || !reportData}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                PDF
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -491,53 +496,60 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
-                {renderDateFilters()}
-              </div>
-              <div className="flex items-center gap-3">
-                {canSelectBranch && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-gray-600">Branch:</label>
-                    <select
-                      value={selectedBranchId || ''}
-                      onChange={(e) => setSelectedBranchId(e.target.value || undefined)}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    >
-                      <option value="">All Branches</option>
-                      {branches.map((branch: any) => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <button
-                  onClick={() => refetch()}
-                  className="px-4 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium whitespace-nowrap"
-                >
-                  Generate Report
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Report Content */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-          </div>
+        {/* GSTR1 Report - Separate Component */}
+        {activeTab === 'gstr1' ? (
+          <GSTR1ReportPage />
         ) : (
           <>
-            {renderSummaryCards()}
-            {renderSummaryTable()}
-            {renderPaymentMethodBreakdown()}
-            {renderTransactionsTable()}
+            {/* Filters */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    {renderDateFilters()}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {canSelectBranch && (
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600">Branch:</label>
+                        <select
+                          value={selectedBranchId || ''}
+                          onChange={(e) => setSelectedBranchId(e.target.value || undefined)}
+                          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                          <option value="">All Branches</option>
+                          {branches.map((branch: any) => (
+                            <option key={branch.id} value={branch.id}>
+                              {branch.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => refetch()}
+                      className="px-4 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium whitespace-nowrap"
+                    >
+                      Generate Report
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Report Content */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+              </div>
+            ) : (
+              <>
+                {renderSummaryCards()}
+                {renderSummaryTable()}
+                {renderPaymentMethodBreakdown()}
+                {renderTransactionsTable()}
+              </>
+            )}
           </>
         )}
       </div>
