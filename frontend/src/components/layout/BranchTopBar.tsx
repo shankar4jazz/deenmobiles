@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, ChevronDown, Search } from 'lucide-react';
+import { LogOut, User, ChevronDown, Search, Calculator } from 'lucide-react';
 
 export default function BranchTopBar() {
   const navigate = useNavigate();
@@ -18,15 +18,27 @@ export default function BranchTopBar() {
       {/* Main Top Bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="flex items-center justify-between px-6 py-3">
-        {/* Search Bar */}
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search services, customers, invoices..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-transparent rounded-lg text-sm focus:bg-white focus:border-purple-300 focus:ring-2 focus:ring-purple-100 transition-all outline-none"
-            />
+        {/* Left Side Actions */}
+        <div className="flex items-center gap-4">
+          {/* Cash Settlement Button */}
+          <button
+            onClick={() => navigate('/branch/cash-settlement')}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-sm"
+          >
+            <Calculator className="h-4 w-4" />
+            <span className="hidden sm:inline">Cash Settlement</span>
+          </button>
+
+          {/* Search Bar */}
+          <div className="flex-1 max-w-md hidden md:block">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search services, customers, invoices..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-transparent rounded-lg text-sm focus:bg-white focus:border-purple-300 focus:ring-2 focus:ring-purple-100 transition-all outline-none"
+              />
+            </div>
           </div>
         </div>
 

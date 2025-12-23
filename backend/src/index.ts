@@ -42,6 +42,7 @@ import publicRoutes from './routes/publicRoutes';
 import documentNumberRoutes from './routes/documentNumberRoutes';
 import reportRoutes from './routes/reportRoutes';
 import taskRoutes from './routes/taskRoutes';
+import cashSettlementRoutes from './routes/cashSettlementRoutes';
 
 const app: Application = express();
 
@@ -119,6 +120,7 @@ app.use(`/api/${config.apiVersion}/technicians`, technicianRoutes);
 app.use(`/api/${config.apiVersion}/document-numbers`, documentNumberRoutes);
 app.use(`/api/${config.apiVersion}/reports`, reportRoutes);
 app.use(`/api/${config.apiVersion}/tasks`, taskRoutes);
+app.use(`/api/${config.apiVersion}/cash-settlements`, cashSettlementRoutes);
 
 // Public routes (no authentication required)
 app.use(`/api/${config.apiVersion}/public`, publicRoutes);

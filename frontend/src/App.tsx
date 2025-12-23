@@ -67,6 +67,7 @@ import TaskManagement from './pages/admin/TaskManagement';
 import PointsHistoryPage from './pages/technician/PointsHistoryPage';
 import MyTasks from './pages/tasks/MyTasks';
 import ReportsPage from './pages/reports/ReportsPage';
+import CashSettlementPage from './pages/branch/CashSettlementPage';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -166,6 +167,7 @@ function App() {
               <Route path="petty-cash/my-requests" element={<MyPettyCashRequestsPage />} />
               <Route path="petty-cash/history" element={<PettyCashTransferHistoryPage />} />
               <Route path="reports" element={<ReportsPage />} />
+              <Route path="cash-settlement" element={<CashSettlementPage />} />
               <Route path="settings" element={<SettingsMainPage />} />
             </Route>
           ) : null}

@@ -59,6 +59,7 @@ model Company {
   documentNumberFormats       DocumentNumberFormat[]
   dailyOpeningBalances        DailyOpeningBalance[]
   tasks                       Task[]
+  cashSettlements             CashSettlement[]
 
   @@map("companies")
 }
@@ -101,6 +102,7 @@ model Branch {
   documentSequences   DocumentSequence[]
   dailyOpeningBalances DailyOpeningBalance[]
   tasks               Task[]
+  cashSettlements     CashSettlement[]
 
   @@index([companyId])
   @@index([managerId])
@@ -162,6 +164,9 @@ model User {
   approvedParts              ServicePart[]              @relation("UserPartApprovals")
   tasksAssigned              Task[]                     @relation("TaskAssignee")
   tasksCreated               Task[]                     @relation("TaskCreator")
+  settlementsSettled         CashSettlement[]           @relation("SettlementSettledBy")
+  settlementsVerified        CashSettlement[]           @relation("SettlementVerifiedBy")
+  settlementsRejected        CashSettlement[]           @relation("SettlementRejectedBy")
 
   @@index([companyId])
   @@index([branchId])
@@ -871,6 +876,7 @@ model PaymentMethod {
   paymentEntries     PaymentEntry[]      @relation("PaymentEntries")
   serviceRefunds     Service[]           @relation("ServiceRefunds")
   openingBalances    DailyOpeningBalance[] @relation("PaymentMethodOpeningBalances")
+  settlementMethods  CashSettlementMethod[] @relation("SettlementMethods")
 
   @@index([companyId])
   @@index([code])
@@ -1397,6 +1403,13 @@ enum PurchaseReturnType {
 enum PurchaseReturnStatus {
   PENDING
   CONFIRMED
+  REJECTED
+}
+
+enum CashSettlementStatus {
+  PENDING
+  SUBMITTED
+  VERIFIED
   REJECTED
 }
 
@@ -2053,4 +2066,104 @@ model Task {
   @@index([dueDate])
   @@index([batchId])
   @@map("tasks")
+}
+
+// ============================================
+// Cash Settlement Management
+// ============================================
+
+model CashSettlement {
+  id                    String                @id @default(uuid())
+  settlementNumber      String                @unique
+  settlementDate        DateTime              @db.Date
+  branchId              String
+  branch                Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  status                CashSettlementStatus  @default(PENDING)
+
+  settledById           String
+  settledBy             User                  @relation("SettlementSettledBy", fields: [settledById], references: [id])
+  settledAt             DateTime?
+
+  verifiedById          String?
+  verifiedBy            User?                 @relation("SettlementVerifiedBy", fields: [verifiedById], references: [id])
+  verifiedAt            DateTime?
+  verificationNotes     String?               @db.Text
+
+  rejectedById          String?
+  rejectedBy            User?                 @relation("SettlementRejectedBy", fields: [rejectedById], references: [id])
+  rejectedAt            DateTime?
+  rejectionReason       String?               @db.Text
+
+  totalCollected        Decimal               @default(0) @db.Decimal(15, 2)
+  totalRefunds          Decimal               @default(0) @db.Decimal(15, 2)
+  totalExpenses         Decimal               @default(0) @db.Decimal(15, 2)
+  netCashAmount         Decimal               @default(0) @db.Decimal(15, 2)
+  physicalCashCount     Decimal               @default(0) @db.Decimal(15, 2)
+  cashDifference        Decimal               @default(0) @db.Decimal(15, 2)
+
+  notes                 String?               @db.Text
+
+  methodBreakdowns      CashSettlementMethod[]
+  denominations         CashDenomination?
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@unique([settlementDate, branchId])
+  @@index([branchId])
+  @@index([companyId])
+  @@index([settlementDate])
+  @@index([status])
+  @@index([settledById])
+  @@index([verifiedById])
+  @@map("cash_settlements")
+}
+
+model CashSettlementMethod {
+  id                    String          @id @default(uuid())
+  cashSettlementId      String
+  cashSettlement        CashSettlement  @relation(fields: [cashSettlementId], references: [id], onDelete: Cascade)
+  paymentMethodId       String
+  paymentMethod         PaymentMethod   @relation("SettlementMethods", fields: [paymentMethodId], references: [id])
+
+  openingBalance        Decimal         @default(0) @db.Decimal(15, 2)
+  collectedAmount       Decimal         @default(0) @db.Decimal(15, 2)
+  refundedAmount        Decimal         @default(0) @db.Decimal(15, 2)
+  expenseAmount         Decimal         @default(0) @db.Decimal(15, 2)
+  closingBalance        Decimal         @default(0) @db.Decimal(15, 2)
+  transactionCount      Int             @default(0)
+
+  createdAt             DateTime        @default(now())
+
+  @@unique([cashSettlementId, paymentMethodId])
+  @@index([cashSettlementId])
+  @@index([paymentMethodId])
+  @@map("cash_settlement_methods")
+}
+
+model CashDenomination {
+  id                    String          @id @default(uuid())
+  cashSettlementId      String          @unique
+  cashSettlement        CashSettlement  @relation(fields: [cashSettlementId], references: [id], onDelete: Cascade)
+
+  note2000Count         Int             @default(0)
+  note500Count          Int             @default(0)
+  note200Count          Int             @default(0)
+  note100Count          Int             @default(0)
+  note50Count           Int             @default(0)
+  note20Count           Int             @default(0)
+  note10Count           Int             @default(0)
+  coin5Count            Int             @default(0)
+  coin2Count            Int             @default(0)
+  coin1Count            Int             @default(0)
+  totalAmount           Decimal         @default(0) @db.Decimal(15, 2)
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([cashSettlementId])
+  @@map("cash_denominations")
 }
