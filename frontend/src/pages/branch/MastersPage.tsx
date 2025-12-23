@@ -263,7 +263,7 @@ export default function MastersPage() {
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <span>Service Issues</span>
+              <span>Damage Conditions</span>
               <span className={`px-2 py-0.5 rounded-full text-xs ${
                 activeTab === 'service-issue'
                   ? 'bg-purple-100 text-purple-700'
@@ -1385,7 +1385,7 @@ function ExpenseCategorySection({
   );
 }
 
-// Service Issue Section Component
+// Damage Condition Section Component
 function ServiceIssueSection({
   data,
   isLoading,
@@ -1415,7 +1415,7 @@ function ServiceIssueSection({
   return (
     <div className="bg-white rounded-lg shadow-sm">
       <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-        <h2 className="text-sm font-semibold text-gray-900">Service Issues</h2>
+        <h2 className="text-sm font-semibold text-gray-900">Damage Conditions</h2>
         <div className="flex gap-2">
           <button
             onClick={onImport}
@@ -1748,7 +1748,7 @@ function MasterDataModal({
              type === 'fault' ? 'Fault' :
              type === 'payment-method' ? 'Payment Method' :
              type === 'expense-category' ? 'Expense Category' :
-             type === 'service-issue' ? 'Service Issue' :
+             type === 'service-issue' ? 'Damage Condition' :
              'Accessory'}
           </h3>
           <button
@@ -2214,7 +2214,8 @@ function ImportModal({
              type === 'fault' ? 'Faults' :
              type === 'payment-method' ? 'Payment Methods' :
              type === 'expense-category' ? 'Expense Categories' :
-             'Service Issues'}
+             type === 'service-issue' ? 'Damage Conditions' :
+             'Accessories'}
           </h3>
           <button
             onClick={onClose}
