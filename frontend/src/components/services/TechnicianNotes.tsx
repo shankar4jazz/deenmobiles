@@ -2,29 +2,37 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageSquare, Send, Trash2, Clock, User } from 'lucide-react';
 import { serviceApi, ServiceNote } from '@/services/serviceApi';
+import { serviceKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 
 interface TechnicianNotesProps {
   serviceId: string;
+  notes?: ServiceNote[];
 }
 
-export default function TechnicianNotes({ serviceId }: TechnicianNotesProps) {
+export default function TechnicianNotes({ serviceId, notes: propNotes }: TechnicianNotesProps) {
   const [newNote, setNewNote] = useState('');
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
 
-  // Fetch notes
-  const { data: notes = [], isLoading } = useQuery({
-    queryKey: ['service-notes', serviceId],
+  // Only fetch if notes not provided via props (reduces API calls when parent has data)
+  const { data: fetchedNotes = [], isLoading } = useQuery({
+    queryKey: serviceKeys.notes(serviceId),
     queryFn: () => serviceApi.getNotes(serviceId),
+    enabled: !propNotes,
   });
+
+  // Use prop data if available, otherwise use fetched data
+  const notes = propNotes || fetchedNotes;
 
   // Add note mutation
   const addNoteMutation = useMutation({
     mutationFn: (note: string) => serviceApi.addNote(serviceId, note),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service-notes', serviceId] });
+      // Invalidate both notes query and main service query (notes are included in service response)
+      queryClient.invalidateQueries({ queryKey: serviceKeys.notes(serviceId) });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
       setNewNote('');
       toast.success('Note added successfully');
     },
@@ -37,7 +45,9 @@ export default function TechnicianNotes({ serviceId }: TechnicianNotesProps) {
   const deleteNoteMutation = useMutation({
     mutationFn: (noteId: string) => serviceApi.deleteNote(serviceId, noteId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service-notes', serviceId] });
+      // Invalidate both notes query and main service query (notes are included in service response)
+      queryClient.invalidateQueries({ queryKey: serviceKeys.notes(serviceId) });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
       toast.success('Note deleted');
     },
     onError: (error: any) => {
@@ -105,7 +115,7 @@ export default function TechnicianNotes({ serviceId }: TechnicianNotesProps) {
 
       {/* Notes List */}
       <div className="space-y-3 max-h-64 overflow-y-auto">
-        {isLoading ? (
+        {isLoading && !propNotes ? (
           <div className="text-center py-4 text-gray-500 text-sm">Loading notes...</div>
         ) : notes.length === 0 ? (
           <div className="text-center py-4 text-gray-400 text-sm">No notes yet</div>

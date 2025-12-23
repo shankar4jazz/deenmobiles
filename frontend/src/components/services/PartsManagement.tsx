@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceApi, BranchInventoryPart, ApprovalMethod } from '@/services/serviceApi';
+import { serviceKeys } from '@/lib/queryKeys';
 import { Package, Plus, Trash2, AlertCircle, Search, X, Minus, Pencil, Check, CheckCircle, Clock, Phone, MessageCircle, User, MessageSquare, Tag, ShoppingBag } from 'lucide-react';
 
 interface FaultWithTags {
@@ -99,25 +100,28 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
   const [approvalMethod, setApprovalMethod] = useState<ApprovalMethod>('PHONE_CALL');
   const [approvalNote, setApprovalNote] = useState('');
 
-  // Fetch available parts for tagged section
+  // Fetch available parts for tagged section - staleTime for caching
   const { data: tagAvailableParts = [], isLoading: isLoadingTagParts } = useQuery({
-    queryKey: ['available-parts', serviceId, tagSearchQuery, 'tagged'],
+    queryKey: [...serviceKeys.availableParts(serviceId, ''), 'tagged', tagSearchQuery],
     queryFn: () => serviceApi.getAvailableParts(serviceId, tagSearchQuery || undefined),
     enabled: activeTagForm !== null && !tagSelectedPart,
+    staleTime: 2 * 60 * 1000, // 2 minutes - parts data is relatively stable
   });
 
-  // Fetch available parts for extra spare section
+  // Fetch available parts for extra spare section - staleTime for caching
   const { data: extraAvailableParts = [], isLoading: isLoadingExtraParts } = useQuery({
-    queryKey: ['available-parts', serviceId, extraSearchQuery, 'extra'],
+    queryKey: [...serviceKeys.availableParts(serviceId, ''), 'extra', extraSearchQuery],
     queryFn: () => serviceApi.getAvailableParts(serviceId, extraSearchQuery || undefined),
     enabled: showExtraSpareForm && !extraSelectedPart,
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Fetch available parts for manual add section
+  // Fetch available parts for manual add section - staleTime for caching
   const { data: manualAvailableParts = [], isLoading: isLoadingManualParts } = useQuery({
-    queryKey: ['available-parts', serviceId, manualSearchQuery, 'manual'],
+    queryKey: [...serviceKeys.availableParts(serviceId, ''), 'manual', manualSearchQuery],
     queryFn: () => serviceApi.getAvailableParts(serviceId, manualSearchQuery || undefined),
     enabled: showManualAddForm && !manualSelectedPart,
+    staleTime: 2 * 60 * 1000,
   });
 
   // Add part mutation (updated to include isExtraSpare and faultTag)

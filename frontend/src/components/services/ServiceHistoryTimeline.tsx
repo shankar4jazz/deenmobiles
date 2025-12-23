@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { serviceApi, ServiceStatus } from '@/services/serviceApi';
+import { serviceApi, ServiceStatus, ServiceStatusHistory } from '@/services/serviceApi';
+import { serviceKeys } from '@/lib/queryKeys';
 import { Clock, Circle, CheckCircle, AlertCircle, Package, UserCheck, Ban } from 'lucide-react';
 
 interface ServiceHistoryTimelineProps {
   serviceId: string;
+  history?: ServiceStatusHistory[];
 }
 
 const STATUS_ICONS: Record<ServiceStatus, any> = {
@@ -36,13 +38,16 @@ const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
 };
 
-export default function ServiceHistoryTimeline({ serviceId }: ServiceHistoryTimelineProps) {
-  // Fetch service history
-  const { data: history, isLoading } = useQuery({
-    queryKey: ['service-history', serviceId],
+export default function ServiceHistoryTimeline({ serviceId, history: propHistory }: ServiceHistoryTimelineProps) {
+  // Only fetch if history not provided via props (reduces API calls when parent has data)
+  const { data: fetchedHistory, isLoading } = useQuery({
+    queryKey: serviceKeys.history(serviceId),
     queryFn: () => serviceApi.getStatusHistory(serviceId),
-    enabled: !!serviceId,
+    enabled: !!serviceId && !propHistory,
   });
+
+  // Use prop data if available, otherwise use fetched data
+  const history = propHistory || fetchedHistory;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -60,7 +65,8 @@ export default function ServiceHistoryTimeline({ serviceId }: ServiceHistoryTime
     };
   };
 
-  if (isLoading) {
+  // Only show loading when we're actually fetching (not when we have prop data)
+  if (isLoading && !propHistory) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">

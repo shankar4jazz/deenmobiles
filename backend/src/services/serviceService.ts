@@ -708,6 +708,30 @@ export class ServiceService {
             orderBy: {
               createdAt: 'desc',
             },
+            include: {
+              changedByUser: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+            },
+          },
+          notes: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  role: true,
+                },
+              },
+            },
           },
           accessories: {
             include: {

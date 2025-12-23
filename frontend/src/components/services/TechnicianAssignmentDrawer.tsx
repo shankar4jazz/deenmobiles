@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceApi } from '@/services/serviceApi';
 import { technicianApi, TechnicianForAssignment } from '@/services/technicianApi';
+import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
 import {
   X,
   Search,
@@ -43,9 +44,9 @@ export default function TechnicianAssignmentDrawer({
   const [sortBy, setSortBy] = useState<SortOption>('workload');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<string | null>(null);
 
-  // Fetch technicians for assignment
+  // Fetch technicians for assignment - uses consistent query keys
   const { data: techniciansData, isLoading } = useQuery({
-    queryKey: ['technicians-for-assignment', branchId, serviceCategoryId, showAvailableOnly, sortBy],
+    queryKey: technicianKeys.forAssignment(branchId || '', serviceCategoryId),
     queryFn: () =>
       technicianApi.getTechniciansForAssignment({
         branchId: branchId!,
@@ -54,6 +55,7 @@ export default function TechnicianAssignmentDrawer({
         sortBy,
       }),
     enabled: isOpen && !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Assign technician mutation
@@ -61,9 +63,9 @@ export default function TechnicianAssignmentDrawer({
     mutationFn: (data: { technicianId: string; notes?: string }) =>
       serviceApi.assignTechnician(serviceId, data.technicianId, data.notes),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
-      queryClient.invalidateQueries({ queryKey: ['technicians-for-assignment'] });
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
+      queryClient.invalidateQueries({ queryKey: technicianKeys.all });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.all });
       setSearchQuery('');
       setNotes('');
       setSelectedTechnicianId(null);

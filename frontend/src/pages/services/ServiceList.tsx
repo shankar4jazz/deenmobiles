@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
 import { technicianApi } from '@/services/technicianApi';
+import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
@@ -83,14 +84,15 @@ export default function ServiceList() {
     }),
   });
 
-  // Fetch technicians (only when assigning)
+  // Fetch technicians (only when assigning) - uses consistent query keys
   const { data: techniciansData } = useQuery({
-    queryKey: ['technicians-for-assignment', user?.branchId],
+    queryKey: technicianKeys.forAssignment(user?.branchId || ''),
     queryFn: () =>
       technicianApi.getTechniciansForAssignment({
         branchId: user?.branchId!,
       }),
     enabled: !!assigningServiceId && !!user?.branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes - technician data is relatively stable
   });
 
   // Delete mutation

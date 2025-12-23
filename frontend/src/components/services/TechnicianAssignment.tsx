@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { technicianApi, TechnicianForAssignment } from '@/services/technicianApi';
+import { technicianKeys } from '@/lib/queryKeys';
 import { UserCheck, Eye, UserPlus } from 'lucide-react';
 import { LevelBadge } from '../common/LevelBadge';
 import TechnicianProfileModal from './TechnicianProfileModal';
@@ -28,9 +29,9 @@ export default function TechnicianAssignment({
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showAssignDrawer, setShowAssignDrawer] = useState(false);
 
-  // Fetch technicians to get current assignee's profile info
+  // Fetch technicians to get current assignee's profile info - uses consistent query keys
   const { data: techniciansData } = useQuery({
-    queryKey: ['technicians-for-assignment', branchId, serviceCategoryId, false, 'workload'],
+    queryKey: technicianKeys.forAssignment(branchId || '', serviceCategoryId),
     queryFn: () =>
       technicianApi.getTechniciansForAssignment({
         branchId: branchId!,
@@ -38,6 +39,7 @@ export default function TechnicianAssignment({
         sortBy: 'workload',
       }),
     enabled: !!currentAssignee && !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   const technicians = techniciansData?.technicians || [];

@@ -118,6 +118,7 @@ export interface Service {
   deviceImages?: DeviceImage[];
   partsUsed?: ServicePart[];
   statusHistory?: ServiceStatusHistory[];
+  notes?: ServiceNote[];
   paymentEntries?: PaymentEntry[];
   _count?: {
     images: number;

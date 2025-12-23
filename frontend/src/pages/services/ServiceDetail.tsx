@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
+import { serviceKeys } from '@/lib/queryKeys';
 import { warrantyApi, WarrantyRecord, getWarrantyStatusColor, formatWarrantyDays } from '@/services/warrantyApi';
 import { useAuthStore } from '@/store/authStore';
 import PartsManagement from '@/components/services/PartsManagement';
@@ -70,17 +71,16 @@ export default function ServiceDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  // Fetch service details
-  const { data: service, isLoading } = useQuery({
-    queryKey: ['service', id],
+  // Fetch service details - no polling, uses global staleTime
+  const { data: service, isLoading, refetch: refetchService } = useQuery({
+    queryKey: serviceKeys.detail(id!),
     queryFn: () => serviceApi.getServiceById(id!),
     enabled: !!id,
-    refetchInterval: 30000,
   });
 
   // Fetch warranty records for delivered services
   const { data: serviceWarranties } = useQuery({
-    queryKey: ['service-warranties', id],
+    queryKey: serviceKeys.warranties(id!),
     queryFn: () => warrantyApi.getServiceWarranties(id!),
     enabled: !!id && service?.status === ServiceStatus.DELIVERED,
   });
@@ -120,7 +120,7 @@ export default function ServiceDetail() {
       status === ServiceStatus.NOT_SERVICEABLE ? notServiceableReason : undefined
     ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
       setSelectedStatus('');
       setStatusNotes('');
       setNotServiceableReason('');
@@ -136,7 +136,7 @@ export default function ServiceDetail() {
   const markDeviceReturnedMutation = useMutation({
     mutationFn: () => serviceApi.markDeviceReturned(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
       toast.success('Device marked as returned to customer');
     },
     onError: (error: any) => {
@@ -148,7 +148,7 @@ export default function ServiceDetail() {
   const uploadImagesMutation = useMutation({
     mutationFn: (files: File[]) => serviceApi.uploadServiceImages(id!, files),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
       setUploadingImages(false);
     },
     onError: () => {
@@ -160,7 +160,7 @@ export default function ServiceDetail() {
   const uploadDeviceImagesMutation = useMutation({
     mutationFn: (files: File[]) => serviceApi.uploadDeviceImages(id!, files),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
       setUploadingDeviceImages(false);
     },
     onError: () => {
@@ -172,7 +172,7 @@ export default function ServiceDetail() {
   const deleteImageMutation = useMutation({
     mutationFn: (imageId: string) => serviceApi.deleteServiceImage(id!, imageId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
       setDeletingImageId(null);
     },
     onError: () => {
@@ -184,7 +184,7 @@ export default function ServiceDetail() {
   const deleteDeviceImageMutation = useMutation({
     mutationFn: (imageId: string) => serviceApi.deleteDeviceImage(id!, imageId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
       setDeletingDeviceImageId(null);
     },
     onError: () => {
@@ -196,7 +196,7 @@ export default function ServiceDetail() {
   const updateDiscountMutation = useMutation({
     mutationFn: (discount: number) => serviceApi.updateDiscount(id!, discount),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
       setEditingDiscount(false);
       setDiscountValue('');
       toast.success('Discount updated');
@@ -680,8 +680,8 @@ export default function ServiceDetail() {
             </div>
           )}
 
-          {/* Technician Notes */}
-          <TechnicianNotes serviceId={service.id} />
+          {/* Technician Notes - uses data from main service response */}
+          <TechnicianNotes serviceId={service.id} notes={service.notes} />
 
           {/* Photos - Combined */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -1176,8 +1176,8 @@ export default function ServiceDetail() {
             )}
           </div>
 
-          {/* Service History Timeline */}
-          <ServiceHistoryTimeline serviceId={service.id} />
+          {/* Service History Timeline - uses data from main service response */}
+          <ServiceHistoryTimeline serviceId={service.id} history={service.statusHistory} />
         </div>
       </div>
 
