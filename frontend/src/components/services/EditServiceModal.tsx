@@ -247,29 +247,29 @@ export default function EditServiceModal({
                       control={control}
                       name="deviceConditionId"
                       render={({ field }) => (
-                        <div className="flex items-center gap-4 h-[38px]">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="editDeviceCondition"
-                              value="on"
-                              checked={field.value === 'on'}
-                              onChange={() => field.onChange('on')}
-                              className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
-                            />
-                            <span className="text-sm text-gray-700">On</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="editDeviceCondition"
-                              value="off"
-                              checked={field.value === 'off'}
-                              onChange={() => field.onChange('off')}
-                              className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
-                            />
-                            <span className="text-sm text-gray-700">Off</span>
-                          </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => field.onChange('on')}
+                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                              field.value === 'on'
+                                ? 'bg-purple-600 text-white border-purple-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => field.onChange('off')}
+                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                              field.value === 'off'
+                                ? 'bg-purple-600 text-white border-purple-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            Off
+                          </button>
                         </div>
                       )}
                     />
