@@ -24,6 +24,7 @@ import { PatternLockInput } from '@/components/common/PatternLockInput';
 import { AccessoryTagInput } from '@/components/common/AccessoryTagInput';
 import { AddDeviceModal } from './components/AddDeviceModal';
 import AddCustomerModal from '@/components/branch/AddCustomerModal';
+import { JobSheetPreviewModal } from '@/components/services/JobSheetPreviewModal';
 
 // Zod validation schema
 const serviceSchema = z.object({
@@ -77,6 +78,10 @@ export default function CreateService() {
   // Warranty repair state
   const [isWarrantyRepair, setIsWarrantyRepair] = useState(false);
   const [warrantyReason, setWarrantyReason] = useState<string>('');
+
+  // Job sheet modal state
+  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+  const [createdServiceId, setCreatedServiceId] = useState<string | null>(null);
 
   const {
     control,
@@ -161,9 +166,10 @@ export default function CreateService() {
   const createServiceMutation = useMutation({
     mutationFn: (data: CreateServiceData) => serviceApi.createService(data),
     onSuccess: (response) => {
-      toast.success('Service created successfully');
       queryClient.invalidateQueries({ queryKey: ['services'] });
-      navigate(`/branch/services/${response.id}`);
+      // Show job sheet modal instead of navigating
+      setCreatedServiceId(response.id);
+      setShowJobSheetModal(true);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to create service');
@@ -703,6 +709,22 @@ export default function CreateService() {
         customerId={customerId}
         onSuccess={handleDeviceCreated}
       />
+
+      {/* Job Sheet Preview Modal */}
+      {showJobSheetModal && createdServiceId && (
+        <JobSheetPreviewModal
+          isOpen={showJobSheetModal}
+          onClose={() => {
+            setShowJobSheetModal(false);
+            navigate(`/branch/services/${createdServiceId}`);
+          }}
+          serviceId={createdServiceId}
+          onNavigateToService={() => {
+            setShowJobSheetModal(false);
+            navigate(`/branch/services/${createdServiceId}`);
+          }}
+        />
+      )}
     </div>
   );
 }
