@@ -347,22 +347,21 @@ export default function ServiceDetail() {
   return (
     <div className="p-4 max-w-7xl mx-auto">
       {/* Header - Compact */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/branch/services')}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
             <h1 className="text-lg font-bold text-gray-900">Service Details</h1>
-            <p className="text-xs text-gray-500">{service.ticketNumber}</p>
+            <p className="text-xs text-gray-600">{service.ticketNumber}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
-          {/* Hide Invoice for NOT_SERVICEABLE and CANCELLED - no payment collected */}
           {service.status !== ServiceStatus.NOT_SERVICEABLE &&
            service.status !== ServiceStatus.CANCELLED && (
             <InvoiceButton serviceId={service.id} variant="primary" />
@@ -384,15 +383,42 @@ export default function ServiceDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Sticky Pricing Summary Bar */}
+      {service.status !== ServiceStatus.NOT_SERVICEABLE && (
+        <div className="sticky top-0 z-20 bg-white border-b shadow-sm -mx-4 px-4 py-3 mb-4">
+          <div className="flex items-center justify-between max-w-7xl mx-auto text-sm">
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <span className="text-gray-500">Total:</span>
+                <span className="font-bold ml-1">₹{pricingSummary.finalAmount.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Paid:</span>
+                <span className="font-medium text-green-600 ml-1">₹{pricingSummary.totalPaid.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Balance:</span>
+                <span className={`font-bold ml-1 ${(pricingSummary.finalAmount - pricingSummary.totalPaid) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  ₹{(pricingSummary.finalAmount - pricingSummary.totalPaid).toFixed(2)}
+                </span>
+              </div>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[service.status]}`}>
+              {STATUS_LABELS[service.status]}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="xl:col-span-2 space-y-4">
           {/* Customer & Device Info - Combined */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
               Customer & Device
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-500 text-xs">Customer</span>
                 <p className="font-medium">{service.customer?.name}</p>
@@ -423,62 +449,62 @@ export default function ServiceDetail() {
               )}
             </div>
 
-            {/* Previous Service Info (if repeated) */}
+            {/* Previous Service Info (if repeated) - Collapsible */}
             {service.isRepeatedService && service.previousServiceId && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="flex items-start gap-2">
-                  <RefreshCw className="h-4 w-4 text-amber-600 mt-0.5" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-600">Previous Service:</span>
-                      <Link
-                        to={`/branch/services/${service.previousServiceId}`}
-                        className="text-purple-600 hover:text-purple-800 font-medium hover:underline"
-                      >
-                        {service.previousService?.ticketNumber || 'View Previous Service'}
-                      </Link>
-                      {service.previousService?.createdAt && (
-                        <span className="text-gray-400 text-xs">
-                          ({new Date(service.previousService.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })})
-                        </span>
-                      )}
-                    </div>
-                    {service.previousService?.faults && service.previousService.faults.length > 0 && (
-                      <div className="mt-2">
-                        <span className="text-xs text-gray-500">Previous Faults:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {service.previousService.faults.map((f: any) => (
-                            <span
-                              key={f.fault.id}
-                              className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded-full border border-red-100"
-                            >
-                              {f.fault.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
+              <details className="mt-4 pt-4 border-t border-gray-100">
+                <summary className="text-sm text-amber-600 cursor-pointer flex items-center gap-2 hover:text-amber-700">
+                  <RefreshCw className="h-4 w-4" />
+                  Previous Service Details
+                </summary>
+                <div className="mt-2 pl-6">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Link
+                      to={`/branch/services/${service.previousServiceId}`}
+                      className="text-purple-600 hover:text-purple-800 font-medium hover:underline"
+                    >
+                      {service.previousService?.ticketNumber || 'View Previous Service'}
+                    </Link>
+                    {service.previousService?.createdAt && (
+                      <span className="text-gray-400 text-xs">
+                        ({new Date(service.previousService.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })})
+                      </span>
                     )}
                   </div>
+                  {service.previousService?.faults && service.previousService.faults.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs text-gray-500">Previous Faults:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {service.previousService.faults.map((f: any) => (
+                          <span
+                            key={f.fault.id}
+                            className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded-full border border-red-100"
+                          >
+                            {f.fault.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </details>
             )}
           </div>
 
           {/* Reported Faults */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Reported Faults</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Reported Faults</h3>
             {service.faults && service.faults.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {service.faults.map((f: any) => (
-                  <div
+                  <span
                     key={f.fault?.id || f.faultId}
-                    className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg"
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 border border-red-200 rounded text-sm"
                   >
                     <span className="font-medium text-red-700">{f.fault?.name || 'Unknown'}</span>
                     {f.fault?.defaultPrice > 0 && (
-                      <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-semibold rounded">₹{f.fault.defaultPrice}</span>
+                      <span className="text-xs text-gray-500">₹{f.fault.defaultPrice}</span>
                     )}
-                  </div>
+                  </span>
                 ))}
               </div>
             ) : (
@@ -488,10 +514,10 @@ export default function ServiceDetail() {
 
           {/* Device Intake - Compact */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
               Device Intake
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               {/* Password - compact */}
               <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                 <div className="text-xs text-gray-500">Password/PIN</div>
@@ -503,7 +529,7 @@ export default function ServiceDetail() {
               <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                 <div className="text-xs text-gray-500 mb-1">Pattern</div>
                 {service.devicePattern ? (
-                  <PatternDisplay pattern={service.devicePattern} size={60} />
+                  <PatternDisplay pattern={service.devicePattern} size={48} />
                 ) : (
                   <span className="text-gray-400 text-sm">-</span>
                 )}
@@ -694,14 +720,14 @@ export default function ServiceDetail() {
             )}
 
             {allServiceImages.length > 0 || allDeviceImages.length > 0 ? (
-              <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
                 {/* Service Images */}
                 {allServiceImages.map((image, index) => (
                   <div key={image.id} className="relative group">
                     <img
                       src={getImageUrl(image.imageUrl)}
                       alt={image.caption || 'Service image'}
-                      className="w-full h-20 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                      className="w-full h-24 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => openPhotoViewer(allServiceImages, index)}
                     />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -731,7 +757,7 @@ export default function ServiceDetail() {
                     <img
                       src={getImageUrl(image.imageUrl)}
                       alt={image.caption || 'Device image'}
-                      className="w-full h-20 object-cover rounded border-2 border-blue-300 cursor-pointer hover:opacity-90 transition-opacity"
+                      className="w-full h-24 object-cover rounded-lg border-2 border-blue-300 cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => openPhotoViewer(allDeviceImages, index)}
                     />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -917,7 +943,7 @@ export default function ServiceDetail() {
             }
           />
 
-          {/* Pricing - Simplified */}
+          {/* Pricing - Simplified with Collapsible */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-1">
               <DollarSign className="w-3 h-3" />
@@ -929,7 +955,6 @@ export default function ServiceDetail() {
                 <p className="text-gray-400 text-xs mt-1">Service not serviceable</p>
               </div>
             ) : (() => {
-              // Calculate extra spare total (parts where isExtraSpare = true)
               const extraSpareTotal = (service.partsUsed || [])
                 .filter((part: any) => part.isExtraSpare)
                 .reduce((sum: number, part: any) => sum + part.totalPrice, 0);
@@ -939,124 +964,123 @@ export default function ServiceDetail() {
               const totalAmount = estimatePrice + extraSpareTotal;
               const finalAmount = totalAmount - discount;
               const advancePaid = service.advancePayment || 0;
-              const balanceDue = finalAmount - advancePaid;
+              const totalPaid = (service.paymentEntries || []).reduce((sum: number, e: any) => sum + e.amount, 0) + advancePaid;
+              const balanceDue = finalAmount - totalPaid;
 
               return (
-                <div className="text-sm space-y-2">
-                  {/* Estimate Price - with edit button */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Estimate Price</span>
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">₹{estimatePrice.toFixed(2)}</span>
-                      {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TECHNICIAN') && (
-                        <button
-                          onClick={() => setShowEditEstimatedModal(true)}
-                          className="p-1 hover:bg-gray-100 rounded"
-                          title="Edit estimated cost"
-                        >
-                          <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
-                        </button>
-                      )}
+                <div className="space-y-2">
+                  {/* Summary - Always Visible */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Total</span>
+                      <span>₹{finalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Paid</span>
+                      <span className="text-green-600 font-medium">₹{totalPaid.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold border-t-2 pt-2">
+                      <span>Balance</span>
+                      <span className={balanceDue > 0 ? 'text-red-600' : 'text-green-600'}>
+                        ₹{balanceDue.toFixed(2)}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Extra Spare */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Extra Spare</span>
-                    <span className={extraSpareTotal > 0 ? 'font-medium text-orange-600' : ''}>
-                      ₹{extraSpareTotal.toFixed(2)}
-                    </span>
-                  </div>
-
-                  {/* Separator */}
-                  <div className="border-t border-gray-200 my-2" />
-
-                  {/* Total Amount */}
-                  <div className="flex justify-between font-semibold text-base">
-                    <span className="text-gray-700">Total Amount</span>
-                    <span>₹{totalAmount.toFixed(2)}</span>
-                  </div>
-
-                  {/* Discount - with edit capability */}
-                  <div className="flex justify-between items-center text-red-600">
-                    <span>Discount</span>
-                    <div className="flex items-center gap-1">
-                      {editingDiscount ? (
+                  {/* Collapsible Breakdown */}
+                  <details className="pt-2 border-t">
+                    <summary className="text-xs text-purple-600 cursor-pointer hover:text-purple-800 font-medium">
+                      View detailed breakdown
+                    </summary>
+                    <div className="mt-2 space-y-2 text-sm">
+                      {/* Estimate Price */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Estimate Price</span>
                         <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={discountValue}
-                            onChange={(e) => setDiscountValue(e.target.value)}
-                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded text-right"
-                            placeholder="0.00"
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => {
-                              const val = parseFloat(discountValue) || 0;
-                              updateDiscountMutation.mutate(val);
-                            }}
-                            disabled={updateDiscountMutation.isPending}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded"
-                          >
-                            <Check className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingDiscount(false);
-                              setDiscountValue('');
-                            }}
-                            className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span>-₹{discount.toFixed(2)}</span>
-                          {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
+                          <span>₹{estimatePrice.toFixed(2)}</span>
+                          {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'TECHNICIAN') && (
                             <button
-                              onClick={() => {
-                                setDiscountValue(discount.toString());
-                                setEditingDiscount(true);
-                              }}
-                              className="p-1 hover:bg-gray-100 rounded"
-                              title="Edit discount"
+                              onClick={() => setShowEditEstimatedModal(true)}
+                              className="p-1 hover:bg-gray-100 rounded focus:ring-2 focus:ring-purple-500"
+                              title="Edit estimated cost"
                             >
                               <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
                             </button>
                           )}
-                        </>
+                        </div>
+                      </div>
+
+                      {/* Extra Spare */}
+                      {extraSpareTotal > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Extra Spare</span>
+                          <span className="text-orange-600">₹{extraSpareTotal.toFixed(2)}</span>
+                        </div>
                       )}
+
+                      {/* Discount */}
+                      <div className="flex justify-between items-center text-red-600">
+                        <span>Discount</span>
+                        <div className="flex items-center gap-1">
+                          {editingDiscount ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={discountValue}
+                                onChange={(e) => setDiscountValue(e.target.value)}
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded text-right focus:ring-2 focus:ring-purple-500"
+                                placeholder="0.00"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => {
+                                  const val = parseFloat(discountValue) || 0;
+                                  updateDiscountMutation.mutate(val);
+                                }}
+                                disabled={updateDiscountMutation.isPending}
+                                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingDiscount(false);
+                                  setDiscountValue('');
+                                }}
+                                className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <span>-₹{discount.toFixed(2)}</span>
+                              {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
+                                <button
+                                  onClick={() => {
+                                    setDiscountValue(discount.toString());
+                                    setEditingDiscount(true);
+                                  }}
+                                  className="p-1 hover:bg-gray-100 rounded focus:ring-2 focus:ring-purple-500"
+                                  title="Edit discount"
+                                >
+                                  <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Advance Paid */}
+                      <div className="flex justify-between text-green-600">
+                        <span>Advance Paid</span>
+                        <span>₹{advancePaid.toFixed(2)}</span>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Final Amount after discount */}
-                  {discount > 0 && (
-                    <div className="flex justify-between font-semibold text-base">
-                      <span className="text-gray-700">After Discount</span>
-                      <span>₹{finalAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  {/* Separator */}
-                  <div className="border-t border-dashed border-gray-200 my-2" />
-
-                  {/* Advance Paid */}
-                  <div className="flex justify-between text-green-600">
-                    <span>Advance Paid</span>
-                    <span>₹{advancePaid.toFixed(2)}</span>
-                  </div>
-
-                  {/* Balance Due */}
-                  <div className="flex justify-between font-semibold pt-1 border-t">
-                    <span>Balance Due</span>
-                    <span className={balanceDue > 0 ? 'text-red-600' : 'text-green-600'}>
-                      ₹{balanceDue.toFixed(2)}
-                    </span>
-                  </div>
+                  </details>
                 </div>
               );
             })()}
