@@ -2453,6 +2453,19 @@ export class ServiceService {
         },
       });
 
+      // Create service history log if estimate price changed
+      if (estimatedCost !== undefined && estimatedCost !== service.estimatedCost) {
+        const oldPrice = service.estimatedCost || 0;
+        await prisma.serviceStatusHistory.create({
+          data: {
+            serviceId,
+            status: service.status,
+            notes: `Estimate price changed from ₹${oldPrice.toFixed(2)} to ₹${estimatedCost.toFixed(2)}`,
+            changedBy: userId,
+          },
+        });
+      }
+
       // Create activity log
       await prisma.activityLog.create({
         data: {
