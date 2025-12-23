@@ -69,6 +69,22 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/services/check-previous/:customerDeviceId
+ * @desc    Check if device was serviced within last 30 days
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.get(
+  '/check-previous/:customerDeviceId',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  ServiceController.checkPreviousServices
+);
+
+/**
  * @route   GET /api/v1/services/:id
  * @desc    Get service by ID
  * @access  Private (All authenticated users)

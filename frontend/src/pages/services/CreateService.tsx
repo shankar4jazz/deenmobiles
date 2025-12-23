@@ -5,10 +5,10 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { serviceApi, CreateServiceData } from '@/services/serviceApi';
+import { serviceApi, CreateServiceData, PreviousServiceInfo } from '@/services/serviceApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { useAuthStore } from '@/store/authStore';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { CustomerDevice, Customer } from '@/types';
 import { Fault, DamageCondition, Accessory } from '@/types/masters';
 
@@ -69,6 +69,10 @@ export default function CreateService() {
   const [selectedDamageConditions, setSelectedDamageConditions] = useState<DamageCondition[]>([]);
   const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
 
+  // Repeated service tracking
+  const [previousServiceInfo, setPreviousServiceInfo] = useState<PreviousServiceInfo | null>(null);
+  const [isCheckingPreviousServices, setIsCheckingPreviousServices] = useState(false);
+
   const {
     control,
     handleSubmit,
@@ -116,7 +120,28 @@ export default function CreateService() {
   useEffect(() => {
     setSelectedDevice(null);
     setValue('customerDeviceId', '');
+    setPreviousServiceInfo(null);
   }, [customerId, setValue]);
+
+  // Check for previous services when device is selected
+  useEffect(() => {
+    if (selectedDevice?.id) {
+      setIsCheckingPreviousServices(true);
+      serviceApi.checkPreviousServices(selectedDevice.id)
+        .then((info) => {
+          setPreviousServiceInfo(info);
+        })
+        .catch((error) => {
+          console.error('Failed to check previous services:', error);
+          setPreviousServiceInfo(null);
+        })
+        .finally(() => {
+          setIsCheckingPreviousServices(false);
+        });
+    } else {
+      setPreviousServiceInfo(null);
+    }
+  }, [selectedDevice?.id]);
 
   // Create service mutation
   const createServiceMutation = useMutation({
@@ -270,6 +295,23 @@ export default function CreateService() {
               />
             </FormRow>
           </div>
+
+          {/* Repeated Service Warning */}
+          {previousServiceInfo?.isRepeated && previousServiceInfo.lastService && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-semibold text-amber-800">Repeated Service</h4>
+                <p className="text-sm text-amber-700 mt-1">
+                  This device was serviced <strong>{previousServiceInfo.daysSinceLastService} days ago</strong>
+                  {' '}(Ticket: <span className="font-medium">{previousServiceInfo.lastService.ticketNumber}</span>)
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Previous issue: {previousServiceInfo.lastService.damageCondition}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Row 2: Device Condition, Damage Condition */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2">

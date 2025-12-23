@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { ServiceService } from '../services/serviceService';
 import { ApiResponse } from '../utils/response';
 import { asyncHandler } from '../middleware/errorHandler';
+import { AppError } from '../middleware/errorHandler';
 import { AuthRequest } from '../types';
 import { ServiceStatus } from '@prisma/client';
 import { uploadFilesToS3 } from '../middleware/s3Upload';
@@ -452,5 +453,22 @@ export class ServiceController {
     const result = await ServiceService.deleteNote(noteId, userId, companyId);
 
     return ApiResponse.success(res, result, 'Note deleted successfully');
+  });
+
+  /**
+   * GET /api/v1/services/check-previous/:customerDeviceId
+   * Check if a device has been serviced within the last 30 days
+   */
+  static checkPreviousServices = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { customerDeviceId } = req.params;
+    const companyId = req.user!.companyId;
+
+    if (!customerDeviceId) {
+      throw new AppError(400, 'Customer device ID is required');
+    }
+
+    const result = await ServiceService.checkPreviousServices(customerDeviceId, companyId);
+
+    return ApiResponse.success(res, result, 'Previous services check completed');
   });
 }

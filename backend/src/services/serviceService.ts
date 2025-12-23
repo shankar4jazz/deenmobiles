@@ -230,6 +230,32 @@ export class ServiceService {
         // Calculate total advance payment
         const totalAdvancePayment = data.paymentEntries?.reduce((sum, entry) => sum + entry.amount, 0) || 0;
 
+        // Check for previous service within 30 days (repeated service detection)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const previousService = await tx.service.findFirst({
+          where: {
+            customerDeviceId: data.customerDeviceId,
+            companyId: data.companyId,
+            createdAt: {
+              gte: thirtyDaysAgo,
+            },
+            status: {
+              notIn: [ServiceStatus.CANCELLED],
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        const isRepeatedService = !!previousService;
+        const previousServiceId = previousService?.id || null;
+
         // Create service
         const service = await tx.service.create({
           data: {
@@ -254,6 +280,8 @@ export class ServiceService {
             dataWarrantyAccepted: data.dataWarrantyAccepted ?? false,
             sendSmsNotification: data.sendSmsNotification ?? true,
             sendWhatsappNotification: data.sendWhatsappNotification ?? false,
+            isRepeatedService,
+            previousServiceId,
             // Create fault connections
             faults: {
               create: data.faultIds.map((faultId) => ({
@@ -714,6 +742,16 @@ export class ServiceService {
             select: {
               id: true,
               name: true,
+            },
+          },
+          previousService: {
+            select: {
+              id: true,
+              ticketNumber: true,
+              createdAt: true,
+              status: true,
+              damageCondition: true,
+              completedAt: true,
             },
           },
         },

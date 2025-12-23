@@ -117,6 +117,29 @@ export class DashboardService {
         completedToday
       );
 
+      // Repeated services this month
+      const repeatedServicesThisMonth = await prisma.service.count({
+        where: {
+          ...whereClause,
+          createdAt: { gte: startOfMonth },
+          isRepeatedService: true,
+        },
+      });
+
+      // Repeated services last month
+      const repeatedServicesLastMonth = await prisma.service.count({
+        where: {
+          ...whereClause,
+          createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+          isRepeatedService: true,
+        },
+      });
+
+      const repeatedServicesChange = this.calculatePercentageChange(
+        repeatedServicesLastMonth,
+        repeatedServicesThisMonth
+      );
+
       return {
         totalServices: totalServicesThisMonth,
         totalServicesChange,
@@ -126,6 +149,8 @@ export class DashboardService {
         pendingServicesChange: 0, // Can be calculated based on previous period if needed
         completedToday,
         completedTodayChange,
+        repeatedServices: repeatedServicesThisMonth,
+        repeatedServicesChange,
       };
     } catch (error) {
       Logger.error('Error fetching dashboard stats', { error, userId });

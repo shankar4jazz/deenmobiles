@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, DollarSign, Clock, Users, Wrench, UserCog } from 'lucide-react';
+import { BarChart3, DollarSign, Clock, Users, Wrench, UserCog, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { dashboardApi } from '@/services/dashboardApi';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -43,7 +43,7 @@ export default function ManagerDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
         <StatCard
           title="Total Services"
           value={stats.totalServices}
@@ -75,6 +75,14 @@ export default function ManagerDashboard() {
           icon={Wrench}
           iconColor="text-purple-600"
           iconBg="bg-purple-100"
+        />
+        <StatCard
+          title="Repeated Services"
+          value={stats.repeatedServices || 0}
+          change={stats.repeatedServicesChange || 0}
+          icon={RefreshCw}
+          iconColor="text-amber-600"
+          iconBg="bg-amber-100"
         />
       </div>
 

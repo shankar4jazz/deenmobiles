@@ -13,8 +13,9 @@ import {
   ArrowLeft, Edit, Save, X, Camera, Clock,
   Smartphone, FileText, DollarSign, CheckCircle, Trash2,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download,
-  Pencil, Plus,
+  Pencil, Plus, RefreshCw,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
 import AddPaymentModal from '@/components/services/AddPaymentModal';
 import TechnicianNotes from '@/components/services/TechnicianNotes';
@@ -341,6 +342,12 @@ export default function ServiceDetail() {
         <div className="flex items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
           <InvoiceButton serviceId={service.id} variant="primary" />
+          {service.isRepeatedService && (
+            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
+              <RefreshCw className="h-3 w-3" />
+              Repeated
+            </span>
+          )}
           <span className={`px-3 py-1.5 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
             {STATUS_LABELS[service.status]}
           </span>
@@ -385,6 +392,27 @@ export default function ServiceDetail() {
                 </div>
               )}
             </div>
+
+            {/* Previous Service Info (if repeated) */}
+            {service.isRepeatedService && service.previousServiceId && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-sm">
+                  <RefreshCw className="h-4 w-4 text-amber-600" />
+                  <span className="text-gray-600">Previous Service:</span>
+                  <Link
+                    to={`/branch/services/${service.previousServiceId}`}
+                    className="text-purple-600 hover:text-purple-800 font-medium hover:underline"
+                  >
+                    {service.previousService?.ticketNumber || 'View Previous Service'}
+                  </Link>
+                  {service.previousService?.createdAt && (
+                    <span className="text-gray-400 text-xs">
+                      ({new Date(service.previousService.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Reported Faults */}

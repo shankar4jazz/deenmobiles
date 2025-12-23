@@ -33,6 +33,17 @@ export interface Service {
     id: string;
     name: string;
   };
+  // Repeated service tracking
+  isRepeatedService?: boolean;
+  previousServiceId?: string;
+  previousService?: {
+    id: string;
+    ticketNumber: string;
+    createdAt: string;
+    status: ServiceStatus;
+    damageCondition: string;
+    completedAt?: string;
+  };
   dataWarrantyAccepted?: boolean;
   sendNotificationOnAssign?: boolean;
   createdById?: string;
@@ -314,12 +325,33 @@ export interface ApproveServicePartData {
   approvalNote?: string;
 }
 
+export interface PreviousServiceInfo {
+  isRepeated: boolean;
+  lastService: {
+    id: string;
+    ticketNumber: string;
+    createdAt: string;
+    status: ServiceStatus;
+    damageCondition: string;
+    completedAt?: string;
+  } | null;
+  daysSinceLastService: number | null;
+}
+
 export const serviceApi = {
   /**
    * Create a new service
    */
   createService: async (data: CreateServiceData): Promise<Service> => {
     const response = await api.post('/services', data);
+    return response.data.data;
+  },
+
+  /**
+   * Check if a device has been serviced within the last 30 days
+   */
+  checkPreviousServices: async (customerDeviceId: string): Promise<PreviousServiceInfo> => {
+    const response = await api.get(`/services/check-previous/${customerDeviceId}`);
     return response.data.data;
   },
 

@@ -6,7 +6,7 @@ import { technicianApi } from '@/services/technicianApi';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw } from 'lucide-react';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
@@ -452,6 +452,12 @@ export default function ServiceList() {
                             <span className="text-sm font-semibold text-gray-900">
                               {service.ticketNumber}
                             </span>
+                            {service.isRepeatedService && (
+                              <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
+                                <RefreshCw className="w-3 h-3" />
+                                Repeat
+                              </span>
+                            )}
                           </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900">
@@ -650,6 +656,12 @@ export default function ServiceList() {
                       <span className="text-sm font-semibold text-gray-900">
                         {service.ticketNumber}
                       </span>
+                      {service.isRepeatedService && (
+                        <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
+                          <RefreshCw className="w-3 h-3" />
+                          Repeat
+                        </span>
+                      )}
                     </div>
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
                       {STATUS_LABELS[service.status]}
