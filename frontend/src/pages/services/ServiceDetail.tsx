@@ -13,7 +13,7 @@ import {
   ArrowLeft, Edit, Save, X, Camera, Clock,
   Smartphone, FileText, DollarSign, CheckCircle, Trash2,
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download,
-  Pencil, Plus, RefreshCw,
+  Pencil, Plus, RefreshCw, Check,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
@@ -58,6 +58,8 @@ export default function ServiceDetail() {
   const [showEditEstimatedModal, setShowEditEstimatedModal] = useState(false);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showStatusChange, setShowStatusChange] = useState(false);
+  const [editingDiscount, setEditingDiscount] = useState(false);
+  const [discountValue, setDiscountValue] = useState('');
 
   // Photo viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -79,14 +81,18 @@ export default function ServiceDetail() {
       .filter((part: any) => part.isExtraSpare)
       .reduce((sum: number, part: any) => sum + part.totalPrice, 0);
     const estimatePrice = service?.estimatedCost || 0;
+    const discount = service?.discount || 0;
     const totalAmount = estimatePrice + extraSpareTotal;
+    const finalAmount = totalAmount - discount;
     const advancePaid = service?.advancePayment || 0;
     return {
       estimatePrice,
       extraSpareTotal,
       totalAmount,
+      discount,
+      finalAmount,
       advancePaid,
-      balanceDue: totalAmount - advancePaid,
+      balanceDue: finalAmount - advancePaid,
     };
   }, [service]);
 
@@ -168,6 +174,20 @@ export default function ServiceDetail() {
     },
     onError: () => {
       setDeletingDeviceImageId(null);
+    },
+  });
+
+  // Update discount mutation
+  const updateDiscountMutation = useMutation({
+    mutationFn: (discount: number) => serviceApi.updateDiscount(id!, discount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', id] });
+      setEditingDiscount(false);
+      setDiscountValue('');
+      toast.success('Discount updated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update discount');
     },
   });
 
@@ -818,9 +838,11 @@ export default function ServiceDetail() {
                 .reduce((sum: number, part: any) => sum + part.totalPrice, 0);
 
               const estimatePrice = service.estimatedCost || 0;
+              const discount = service.discount || 0;
               const totalAmount = estimatePrice + extraSpareTotal;
+              const finalAmount = totalAmount - discount;
               const advancePaid = service.advancePayment || 0;
-              const balanceDue = totalAmount - advancePaid;
+              const balanceDue = finalAmount - advancePaid;
 
               return (
                 <div className="text-sm space-y-2">
@@ -857,6 +879,70 @@ export default function ServiceDetail() {
                     <span className="text-gray-700">Total Amount</span>
                     <span>₹{totalAmount.toFixed(2)}</span>
                   </div>
+
+                  {/* Discount - with edit capability */}
+                  <div className="flex justify-between items-center text-red-600">
+                    <span>Discount</span>
+                    <div className="flex items-center gap-1">
+                      {editingDiscount ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={discountValue}
+                            onChange={(e) => setDiscountValue(e.target.value)}
+                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded text-right"
+                            placeholder="0.00"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => {
+                              const val = parseFloat(discountValue) || 0;
+                              updateDiscountMutation.mutate(val);
+                            }}
+                            disabled={updateDiscountMutation.isPending}
+                            className="p-1 text-green-600 hover:bg-green-50 rounded"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingDiscount(false);
+                              setDiscountValue('');
+                            }}
+                            className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span>-₹{discount.toFixed(2)}</span>
+                          {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
+                            <button
+                              onClick={() => {
+                                setDiscountValue(discount.toString());
+                                setEditingDiscount(true);
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded"
+                              title="Edit discount"
+                            >
+                              <Pencil className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Final Amount after discount */}
+                  {discount > 0 && (
+                    <div className="flex justify-between font-semibold text-base">
+                      <span className="text-gray-700">After Discount</span>
+                      <span>₹{finalAmount.toFixed(2)}</span>
+                    </div>
+                  )}
 
                   {/* Separator */}
                   <div className="border-t border-dashed border-gray-200 my-2" />

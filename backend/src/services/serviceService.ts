@@ -3064,6 +3064,68 @@ export class ServiceService {
   }
 
   /**
+   * Update service discount
+   */
+  static async updateDiscount(
+    serviceId: string,
+    discount: number,
+    userId: string,
+    companyId: string
+  ) {
+    try {
+      const service = await prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          companyId,
+        },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      const updatedService = await prisma.service.update({
+        where: { id: serviceId },
+        data: {
+          discount,
+        },
+        include: {
+          customer: true,
+          assignedTo: true,
+          branch: true,
+          partsUsed: {
+            include: {
+              item: true,
+            },
+          },
+        },
+      });
+
+      // Create activity log
+      await prisma.activityLog.create({
+        data: {
+          userId,
+          action: 'UPDATE',
+          entity: 'service',
+          entityId: serviceId,
+          details: JSON.stringify({
+            action: 'discount_updated',
+            oldDiscount: service.discount,
+            newDiscount: discount,
+          }),
+        },
+      });
+
+      Logger.info('Service discount updated', { serviceId, discount });
+
+      return updatedService;
+    } catch (error) {
+      Logger.error('Error updating service discount', { error, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to update discount');
+    }
+  }
+
+  /**
    * Check if a device has been serviced within the last 30 days
    * Returns info about the most recent service if found
    * Also checks for matching faults if currentFaultIds is provided

@@ -397,6 +397,21 @@ export class ServiceController {
   });
 
   /**
+   * PUT /api/v1/services/:id/discount
+   * Update service discount
+   */
+  static updateDiscount = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { discount } = req.body;
+
+    const service = await ServiceService.updateDiscount(id, discount, userId, companyId);
+
+    return ApiResponse.success(res, service, 'Discount updated successfully');
+  });
+
+  /**
    * GET /api/v1/services/:id/history
    * Get service status history
    */

@@ -272,6 +272,7 @@ model Service {
   labourCharge      Float                  @default(0)
   advancePayment    Float                  @default(0)
   extraSpareAmount  Float                  @default(0)  // Extra parts cost beyond estimate
+  discount          Float                  @default(0)  // Discount amount
   status            ServiceStatus          @default(PENDING)
   assignedToId      String?
   createdById       String?                // User who created/booked the service

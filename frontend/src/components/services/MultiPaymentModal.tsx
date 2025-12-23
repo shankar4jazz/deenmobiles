@@ -9,6 +9,8 @@ interface PricingSummary {
   estimatePrice: number;
   extraSpareTotal: number;
   totalAmount: number;
+  discount: number;
+  finalAmount: number;
   advancePaid: number;
   balanceDue: number;
 }
@@ -232,6 +234,18 @@ export default function MultiPaymentModal({
                   <span>Total Amount</span>
                   <span>₹{pricingSummary.totalAmount.toFixed(2)}</span>
                 </div>
+                {pricingSummary.discount > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm text-red-600">
+                      <span>Discount</span>
+                      <span>-₹{pricingSummary.discount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span>After Discount</span>
+                      <span>₹{pricingSummary.finalAmount.toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Already Paid</span>
                   <span>₹{pricingSummary.advancePaid.toFixed(2)}</span>

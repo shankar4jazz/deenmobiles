@@ -397,6 +397,23 @@ router.put(
 );
 
 /**
+ * @route   PUT /api/v1/services/:id/discount
+ * @desc    Update service discount
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.put(
+  '/:id/discount',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.updateDiscount
+);
+
+/**
  * @route   GET /api/v1/services/:id/history
  * @desc    Get service status history
  * @access  Private (All authenticated users)

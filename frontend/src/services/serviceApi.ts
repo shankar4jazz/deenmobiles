@@ -656,6 +656,14 @@ export const serviceApi = {
   },
 
   /**
+   * Update discount
+   */
+  updateDiscount: async (serviceId: string, discount: number): Promise<Service> => {
+    const response = await api.put(`/services/${serviceId}/discount`, { discount });
+    return response.data.data;
+  },
+
+  /**
    * Get all notes for a service
    */
   getNotes: async (serviceId: string): Promise<ServiceNote[]> => {
