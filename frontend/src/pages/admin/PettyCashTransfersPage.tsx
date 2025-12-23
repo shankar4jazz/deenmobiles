@@ -47,12 +47,14 @@ export default function PettyCashTransfersPage() {
         search: searchTerm,
         status: selectedStatus || undefined,
       }),
+    staleTime: 1 * 60 * 1000, // 1 minute - financial data needs fresher updates
   });
 
   // Fetch stats
   const { data: statsData } = useQuery({
     queryKey: ['pettyCashStats'],
     queryFn: () => pettyCashTransferApi.getStats(),
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
 
   // Create transfer mutation

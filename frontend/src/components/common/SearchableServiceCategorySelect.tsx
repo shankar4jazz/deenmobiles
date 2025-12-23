@@ -29,6 +29,7 @@ export function SearchableServiceCategorySelect({
   const { data, isLoading } = useQuery({
     queryKey: ['service-categories'],
     queryFn: () => masterDataApi.getAllServiceCategories({ limit: 100, isActive: true }),
+    staleTime: 5 * 60 * 1000, // 5 minutes - categories rarely change
   });
 
   const categories = data?.data || [];

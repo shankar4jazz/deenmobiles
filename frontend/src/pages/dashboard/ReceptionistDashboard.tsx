@@ -11,7 +11,9 @@ export default function ReceptionistDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['receptionistDashboard'],
     queryFn: dashboardApi.getReceptionistDashboard,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 60 * 1000, // 1 minute
+    refetchInterval: 90 * 1000, // Refetch every 90 seconds
+    refetchOnWindowFocus: true,
   });
 
   if (isLoading || !data) {

@@ -19,7 +19,9 @@ export default function SuperAdminDashboard() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['superAdminDashboard', dateRange],
     queryFn: () => dashboardApi.getSuperAdminDashboard(dateRange),
-    refetchInterval: 60000, // Refetch every minute
+    staleTime: 90 * 1000, // 90 seconds
+    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
+    refetchOnWindowFocus: true,
   });
 
   const handleDateRangeChange = (newRange: typeof dateRange) => {

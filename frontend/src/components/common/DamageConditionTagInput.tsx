@@ -4,6 +4,7 @@ import { damageConditionApi } from '@/services/masterDataApi';
 import { DamageCondition } from '@/types/masters';
 import { X, Plus, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface DamageConditionTagInputProps {
   value: string[];
@@ -30,22 +31,27 @@ export function DamageConditionTagInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  // Fetch frequent damage conditions by default (sorted by usage count from backend)
+  // Debounce search term to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Fetch frequent damage conditions by default with caching
   const { data: frequentConditionsData, isLoading: isLoadingFrequent } = useQuery({
     queryKey: ['damage-conditions-frequent'],
     queryFn: () => damageConditionApi.getAll({ isActive: true, limit: 50 }),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Fetch damage conditions with search
+  // Fetch damage conditions with search - cached per search term
   const { data: searchData, isLoading: isLoadingSearch } = useQuery({
-    queryKey: ['damage-conditions-search', searchTerm],
-    queryFn: () => damageConditionApi.getAll({ search: searchTerm, isActive: true, limit: 50 }),
-    enabled: searchTerm.length >= 1,
+    queryKey: ['damage-conditions-search', debouncedSearchTerm],
+    queryFn: () => damageConditionApi.getAll({ search: debouncedSearchTerm, isActive: true, limit: 50 }),
+    enabled: debouncedSearchTerm.length >= 1,
+    staleTime: 2 * 60 * 1000, // 2 minutes for search results
   });
 
   // Show search results when searching, otherwise show frequent conditions
-  const conditions = searchTerm.length >= 1 ? (searchData?.data || []) : (frequentConditionsData?.data || []);
-  const isLoading = searchTerm.length >= 1 ? isLoadingSearch : isLoadingFrequent;
+  const conditions = debouncedSearchTerm.length >= 1 ? (searchData?.data || []) : (frequentConditionsData?.data || []);
+  const isLoading = debouncedSearchTerm.length >= 1 ? isLoadingSearch : isLoadingFrequent;
   const allConditions = frequentConditionsData?.data || [];
 
   // Filter out already selected conditions from suggestions

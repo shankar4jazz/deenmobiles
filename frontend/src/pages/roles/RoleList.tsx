@@ -29,6 +29,7 @@ export default function RoleList() {
   const { data, isLoading } = useQuery({
     queryKey: ['roles', filters, page, limit],
     queryFn: () => roleApi.getAllRoles(filters, page, limit),
+    staleTime: 10 * 60 * 1000, // 10 minutes - roles rarely change
   });
 
   // Delete mutation

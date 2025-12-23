@@ -50,6 +50,7 @@ export default function EstimateList() {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   const handleViewEstimate = (estimate: Estimate) => {

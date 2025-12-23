@@ -36,6 +36,7 @@ export default function BranchList() {
   const { data, isLoading } = useQuery({
     queryKey: ['branches', filters, page, limit],
     queryFn: () => branchApi.getAllBranches(filters, page, limit),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Delete mutation

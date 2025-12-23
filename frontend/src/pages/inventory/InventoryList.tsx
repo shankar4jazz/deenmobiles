@@ -64,6 +64,7 @@ export default function InventoryList() {
         branchId: user?.activeBranch?.id
       });
     },
+    staleTime: 1 * 60 * 1000, // 1 minute - inventory changes more frequently
   });
 
   // Log component mount and user info
@@ -89,6 +90,7 @@ export default function InventoryList() {
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers-dropdown', user?.activeBranch?.id],
     queryFn: () => supplierApi.getSuppliersDropdown(user?.activeBranch?.id),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Delete mutation

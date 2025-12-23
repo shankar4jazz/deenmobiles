@@ -13,6 +13,7 @@ interface SearchableDeviceSelectProps {
   error?: string;
   placeholder?: string;
   className?: string;
+  devices?: CustomerDevice[]; // Optional - skip fetch if provided by parent
 }
 
 export function SearchableDeviceSelect({
@@ -24,19 +25,22 @@ export function SearchableDeviceSelect({
   error,
   placeholder = 'Select device...',
   className = '',
+  devices: propDevices,
 }: SearchableDeviceSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch devices - skip if provided via props
   const { data, isLoading } = useQuery({
     queryKey: ['customer-devices', customerId],
     queryFn: () => customerDeviceApi.getAllDevices(customerId, { limit: 100, isActive: true }),
-    enabled: !!customerId,
+    enabled: !!customerId && !propDevices, // Only fetch if customerId exists and not provided by parent
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const devices = data?.devices || [];
+  const devices = propDevices || data?.devices || [];
 
   const selectedDevice = devices.find((d) => d.id === value);
 

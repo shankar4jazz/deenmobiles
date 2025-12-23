@@ -36,55 +36,67 @@ export default function MastersPage() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const queryClient = useQueryClient();
 
-  // Queries for all three types
+  // Master data queries with caching (data rarely changes)
+  const masterDataStaleTime = 10 * 60 * 1000; // 10 minutes
+
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
     queryFn: () => masterDataApi.categories.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const unitsQuery = useQuery({
     queryKey: ['units'],
     queryFn: () => masterDataApi.units.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const gstRatesQuery = useQuery({
     queryKey: ['gstRates'],
     queryFn: () => masterDataApi.gstRates.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const brandsQuery = useQuery({
     queryKey: ['brands'],
     queryFn: () => masterDataApi.brands.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const modelsQuery = useQuery({
     queryKey: ['models'],
     queryFn: () => masterDataApi.models.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const faultsQuery = useQuery({
     queryKey: ['faults'],
     queryFn: () => masterDataApi.faults.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const paymentMethodsQuery = useQuery({
     queryKey: ['paymentMethods'],
     queryFn: () => masterDataApi.paymentMethods.getAll({ limit: 100, isActive: true }),
+    staleTime: 30 * 60 * 1000, // 30 minutes - rarely changes
   });
 
   const expenseCategoriesQuery = useQuery({
     queryKey: ['expenseCategories'],
     queryFn: () => masterDataApi.expenseCategories.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const serviceIssuesQuery = useQuery({
     queryKey: ['serviceIssues'],
     queryFn: () => masterDataApi.serviceIssues.getAll({ limit: 200, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const accessoriesQuery = useQuery({
     queryKey: ['accessories'],
     queryFn: () => accessoryApi.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
   });
 
   const handleOpenModal = (item?: any) => {

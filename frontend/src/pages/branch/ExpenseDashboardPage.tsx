@@ -46,6 +46,7 @@ export default function ExpenseDashboardPage() {
     queryKey: ['branchBalance', branchId],
     queryFn: () => pettyCashTransferApi.getBranchBalance(branchId!),
     enabled: !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch expenses for selected period
@@ -58,6 +59,7 @@ export default function ExpenseDashboardPage() {
       limit: 10000, // Get all expenses for the period
     }),
     enabled: !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   const isLoading = balanceLoading || expensesLoading;

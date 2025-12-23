@@ -3,12 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { customerApi } from '@/services/customerApi';
 import { Search, ChevronDown, X } from 'lucide-react';
 
+interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+}
+
 interface SearchableCustomerSelectProps {
   value: string;
   onChange: (customerId: string) => void;
   required?: boolean;
   placeholder?: string;
   className?: string;
+  customers?: Customer[]; // Optional - skip fetch if provided by parent
 }
 
 export default function SearchableCustomerSelect({
@@ -17,19 +25,22 @@ export default function SearchableCustomerSelect({
   required = false,
   placeholder = 'Search and select customer...',
   className = '',
+  customers: propCustomers,
 }: SearchableCustomerSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all customers
+  // Fetch all customers - skip if provided via props
   const { data: customersData } = useQuery({
     queryKey: ['customers-all'],
     queryFn: () => customerApi.getAllCustomers({ limit: 1000 }),
+    enabled: !propCustomers, // Only fetch if not provided by parent
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const customers = customersData?.customers || [];
+  const customers = propCustomers || customersData?.customers || [];
 
   // Get selected customer
   const selectedCustomer = customers.find((c) => c.id === value);

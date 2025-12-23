@@ -57,17 +57,20 @@ export default function ItemsList() {
       page,
       limit,
     }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch master data for dropdowns
   const { data: categories } = useQuery({
     queryKey: ['categories-dropdown'],
     queryFn: () => categoryApi.getAll({ limit: 100, isActive: true }),
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
   const { data: brands } = useQuery({
     queryKey: ['brands-dropdown'],
     queryFn: () => brandApi.getAll({ limit: 100, isActive: true }),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const { data: models } = useQuery({
@@ -78,16 +81,19 @@ export default function ItemsList() {
       brandId: filters.brandId
     }),
     enabled: !!filters.brandId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const { data: units } = useQuery({
     queryKey: ['units-dropdown'],
     queryFn: () => unitApi.getAll({ limit: 100, isActive: true }),
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
   const { data: gstRates } = useQuery({
     queryKey: ['gst-rates-dropdown'],
     queryFn: () => gstRateApi.getAll({ limit: 100, isActive: true }),
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Delete mutation

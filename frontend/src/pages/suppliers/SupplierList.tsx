@@ -48,6 +48,7 @@ const SupplierList: React.FC = () => {
         branchId: user?.activeBranch?.id
       });
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Log component mount and user info

@@ -58,18 +58,21 @@ export default function WarrantyManagement() {
   const { data: warrantiesData, isLoading } = useQuery({
     queryKey: ['warranties', filters],
     queryFn: () => warrantyApi.searchWarranties(filters),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch warranty stats
   const { data: statsData } = useQuery({
     queryKey: ['warranty-stats', branchFilter],
     queryFn: () => warrantyApi.getWarrantyStats(branchFilter || undefined),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch branches for filter
   const { data: branchesData } = useQuery({
     queryKey: ['branches-list'],
     queryFn: () => branchApi.getBranches(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const warranties = warrantiesData?.warranties || [];

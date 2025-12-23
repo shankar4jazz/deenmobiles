@@ -16,21 +16,25 @@ export default function TechnicianDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['technicianDashboard'],
     queryFn: dashboardApi.getTechnicianDashboard,
-    refetchInterval: 30000,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every 60 seconds
+    refetchOnWindowFocus: true,
   });
 
   // Technician stats with points and levels
   const { data: techStats } = useQuery({
     queryKey: ['technicianStats'],
     queryFn: technicianApi.getDashboardStats,
-    refetchInterval: 60000,
+    staleTime: 60 * 1000, // 1 minute
+    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
   });
 
   // Notifications
   const { data: notificationsData } = useQuery({
     queryKey: ['technicianNotifications'],
     queryFn: () => technicianApi.getNotifications(1, 5, false),
-    refetchInterval: 30000,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every 60 seconds
   });
 
   // Mark notification as read

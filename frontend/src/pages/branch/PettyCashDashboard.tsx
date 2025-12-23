@@ -23,6 +23,7 @@ export default function PettyCashDashboard() {
     queryKey: ['branchBalance', branchId],
     queryFn: () => pettyCashTransferApi.getBranchBalance(branchId!),
     enabled: !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch recent transfers (last 5)
@@ -33,6 +34,7 @@ export default function PettyCashDashboard() {
       limit: 5,
     }),
     enabled: !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch recent requests (last 5)
@@ -43,6 +45,7 @@ export default function PettyCashDashboard() {
       limit: 5,
     }),
     enabled: !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch pending requests count
@@ -54,6 +57,7 @@ export default function PettyCashDashboard() {
       status: 'pending',
     }),
     enabled: !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   if (!branchId) {

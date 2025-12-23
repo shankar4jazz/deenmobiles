@@ -46,13 +46,15 @@ export default function RecordExpensePage() {
     queryKey: ['branchBalance', branchId],
     queryFn: () => pettyCashTransferApi.getBranchBalance(branchId!),
     enabled: !!branchId,
-    refetchInterval: 30000,
+    staleTime: 1 * 60 * 1000, // 1 minute
+    refetchInterval: 60000, // 60 seconds
   });
 
   // Fetch expense categories
   const { data: categoriesData } = useQuery({
     queryKey: ['expenseCategories'],
     queryFn: () => masterDataApi.expenseCategories.getAll({ limit: 100, isActive: true }),
+    staleTime: 5 * 60 * 1000, // 5 minutes - categories rarely change
   });
 
   // Fetch expenses
@@ -67,6 +69,7 @@ export default function RecordExpensePage() {
         categoryId: selectedCategory || undefined,
       }),
     enabled: !!branchId,
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
 
   // Create expense mutation

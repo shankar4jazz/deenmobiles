@@ -4,6 +4,7 @@ import { faultApi } from '@/services/masterDataApi';
 import { Fault } from '@/types/masters';
 import { X, Plus, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface FaultTagInputProps {
   value: string[];
@@ -34,22 +35,27 @@ export function FaultTagInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  // Fetch frequent faults by default
+  // Debounce search term to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Fetch frequent faults by default with caching
   const { data: frequentFaultsData, isLoading: isLoadingFrequent } = useQuery({
     queryKey: ['faults-frequent'],
     queryFn: () => faultApi.getAll({ isActive: true, limit: 50 }),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Fetch faults with search
+  // Fetch faults with search - cached per search term
   const { data: searchData, isLoading: isLoadingSearch } = useQuery({
-    queryKey: ['faults-search', searchTerm],
-    queryFn: () => faultApi.getAll({ search: searchTerm, isActive: true, limit: 50 }),
-    enabled: searchTerm.length >= 1,
+    queryKey: ['faults-search', debouncedSearchTerm],
+    queryFn: () => faultApi.getAll({ search: debouncedSearchTerm, isActive: true, limit: 50 }),
+    enabled: debouncedSearchTerm.length >= 1,
+    staleTime: 2 * 60 * 1000, // 2 minutes for search results
   });
 
   // Show search results when searching, otherwise show frequent faults
-  const faults = searchTerm.length >= 1 ? (searchData?.data || []) : (frequentFaultsData?.data || []);
-  const isLoading = searchTerm.length >= 1 ? isLoadingSearch : isLoadingFrequent;
+  const faults = debouncedSearchTerm.length >= 1 ? (searchData?.data || []) : (frequentFaultsData?.data || []);
+  const isLoading = debouncedSearchTerm.length >= 1 ? isLoadingSearch : isLoadingFrequent;
   const allFaults = frequentFaultsData?.data || [];
 
   // Filter out already selected faults from suggestions

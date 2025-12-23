@@ -69,6 +69,7 @@ export default function ExpenseAnalyticsPage() {
       limit: 10000, // Get all expenses for the period
     }),
     enabled: !!branchId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - analytics data changes less frequently
   });
 
   // Fetch dashboard data for additional stats
@@ -76,6 +77,7 @@ export default function ExpenseAnalyticsPage() {
     queryKey: ['expenseDashboard', branchId],
     queryFn: () => expenseApi.getBranchDashboard(branchId!),
     enabled: !!branchId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   if (!branchId) {

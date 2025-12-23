@@ -82,3 +82,159 @@ export const cashSettlementKeys = {
   list: (filters: Record<string, unknown>) => [...cashSettlementKeys.all, 'list', filters] as const,
   detail: (id: string) => [...cashSettlementKeys.all, 'detail', id] as const,
 };
+
+// Job sheet query keys
+export const jobSheetKeys = {
+  all: ['jobsheets'] as const,
+  lists: () => [...jobSheetKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...jobSheetKeys.lists(), filters] as const,
+  details: () => [...jobSheetKeys.all, 'detail'] as const,
+  detail: (id: string) => [...jobSheetKeys.details(), id] as const,
+  byService: (serviceId: string) => [...jobSheetKeys.all, 'service', serviceId] as const,
+};
+
+// Invoice query keys
+export const invoiceKeys = {
+  all: ['invoices'] as const,
+  lists: () => [...invoiceKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...invoiceKeys.lists(), filters] as const,
+  details: () => [...invoiceKeys.all, 'detail'] as const,
+  detail: (id: string) => [...invoiceKeys.details(), id] as const,
+  byService: (serviceId: string) => [...invoiceKeys.all, 'service', serviceId] as const,
+};
+
+// Estimate query keys
+export const estimateKeys = {
+  all: ['estimates'] as const,
+  lists: () => [...estimateKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...estimateKeys.lists(), filters] as const,
+  details: () => [...estimateKeys.all, 'detail'] as const,
+  detail: (id: string) => [...estimateKeys.details(), id] as const,
+};
+
+// Warranty query keys
+export const warrantyKeys = {
+  all: ['warranties'] as const,
+  lists: () => [...warrantyKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...warrantyKeys.lists(), filters] as const,
+  details: () => [...warrantyKeys.all, 'detail'] as const,
+  detail: (id: string) => [...warrantyKeys.details(), id] as const,
+  byCustomer: (customerId: string) => [...warrantyKeys.all, 'customer', customerId] as const,
+  byService: (serviceId: string) => [...warrantyKeys.all, 'service', serviceId] as const,
+  stats: () => [...warrantyKeys.all, 'stats'] as const,
+};
+
+// Branch inventory query keys
+export const branchInventoryKeys = {
+  all: ['branch-inventory'] as const,
+  lists: () => [...branchInventoryKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...branchInventoryKeys.lists(), filters] as const,
+  details: () => [...branchInventoryKeys.all, 'detail'] as const,
+  detail: (id: string) => [...branchInventoryKeys.details(), id] as const,
+  movements: (id: string) => [...branchInventoryKeys.detail(id), 'movements'] as const,
+  dropdown: (branchId: string) => [...branchInventoryKeys.all, 'dropdown', branchId] as const,
+  lowStock: (branchId?: string) => [...branchInventoryKeys.all, 'low-stock', branchId ?? 'all'] as const,
+};
+
+// Customer device query keys
+export const customerDeviceKeys = {
+  all: ['customer-devices'] as const,
+  lists: () => [...customerDeviceKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...customerDeviceKeys.lists(), filters] as const,
+  byCustomer: (customerId: string) => [...customerDeviceKeys.all, 'customer', customerId] as const,
+  details: () => [...customerDeviceKeys.all, 'detail'] as const,
+  detail: (id: string) => [...customerDeviceKeys.details(), id] as const,
+  history: (id: string) => [...customerDeviceKeys.detail(id), 'history'] as const,
+};
+
+// Expense query keys
+export const expenseKeys = {
+  all: ['expenses'] as const,
+  lists: () => [...expenseKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...expenseKeys.lists(), filters] as const,
+  details: () => [...expenseKeys.all, 'detail'] as const,
+  detail: (id: string) => [...expenseKeys.details(), id] as const,
+  stats: (branchId?: string) => [...expenseKeys.all, 'stats', branchId ?? 'all'] as const,
+  dashboard: (branchId: string) => [...expenseKeys.all, 'dashboard', branchId] as const,
+  analytics: (branchId: string, dateRange?: string) => [...expenseKeys.all, 'analytics', branchId, dateRange ?? 'default'] as const,
+};
+
+// Petty cash query keys
+export const pettyCashKeys = {
+  all: ['petty-cash'] as const,
+  requests: () => [...pettyCashKeys.all, 'requests'] as const,
+  requestList: (filters: Record<string, unknown>) => [...pettyCashKeys.requests(), filters] as const,
+  myRequests: (userId: string) => [...pettyCashKeys.all, 'my-requests', userId] as const,
+  transfers: () => [...pettyCashKeys.all, 'transfers'] as const,
+  transferList: (filters: Record<string, unknown>) => [...pettyCashKeys.transfers(), filters] as const,
+  balance: (branchId: string) => [...pettyCashKeys.all, 'balance', branchId] as const,
+  dashboard: (branchId: string) => [...pettyCashKeys.all, 'dashboard', branchId] as const,
+};
+
+// Items query keys
+export const itemsKeys = {
+  all: ['items'] as const,
+  lists: () => [...itemsKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...itemsKeys.lists(), filters] as const,
+  details: () => [...itemsKeys.all, 'detail'] as const,
+  detail: (id: string) => [...itemsKeys.details(), id] as const,
+  dropdown: () => [...itemsKeys.all, 'dropdown'] as const,
+};
+
+// Supplier query keys
+export const supplierKeys = {
+  all: ['suppliers'] as const,
+  lists: () => [...supplierKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...supplierKeys.lists(), filters] as const,
+  details: () => [...supplierKeys.all, 'detail'] as const,
+  detail: (id: string) => [...supplierKeys.details(), id] as const,
+  dropdown: () => [...supplierKeys.all, 'dropdown'] as const,
+};
+
+// Purchase order query keys
+export const purchaseOrderKeys = {
+  all: ['purchase-orders'] as const,
+  lists: () => [...purchaseOrderKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...purchaseOrderKeys.lists(), filters] as const,
+  details: () => [...purchaseOrderKeys.all, 'detail'] as const,
+  detail: (id: string) => [...purchaseOrderKeys.details(), id] as const,
+  returns: (orderId: string) => [...purchaseOrderKeys.detail(orderId), 'returns'] as const,
+};
+
+// Role query keys
+export const roleKeys = {
+  all: ['roles'] as const,
+  lists: () => [...roleKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...roleKeys.lists(), filters] as const,
+  details: () => [...roleKeys.all, 'detail'] as const,
+  detail: (id: string) => [...roleKeys.details(), id] as const,
+};
+
+// Branch query keys
+export const branchKeys = {
+  all: ['branches'] as const,
+  lists: () => [...branchKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...branchKeys.lists(), filters] as const,
+  details: () => [...branchKeys.all, 'detail'] as const,
+  detail: (id: string) => [...branchKeys.details(), id] as const,
+  employees: (branchId: string) => [...branchKeys.detail(branchId), 'employees'] as const,
+  analytics: (branchId: string) => [...branchKeys.detail(branchId), 'analytics'] as const,
+};
+
+// Employee query keys
+export const employeeKeys = {
+  all: ['employees'] as const,
+  lists: () => [...employeeKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...employeeKeys.lists(), filters] as const,
+  details: () => [...employeeKeys.all, 'detail'] as const,
+  detail: (id: string) => [...employeeKeys.details(), id] as const,
+};
+
+// Theme query keys
+export const themeKeys = {
+  all: ['themes'] as const,
+  lists: () => [...themeKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...themeKeys.lists(), filters] as const,
+  details: () => [...themeKeys.all, 'detail'] as const,
+  detail: (id: string) => [...themeKeys.details(), id] as const,
+};

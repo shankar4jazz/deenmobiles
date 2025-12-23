@@ -51,6 +51,7 @@ export default function InvoiceList() {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Filter for due/pending invoices on client side

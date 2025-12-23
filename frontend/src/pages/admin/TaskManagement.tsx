@@ -58,18 +58,21 @@ export default function TaskManagement() {
         page,
         limit: 20,
       }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch task stats
   const { data: statsData } = useQuery({
     queryKey: ['task-stats'],
     queryFn: taskApi.getTaskStats,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch employees for filter
   const { data: employeesData } = useQuery({
     queryKey: ['employees-list'],
     queryFn: () => employeeApi.getEmployees({ limit: 100 }),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Delete task mutation

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { accessoryApi } from '@/services/masterDataApi';
 import { Accessory } from '@/types/masters';
 import { X, ChevronDown, Check, Package } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface AccessoryTagInputProps {
   value: string[];
@@ -29,14 +30,18 @@ export function AccessoryTagInput({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all accessories
+  // Debounce search term to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Fetch all accessories with caching
   const { data: accessoriesData, isLoading } = useQuery({
-    queryKey: ['accessories', searchTerm],
+    queryKey: ['accessories', debouncedSearchTerm],
     queryFn: () => accessoryApi.getAll({
-      search: searchTerm || undefined,
+      search: debouncedSearchTerm || undefined,
       isActive: true,
       limit: 100
     }),
+    staleTime: 5 * 60 * 1000, // 5 minutes - accessories rarely change
   });
 
   const accessories = accessoriesData?.data || [];

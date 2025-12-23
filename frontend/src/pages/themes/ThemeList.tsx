@@ -35,6 +35,7 @@ export default function ThemeList() {
         search: searchTerm || undefined,
         isActive: selectedStatus === 'active' ? true : selectedStatus === 'inactive' ? false : undefined,
       }),
+    staleTime: 10 * 60 * 1000, // 10 minutes - themes rarely change
   });
 
   // Delete mutation

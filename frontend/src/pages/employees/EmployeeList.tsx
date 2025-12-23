@@ -34,6 +34,7 @@ export default function EmployeeList() {
   const { data, isLoading } = useQuery({
     queryKey: ['employees', filters, page, limit],
     queryFn: () => employeeApi.getAllEmployees(filters, page, limit),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Delete mutation

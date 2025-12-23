@@ -72,12 +72,14 @@ export default function PurchaseOrderList() {
         limit,
         branchId: user?.activeBranch?.id,
       }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch suppliers for filter dropdown
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers-dropdown', user?.activeBranch?.id],
     queryFn: () => supplierApi.getSuppliersDropdown(user?.activeBranch?.id),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch purchase order summary
@@ -85,6 +87,7 @@ export default function PurchaseOrderList() {
     queryKey: ['purchase-orders-summary', user?.activeBranch?.id],
     queryFn: () =>
       purchaseOrderApi.getPurchaseOrderSummary(user?.activeBranch?.id),
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch purchase history
@@ -99,6 +102,7 @@ export default function PurchaseOrderList() {
         sortOrder: 'desc',
       }),
     enabled: activeTab === 'history',
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch purchase returns
@@ -106,6 +110,7 @@ export default function PurchaseOrderList() {
     queryKey: ['purchase-returns', user?.activeBranch?.id],
     queryFn: () => purchaseReturnApi.getAllReturns(user?.activeBranch?.id),
     enabled: activeTab === 'returns',
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Delete mutation

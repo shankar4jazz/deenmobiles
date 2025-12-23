@@ -42,12 +42,14 @@ export default function PettyCashRequestsPage() {
         search: searchTerm,
         status: selectedStatus || undefined,
       }),
+    staleTime: 1 * 60 * 1000, // 1 minute - financial data needs fresher updates
   });
 
   // Fetch stats
   const { data: statsData } = useQuery({
     queryKey: ['pettyCashRequestStats'],
     queryFn: () => pettyCashRequestApi.getStats(),
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
 
   // Approve request mutation

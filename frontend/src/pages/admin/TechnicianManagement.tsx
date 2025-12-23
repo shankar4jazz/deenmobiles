@@ -66,18 +66,21 @@ export default function TechnicianManagement() {
         10
       ),
     enabled: activeTab === 'technicians',
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch levels
   const { data: levelsData, isLoading: levelsLoading } = useQuery({
     queryKey: ['technician-levels'],
     queryFn: technicianApi.getLevels,
+    staleTime: 10 * 60 * 1000, // 10 minutes - levels rarely change
   });
 
   // Fetch branches for filter
   const { data: branchesData } = useQuery({
     queryKey: ['branches'],
     queryFn: () => branchApi.getAllBranches(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch promotion candidates
@@ -85,6 +88,7 @@ export default function TechnicianManagement() {
     queryKey: ['promotion-candidates'],
     queryFn: technicianApi.getPromotionCandidates,
     enabled: activeTab === 'promotions',
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch technicians with skills for skills tab
@@ -100,6 +104,7 @@ export default function TechnicianManagement() {
         100
       ),
     enabled: activeTab === 'skills',
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   // Fetch faults for skill options
@@ -107,6 +112,7 @@ export default function TechnicianManagement() {
     queryKey: ['faults'],
     queryFn: () => faultApi.getAll({ isActive: true, limit: 100 }),
     enabled: activeTab === 'skills' || showAddSkillModal,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Create level mutation

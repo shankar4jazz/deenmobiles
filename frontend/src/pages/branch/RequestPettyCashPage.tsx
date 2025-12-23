@@ -21,7 +21,8 @@ export default function RequestPettyCashPage() {
     queryKey: ['branchBalance', branchId],
     queryFn: () => pettyCashTransferApi.getBranchBalance(branchId!),
     enabled: !!branchId,
-    refetchInterval: 30000,
+    staleTime: 1 * 60 * 1000, // 1 minute
+    refetchInterval: 60000, // 60 seconds
   });
 
   // Fetch recent requests
@@ -29,6 +30,7 @@ export default function RequestPettyCashPage() {
     queryKey: ['myRecentRequests', branchId],
     queryFn: () => pettyCashRequestApi.getMyRequests({ limit: 5 }),
     enabled: !!branchId,
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
 
   // Create request mutation
