@@ -264,7 +264,7 @@ export class DocumentNumberService {
       const sequencePart = sequence.toString().padStart(format.sequenceLength, '0');
 
       // Build the document number
-      const parts: string[] = [format.prefix];
+      const parts: string[] = [];
 
       if (format.includeBranch && branchPart) {
         parts.push(branchPart);
@@ -317,7 +317,7 @@ export class DocumentNumberService {
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
 
-    const parts: string[] = [prefix];
+    const parts: string[] = [];
 
     if (includeBranch) {
       parts.push(branchCode);
