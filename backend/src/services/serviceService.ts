@@ -710,6 +710,12 @@ export class ServiceService {
               name: true,
             },
           },
+          deviceReturnedBy: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       });
 
@@ -1719,7 +1725,8 @@ export class ServiceService {
     status: ServiceStatus,
     notes: string | undefined,
     userId: string,
-    companyId: string
+    companyId: string,
+    notServiceableReason?: string
   ) {
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -1735,6 +1742,11 @@ export class ServiceService {
           throw new AppError(404, 'Service not found');
         }
 
+        // Validate notServiceableReason is provided when status is NOT_SERVICEABLE
+        if (status === ServiceStatus.NOT_SERVICEABLE && !notServiceableReason) {
+          throw new AppError(400, 'Reason is required when marking service as not serviceable');
+        }
+
         // Prepare update data
         const updateData: any = { status };
 
@@ -1744,6 +1756,10 @@ export class ServiceService {
         }
         if (status === ServiceStatus.DELIVERED && !service.deliveredAt) {
           updateData.deliveredAt = new Date();
+        }
+        // Set notServiceableReason when status is NOT_SERVICEABLE
+        if (status === ServiceStatus.NOT_SERVICEABLE) {
+          updateData.notServiceableReason = notServiceableReason;
         }
 
         // Update service status
@@ -1810,6 +1826,93 @@ export class ServiceService {
   }
 
   /**
+   * Mark device as returned to customer
+   */
+  static async markDeviceReturned(
+    serviceId: string,
+    userId: string,
+    companyId: string
+  ) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // Verify service exists
+        const service = await tx.service.findFirst({
+          where: {
+            id: serviceId,
+            companyId,
+          },
+        });
+
+        if (!service) {
+          throw new AppError(404, 'Service not found');
+        }
+
+        // Check if device is already returned
+        if (service.deviceReturnedAt) {
+          throw new AppError(400, 'Device has already been returned to customer');
+        }
+
+        // Validate service is in appropriate status for device return
+        const allowedStatuses: ServiceStatus[] = [
+          ServiceStatus.DELIVERED,
+          ServiceStatus.NOT_SERVICEABLE,
+          ServiceStatus.CANCELLED,
+        ];
+        if (!allowedStatuses.includes(service.status)) {
+          throw new AppError(400, 'Device can only be marked as returned for delivered, not serviceable, or cancelled services');
+        }
+
+        // Update service with device return info
+        const updatedService = await tx.service.update({
+          where: { id: serviceId },
+          data: {
+            deviceReturnedAt: new Date(),
+            deviceReturnedById: userId,
+          },
+          include: {
+            customer: true,
+            assignedTo: true,
+            branch: true,
+            deviceReturnedBy: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'DEVICE_RETURNED',
+            entity: 'service',
+            entityId: serviceId,
+            details: JSON.stringify({
+              deviceReturnedAt: updatedService.deviceReturnedAt,
+              status: service.status,
+            }),
+          },
+        });
+
+        return updatedService;
+      });
+
+      Logger.info('Device marked as returned to customer', {
+        serviceId,
+        returnedAt: result.deviceReturnedAt,
+        returnedBy: result.deviceReturnedById,
+      });
+
+      return result;
+    } catch (error) {
+      Logger.error('Error marking device as returned', { error, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to mark device as returned');
+    }
+  }
+
+  /**
    * Assign service to technician
    */
   static async assignTechnician(serviceId: string, technicianId: string, notes: string | undefined, userId: string, companyId: string) {
@@ -1819,6 +1922,9 @@ export class ServiceService {
         where: {
           id: serviceId,
           companyId,
+        },
+        include: {
+          assignedTo: true,
         },
       });
 
@@ -1839,6 +1945,10 @@ export class ServiceService {
         throw new AppError(404, 'Technician not found or not in the same branch');
       }
 
+      // Check if this is a reassignment
+      const previousTechnician = service.assignedTo;
+      const isReassignment = previousTechnician && previousTechnician.id !== technicianId;
+
       // Update service assignment
       const updatedService = await prisma.service.update({
         where: { id: serviceId },
@@ -1852,8 +1962,9 @@ export class ServiceService {
         },
       });
 
-      // Create status history if not already IN_PROGRESS
+      // Create status history for assignment/reassignment
       if (service.status === ServiceStatus.PENDING) {
+        // First assignment - change status to IN_PROGRESS
         await prisma.serviceStatusHistory.create({
           data: {
             serviceId,
@@ -1867,6 +1978,27 @@ export class ServiceService {
         await prisma.service.update({
           where: { id: serviceId },
           data: { status: ServiceStatus.IN_PROGRESS },
+        });
+      } else if (isReassignment) {
+        // Reassignment - log with current status
+        const historyNotes = notes || `Reassigned from ${previousTechnician.name} to ${technician.name}`;
+        await prisma.serviceStatusHistory.create({
+          data: {
+            serviceId,
+            status: service.status,
+            notes: historyNotes,
+            changedBy: userId,
+          },
+        });
+      } else if (!previousTechnician) {
+        // First assignment but service not in PENDING status
+        await prisma.serviceStatusHistory.create({
+          data: {
+            serviceId,
+            status: service.status,
+            notes: notes || `Assigned to ${technician.name}`,
+            changedBy: userId,
+          },
         });
       }
 
