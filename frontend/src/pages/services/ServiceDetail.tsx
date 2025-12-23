@@ -366,6 +366,28 @@ export default function ServiceDetail() {
             </div>
           </div>
 
+          {/* Reported Faults */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Reported Faults</h3>
+            {service.faults && service.faults.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {service.faults.map((f: any) => (
+                  <div
+                    key={f.fault?.id || f.faultId}
+                    className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg"
+                  >
+                    <span className="font-medium text-red-700">{f.fault?.name || 'Unknown'}</span>
+                    {f.fault?.defaultPrice > 0 && (
+                      <span className="text-xs text-red-500">₹{f.fault.defaultPrice}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 italic">No faults recorded</p>
+            )}
+          </div>
+
           {/* Device Intake - Compact */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
@@ -512,28 +534,6 @@ export default function ServiceDetail() {
                 <p><span className="text-gray-500">Damage Condition:</span> {service.damageCondition}</p>
                 <p><span className="text-gray-500">Diagnosis:</span> {service.diagnosis || <span className="text-gray-400 italic">Not yet diagnosed</span>}</p>
               </div>
-            )}
-          </div>
-
-          {/* Faults Card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Reported Faults</h3>
-            {service.faults && service.faults.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {service.faults.map((f: any) => (
-                  <div
-                    key={f.fault?.id || f.faultId}
-                    className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg"
-                  >
-                    <span className="font-medium text-red-700">{f.fault?.name || 'Unknown'}</span>
-                    {f.fault?.defaultPrice > 0 && (
-                      <span className="text-xs text-red-500">₹{f.fault.defaultPrice}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 italic">No faults recorded</p>
             )}
           </div>
 
