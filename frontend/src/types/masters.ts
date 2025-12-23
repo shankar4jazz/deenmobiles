@@ -148,6 +148,7 @@ export interface Fault extends MasterDataBase {
   name: string;
   code?: string;
   description?: string;
+  tags?: string;
   defaultPrice: number;
   technicianPoints: number;
 }
@@ -156,6 +157,7 @@ export interface CreateFaultDto {
   name: string;
   code?: string;
   description?: string;
+  tags?: string;
   defaultPrice?: number;
   technicianPoints?: number;
 }
@@ -164,6 +166,7 @@ export interface UpdateFaultDto {
   name?: string;
   code?: string;
   description?: string;
+  tags?: string;
   defaultPrice?: number;
   technicianPoints?: number;
   isActive?: boolean;

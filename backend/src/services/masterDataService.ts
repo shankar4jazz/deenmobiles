@@ -86,6 +86,7 @@ interface CreateFaultData {
   name: string;
   code?: string;
   description?: string;
+  tags?: string;  // Comma-separated tags: "mic,speaker,board"
   defaultPrice?: number;
   technicianPoints?: number;
   companyId: string;
@@ -95,6 +96,7 @@ interface UpdateFaultData {
   name?: string;
   code?: string;
   description?: string;
+  tags?: string;  // Comma-separated tags: "mic,speaker,board"
   defaultPrice?: number;
   technicianPoints?: number;
   isActive?: boolean;
@@ -1378,6 +1380,7 @@ export class MasterDataService {
           name: data.name,
           code: data.code ? data.code.toUpperCase() : undefined,
           description: data.description,
+          tags: data.tags || null,
           defaultPrice: data.defaultPrice ?? 0,
           technicianPoints: data.technicianPoints ?? 0,
           companyId: data.companyId,
@@ -1441,6 +1444,7 @@ export class MasterDataService {
           ...(data.name && { name: data.name }),
           ...(data.code !== undefined && { code: data.code ? data.code.toUpperCase() : null }),
           ...(data.description !== undefined && { description: data.description }),
+          ...(data.tags !== undefined && { tags: data.tags || null }),
           ...(data.defaultPrice !== undefined && { defaultPrice: data.defaultPrice }),
           ...(data.technicianPoints !== undefined && { technicianPoints: data.technicianPoints }),
           ...(data.isActive !== undefined && { isActive: data.isActive }),

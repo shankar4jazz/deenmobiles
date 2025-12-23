@@ -218,7 +218,7 @@ export class ServiceController {
     const { id } = req.params;
     const companyId = req.user!.companyId;
     const userId = req.user!.userId;
-    const { branchInventoryId, quantity, unitPrice } = req.body;
+    const { branchInventoryId, quantity, unitPrice, isExtraSpare, faultTag } = req.body;
 
     const servicePart = await ServiceService.addServicePart({
       serviceId: id,
@@ -227,6 +227,8 @@ export class ServiceController {
       unitPrice,
       userId,
       companyId,
+      isExtraSpare: isExtraSpare === true,
+      faultTag: faultTag || undefined,
     });
 
     return ApiResponse.created(res, servicePart, 'Service part added successfully');
@@ -296,6 +298,28 @@ export class ServiceController {
     );
 
     return ApiResponse.success(res, servicePart, 'Service part approved successfully');
+  });
+
+  /**
+   * POST /api/v1/services/:id/parts/:partId/approve-warranty
+   * Approve service part for warranty repair (staff internal approval)
+   * Deducts stock but does NOT charge the customer
+   */
+  static approveServicePartForWarranty = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id, partId } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { approvalNote } = req.body;
+
+    const servicePart = await ServiceService.approveServicePartForWarranty(
+      partId,
+      id,
+      userId,
+      companyId,
+      approvalNote
+    );
+
+    return ApiResponse.success(res, servicePart, 'Service part approved for warranty successfully');
   });
 
   /**
@@ -462,12 +486,19 @@ export class ServiceController {
   static checkPreviousServices = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { customerDeviceId } = req.params;
     const companyId = req.user!.companyId;
+    const { faultIds } = req.query;
 
     if (!customerDeviceId) {
       throw new AppError(400, 'Customer device ID is required');
     }
 
-    const result = await ServiceService.checkPreviousServices(customerDeviceId, companyId);
+    // Parse faultIds from query string (comma-separated)
+    let currentFaultIds: string[] | undefined;
+    if (faultIds && typeof faultIds === 'string') {
+      currentFaultIds = faultIds.split(',').filter(id => id.trim());
+    }
+
+    const result = await ServiceService.checkPreviousServices(customerDeviceId, companyId, currentFaultIds);
 
     return ApiResponse.success(res, result, 'Previous services check completed');
   });

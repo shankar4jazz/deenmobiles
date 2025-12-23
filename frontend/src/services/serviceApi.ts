@@ -317,6 +317,8 @@ export interface AddServicePartData {
   branchInventoryId: string;  // Changed from partId
   quantity: number;
   unitPrice: number;
+  isExtraSpare?: boolean;  // true = extra spare, false = tagged part
+  faultTag?: string;  // Which fault tag this part belongs to
 }
 
 export type ApprovalMethod = 'PHONE_CALL' | 'WHATSAPP' | 'IN_PERSON' | 'SMS';

@@ -1066,6 +1066,9 @@ function FaultSection({
                 Description
               </th>
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                Tags
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                 Status
               </th>
               <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
@@ -1090,6 +1093,22 @@ function FaultSection({
                 </td>
                 <td className="px-3 py-2 text-xs text-gray-500">
                   {category.description || '-'}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {category.tags ? (
+                    <div className="flex flex-wrap gap-1">
+                      {category.tags.split(',').map((tag: string, index: number) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                        >
+                          {tag.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap text-xs">
                   <span
@@ -1648,7 +1667,8 @@ function MasterDataModal({
       rate: 0,
       brandId: '',
       defaultPrice: 0,
-      technicianPoints: 0
+      technicianPoints: 0,
+      tags: ''
     }
   );
   const queryClient = useQueryClient();
@@ -1861,6 +1881,19 @@ function MasterDataModal({
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tags
+                </label>
+                <input
+                  type="text"
+                  value={formData.tags || ''}
+                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  placeholder="e.g., mic, speaker, board (comma separated)"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">Enter comma-separated tags for parts categorization</p>
               </div>
             </>
           )}

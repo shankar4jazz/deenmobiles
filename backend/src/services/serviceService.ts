@@ -42,6 +42,10 @@ interface CreateServiceData {
   dataWarrantyAccepted?: boolean;
   sendSmsNotification?: boolean;
   sendWhatsappNotification?: boolean;
+  // Warranty repair fields
+  isWarrantyRepair?: boolean;
+  warrantyReason?: string;
+  matchingFaultIds?: string[];
 }
 
 interface UpdateServiceData {
@@ -83,6 +87,8 @@ interface AddServicePartData {
   unitPrice: number;
   userId: string;
   companyId: string;
+  isExtraSpare?: boolean;  // true = extra spare, false = tagged part
+  faultTag?: string;  // Which fault tag this part belongs to
 }
 
 export class ServiceService {
@@ -282,6 +288,10 @@ export class ServiceService {
             sendWhatsappNotification: data.sendWhatsappNotification ?? false,
             isRepeatedService,
             previousServiceId,
+            // Warranty repair fields
+            isWarrantyRepair: data.isWarrantyRepair ?? false,
+            warrantyReason: data.warrantyReason,
+            matchingFaultIds: data.matchingFaultIds ?? [],
             // Create fault connections
             faults: {
               create: data.faultIds.map((faultId) => ({
@@ -715,6 +725,7 @@ export class ServiceService {
                   id: true,
                   name: true,
                   defaultPrice: true,
+                  tags: true,
                 },
               },
             },
@@ -1277,7 +1288,7 @@ export class ServiceService {
    */
   static async addServicePart(data: AddServicePartData) {
     try {
-      const { serviceId, branchInventoryId, quantity, unitPrice, userId, companyId } = data;
+      const { serviceId, branchInventoryId, quantity, unitPrice, userId, companyId, isExtraSpare = false, faultTag } = data;
 
       const result = await prisma.$transaction(async (tx) => {
         // Verify service exists and get its branch
@@ -1316,11 +1327,15 @@ export class ServiceService {
         }
 
         // Check if this part already exists in this service (only unapproved parts can be merged)
+        // For extra spare parts, also match on isExtraSpare
+        // For tagged parts, also match on faultTag
         const existingPart = await tx.servicePart.findFirst({
           where: {
             serviceId,
             branchInventoryId,
             isApproved: false, // Only merge with unapproved parts
+            isExtraSpare, // Match same type (extra spare vs tagged)
+            ...(faultTag ? { faultTag } : {}), // Match same fault tag if provided
           },
         });
 
@@ -1329,9 +1344,20 @@ export class ServiceService {
         let action: string;
 
         if (existingPart) {
-          // Update existing unapproved part - increase quantity
+          // Update existing part - increase quantity
           const newQuantity = existingPart.quantity + quantity;
           totalPrice = unitPrice * newQuantity;
+          const autoApprove = !isExtraSpare; // Tagged parts are auto-approved
+
+          // For tagged parts, deduct stock for the additional quantity
+          if (autoApprove) {
+            await tx.branchInventory.update({
+              where: { id: branchInventoryId },
+              data: {
+                stockQuantity: { decrement: quantity },
+              },
+            });
+          }
 
           servicePart = await tx.servicePart.update({
             where: { id: existingPart.id },
@@ -1339,6 +1365,11 @@ export class ServiceService {
               quantity: newQuantity,
               unitPrice, // Update to new price if different
               totalPrice,
+              isApproved: autoApprove || existingPart.isApproved,
+              ...(autoApprove && !existingPart.isApproved ? {
+                approvedAt: new Date(),
+                approvedById: userId,
+              } : {}),
             },
             include: {
               branchInventory: {
@@ -1367,8 +1398,21 @@ export class ServiceService {
 
           action = 'SERVICE_PART_QUANTITY_INCREASED';
         } else {
-          // Create new unapproved service part record
+          // Create new service part record
+          // Tagged parts (isExtraSpare = false) are auto-approved and stock is deducted immediately
+          // Extra spare parts (isExtraSpare = true) require customer approval before stock deduction
           totalPrice = unitPrice * quantity;
+          const autoApprove = !isExtraSpare; // Tagged parts are auto-approved
+
+          // For tagged parts, deduct stock immediately
+          if (autoApprove) {
+            await tx.branchInventory.update({
+              where: { id: branchInventoryId },
+              data: {
+                stockQuantity: { decrement: quantity },
+              },
+            });
+          }
 
           servicePart = await tx.servicePart.create({
             data: {
@@ -1378,7 +1422,13 @@ export class ServiceService {
               quantity,
               unitPrice,
               totalPrice,
-              isApproved: false, // Awaiting customer approval
+              isApproved: autoApprove, // Tagged parts auto-approved, extra spare needs approval
+              isExtraSpare,
+              faultTag: faultTag || null,
+              ...(autoApprove ? {
+                approvedAt: new Date(),
+                approvedById: userId,
+              } : {}),
             },
             include: {
               branchInventory: {
@@ -1899,6 +1949,148 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error approving service part', { error, servicePartId, serviceId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to approve service part');
+    }
+  }
+
+  /**
+   * Approve service part for warranty repair (staff internal approval)
+   * Deducts stock but does NOT add to customer's bill
+   * Used when service is marked as warranty repair - no customer call needed
+   */
+  static async approveServicePartForWarranty(
+    servicePartId: string,
+    serviceId: string,
+    userId: string,
+    companyId: string,
+    approvalNote?: string
+  ) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // Get service part with all relations
+        const servicePart = await tx.servicePart.findFirst({
+          where: {
+            id: servicePartId,
+            serviceId,
+            service: { companyId },
+          },
+          include: {
+            service: { select: { branchId: true, isWarrantyRepair: true, actualCost: true, labourCharge: true } },
+            branchInventory: {
+              include: {
+                item: { select: { id: true, itemName: true, itemCode: true } },
+              },
+            },
+            item: { select: { id: true, itemName: true, itemCode: true } },
+          },
+        });
+
+        if (!servicePart) {
+          throw new AppError(404, 'Service part not found');
+        }
+
+        if (servicePart.isApproved) {
+          throw new AppError(400, 'Service part is already approved');
+        }
+
+        if (!servicePart.service.isWarrantyRepair) {
+          throw new AppError(400, 'This service is not marked as a warranty repair. Use regular approval instead.');
+        }
+
+        if (!servicePart.branchInventoryId) {
+          throw new AppError(400, 'Cannot approve legacy part without inventory reference');
+        }
+
+        // Check current stock availability
+        const branchInventory = await tx.branchInventory.findUnique({
+          where: { id: servicePart.branchInventoryId },
+        });
+
+        if (!branchInventory) {
+          throw new AppError(404, 'Branch inventory not found');
+        }
+
+        const currentStock = Number(branchInventory.stockQuantity);
+        if (currentStock < servicePart.quantity) {
+          throw new AppError(400, `Insufficient stock. Available: ${currentStock}, Required: ${servicePart.quantity}`);
+        }
+
+        // Deduct stock (inventory IS deducted for warranty repairs)
+        const newStock = currentStock - servicePart.quantity;
+        await tx.branchInventory.update({
+          where: { id: servicePart.branchInventoryId },
+          data: { stockQuantity: newStock },
+        });
+
+        // Create stock movement record
+        await tx.stockMovement.create({
+          data: {
+            branchInventoryId: servicePart.branchInventoryId,
+            movementType: StockMovementType.SERVICE_USE,
+            quantity: servicePart.quantity,
+            previousQty: currentStock,
+            newQty: newStock,
+            referenceType: 'SERVICE_PART_WARRANTY_APPROVED',
+            referenceId: servicePartId,
+            notes: `Warranty approval for service ${serviceId} - no customer charge`,
+            userId,
+            branchId: servicePart.service.branchId,
+            companyId,
+          },
+        });
+
+        // Update service part with warranty approval info
+        const updatedPart = await tx.servicePart.update({
+          where: { id: servicePartId },
+          data: {
+            isApproved: true,
+            approvalMethod: 'WARRANTY_INTERNAL',
+            approvalNote: approvalNote || 'Warranty repair - internal approval',
+            approvedAt: new Date(),
+            approvedById: userId,
+          },
+          include: {
+            branchInventory: {
+              include: {
+                item: { select: { id: true, itemName: true, itemCode: true } },
+              },
+            },
+            item: { select: { id: true, itemName: true, itemCode: true } },
+            approvedBy: { select: { id: true, name: true } },
+          },
+        });
+
+        // NOTE: For warranty repairs, we do NOT update service actualCost
+        // The parts are used but not charged to the customer
+        // The cost tracking is done via stock movement records
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'SERVICE_PART_WARRANTY_APPROVED',
+            entity: 'service',
+            entityId: serviceId,
+            details: JSON.stringify({
+              servicePartId,
+              itemName: servicePart.branchInventory?.item?.itemName || servicePart.item?.itemName,
+              quantity: servicePart.quantity,
+              totalPrice: servicePart.totalPrice,
+              approvalNote,
+              previousStock: currentStock,
+              newStock,
+              isWarranty: true,
+            }),
+          },
+        });
+
+        return updatedPart;
+      });
+
+      Logger.info('Service part approved for warranty', { servicePartId, serviceId });
+      return result;
+    } catch (error) {
+      Logger.error('Error approving service part for warranty', { error, servicePartId, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to approve service part for warranty');
     }
   }
 
@@ -2711,10 +2903,12 @@ export class ServiceService {
   /**
    * Check if a device has been serviced within the last 30 days
    * Returns info about the most recent service if found
+   * Also checks for matching faults if currentFaultIds is provided
    */
   static async checkPreviousServices(
     customerDeviceId: string,
-    companyId: string
+    companyId: string,
+    currentFaultIds?: string[]
   ): Promise<{
     isRepeated: boolean;
     lastService: {
@@ -2727,6 +2921,8 @@ export class ServiceService {
       faults?: { id: string; name: string }[];
     } | null;
     daysSinceLastService: number | null;
+    hasFaultMatch: boolean;
+    matchingFaultIds: string[];
   }> {
     try {
       // Calculate date 30 days ago
@@ -2773,6 +2969,8 @@ export class ServiceService {
           isRepeated: false,
           lastService: null,
           daysSinceLastService: null,
+          hasFaultMatch: false,
+          matchingFaultIds: [],
         };
       }
 
@@ -2781,6 +2979,16 @@ export class ServiceService {
       const daysSinceLastService = Math.floor(
         (now.getTime() - previousService.createdAt.getTime()) / (1000 * 60 * 60 * 24)
       );
+
+      // Check for matching faults if currentFaultIds provided
+      const previousFaultIds = previousService.faults.map((f) => f.fault.id);
+      let matchingFaultIds: string[] = [];
+      let hasFaultMatch = false;
+
+      if (currentFaultIds && currentFaultIds.length > 0) {
+        matchingFaultIds = currentFaultIds.filter((id) => previousFaultIds.includes(id));
+        hasFaultMatch = matchingFaultIds.length > 0;
+      }
 
       return {
         isRepeated: true,
@@ -2797,6 +3005,8 @@ export class ServiceService {
           })),
         },
         daysSinceLastService,
+        hasFaultMatch,
+        matchingFaultIds,
       };
     } catch (error) {
       Logger.error('Error checking previous services', { error, customerDeviceId });

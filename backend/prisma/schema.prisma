@@ -271,6 +271,7 @@ model Service {
   actualCost        Float?
   labourCharge      Float                  @default(0)
   advancePayment    Float                  @default(0)
+  extraSpareAmount  Float                  @default(0)  // Extra parts cost beyond estimate
   status            ServiceStatus          @default(PENDING)
   assignedToId      String?
   createdById       String?                // User who created/booked the service
@@ -292,6 +293,10 @@ model Service {
   previousServiceId String?                // Link to the previous service
   previousService   Service?               @relation("RepeatedService", fields: [previousServiceId], references: [id], onDelete: SetNull)
   repeatedServices  Service[]              @relation("RepeatedService")
+  // Warranty repair fields
+  isWarrantyRepair  Boolean                @default(false) // True if marked as warranty/free repair
+  warrantyReason    String?                // e.g., "SAME_FAULT", "STAFF_OVERRIDE"
+  matchingFaultIds  String[]               // IDs of faults that matched previous service
   invoice           Invoice?
   jobSheet          JobSheet?
   estimate          Estimate? // Formal estimate linked to service
@@ -374,9 +379,13 @@ model ServicePart {
   totalPrice        Float
   createdAt         DateTime         @default(now())
 
-  // Customer approval fields
+  // Part classification
+  isExtraSpare      Boolean          @default(false)  // true = extra spare, false = tagged part
+  faultTag          String?          // Which fault tag this part belongs to (e.g., "mic", "speaker")
+
+  // Customer approval fields (only for extra spare parts)
   isApproved        Boolean          @default(false)
-  approvalMethod    String?          // PHONE_CALL, WHATSAPP, IN_PERSON, SMS
+  approvalMethod    String?          // PHONE_CALL, WHATSAPP, IN_PERSON, SMS, WARRANTY_INTERNAL
   approvalNote      String?
   approvedAt        DateTime?
   approvedById      String?
@@ -435,22 +444,23 @@ model ServiceStatusHistory {
 }
 
 model Invoice {
-  id            String        @id @default(uuid())
-  invoiceNumber String        @unique
-  serviceId     String?       @unique // Made optional for standalone invoices
-  customerId    String? // For standalone invoices without service
-  estimateId    String?       @unique // Link to estimate if converted
-  totalAmount   Float
-  paidAmount    Float         @default(0)
-  balanceAmount Float
-  paymentStatus PaymentStatus @default(PENDING)
-  companyId     String
-  branchId      String? // For standalone invoices
-  themeId       String? // PDF theme
-  pdfUrl        String?
-  notes         String?       @db.Text
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id               String        @id @default(uuid())
+  invoiceNumber    String        @unique
+  serviceId        String?       @unique // Made optional for standalone invoices
+  customerId       String? // For standalone invoices without service
+  estimateId       String?       @unique // Link to estimate if converted
+  totalAmount      Float
+  paidAmount       Float         @default(0)
+  balanceAmount    Float
+  paymentStatus    PaymentStatus @default(PENDING)
+  isWarrantyInvoice Boolean      @default(false) // True if warranty repair invoice
+  companyId        String
+  branchId         String? // For standalone invoices
+  themeId          String? // PDF theme
+  pdfUrl           String?
+  notes            String?       @db.Text
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
   company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   service       Service?      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   customer      Customer?     @relation("InvoiceCustomer", fields: [customerId], references: [id], onDelete: SetNull)
@@ -928,6 +938,7 @@ model Fault {
   name             String
   code             String?
   description      String?
+  tags             String?          // Comma-separated part tags: "mic,speaker,board"
   defaultPrice     Decimal          @default(0) @db.Decimal(10, 2)
   technicianPoints Int              @default(0)
   isActive         Boolean          @default(true)
