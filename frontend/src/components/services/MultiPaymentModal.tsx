@@ -25,7 +25,6 @@ interface PaymentMethodEntry {
   paymentMethodId: string;
   paymentMethodName: string;
   amount: string;
-  transactionId: string;
 }
 
 export default function MultiPaymentModal({
@@ -58,7 +57,6 @@ export default function MultiPaymentModal({
           paymentMethodId: method.id,
           paymentMethodName: method.name,
           amount: '',
-          transactionId: '',
         };
       });
       setPaymentEntries(initial);
@@ -90,7 +88,6 @@ export default function MultiPaymentModal({
         .map((entry) => ({
           amount: parseFloat(entry.amount),
           paymentMethodId: entry.paymentMethodId,
-          transactionId: entry.transactionId || undefined,
         }));
 
       const data: BulkPaymentEntryData = {
@@ -138,12 +135,12 @@ export default function MultiPaymentModal({
     bulkPaymentMutation.mutate();
   };
 
-  const updatePaymentEntry = (methodId: string, field: 'amount' | 'transactionId', value: string) => {
+  const updatePaymentEntry = (methodId: string, value: string) => {
     setPaymentEntries((prev) => ({
       ...prev,
       [methodId]: {
         ...prev[methodId],
-        [field]: value,
+        amount: value,
       },
     }));
   };
@@ -202,31 +199,22 @@ export default function MultiPaymentModal({
             {isLoadingMethods ? (
               <div className="text-center py-4 text-gray-500">Loading payment methods...</div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 {paymentMethodsData?.data.map((method) => (
                   <div key={method.id} className="border border-gray-200 rounded-lg p-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       {method.name}
                     </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={paymentEntries[method.id]?.amount || ''}
-                          onChange={(e) => updatePaymentEntry(method.id, 'amount', e.target.value)}
-                          className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                          placeholder="0.00"
-                        />
-                      </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
                       <input
-                        type="text"
-                        value={paymentEntries[method.id]?.transactionId || ''}
-                        onChange={(e) => updatePaymentEntry(method.id, 'transactionId', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                        placeholder="Ref / Transaction ID"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={paymentEntries[method.id]?.amount || ''}
+                        onChange={(e) => updatePaymentEntry(method.id, e.target.value)}
+                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                        placeholder="0.00"
                       />
                     </div>
                   </div>
