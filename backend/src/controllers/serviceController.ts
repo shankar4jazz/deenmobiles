@@ -539,4 +539,31 @@ export class ServiceController {
 
     return ApiResponse.success(res, result, 'Previous services check completed');
   });
+
+  /**
+   * POST /api/v1/services/:id/refund
+   * Process service refund
+   */
+  static processRefund = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { reason, paymentMethodId } = req.body;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const branchId = req.user!.branchId;
+
+    if (!reason || !paymentMethodId) {
+      throw new AppError(400, 'Reason and payment method are required');
+    }
+
+    const result = await ServiceService.processServiceRefund({
+      serviceId: id,
+      reason,
+      paymentMethodId,
+      userId,
+      companyId,
+      branchId: branchId || '',
+    });
+
+    return ApiResponse.success(res, result, 'Refund processed successfully');
+  });
 }

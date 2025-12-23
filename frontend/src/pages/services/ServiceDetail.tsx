@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom';
 import EditEstimatedCostModal from '@/components/services/EditEstimatedCostModal';
 import MultiPaymentModal from '@/components/services/MultiPaymentModal';
 import TechnicianNotes from '@/components/services/TechnicianNotes';
+import RefundModal from '@/components/services/RefundModal';
 import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -60,6 +61,7 @@ export default function ServiceDetail() {
   const [showStatusChange, setShowStatusChange] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(false);
   const [discountValue, setDiscountValue] = useState('');
+  const [showRefundModal, setShowRefundModal] = useState(false);
 
   // Photo viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -85,6 +87,10 @@ export default function ServiceDetail() {
     const totalAmount = estimatePrice + extraSpareTotal;
     const finalAmount = totalAmount - discount;
     const advancePaid = service?.advancePayment || 0;
+    // Calculate total paid from payment entries
+    const paymentEntriesTotal = (service?.paymentEntries || [])
+      .reduce((sum: number, entry: any) => sum + entry.amount, 0);
+    const totalPaid = paymentEntriesTotal + advancePaid;
     return {
       estimatePrice,
       extraSpareTotal,
@@ -93,6 +99,7 @@ export default function ServiceDetail() {
       finalAmount,
       advancePaid,
       balanceDue: finalAmount - advancePaid,
+      totalPaid,
     };
   }, [service]);
 
@@ -986,16 +993,30 @@ export default function ServiceDetail() {
                 </button>
               )
             ) : (
-              /* For other statuses - show Add Payment & Delivery */
-              (user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
-                <button
-                  onClick={() => setShowAddPaymentModal(true)}
-                  className="w-full mt-3 py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow-md flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Payment & Delivery
-                </button>
-              )
+              /* For other statuses - show Add Payment & Delivery and Refund */
+              <>
+                {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'RECEPTIONIST') && (
+                  <button
+                    onClick={() => setShowAddPaymentModal(true)}
+                    className="w-full mt-3 py-2.5 px-3 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow-md flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Payment & Delivery
+                  </button>
+                )}
+                {/* Refund Button - only for managers/admins when there are payments */}
+                {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') &&
+                 pricingSummary.totalPaid > 0 &&
+                 service.status !== ServiceStatus.CANCELLED &&
+                 !service.refundedAt && (
+                  <button
+                    onClick={() => setShowRefundModal(true)}
+                    className="w-full mt-2 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg border border-red-200 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    Refund & Cancel
+                  </button>
+                )}
+              </>
             )}
 
             {/* Payment History - hide for NOT_SERVICEABLE */}
@@ -1015,6 +1036,36 @@ export default function ServiceDetail() {
                       </span>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Refund Info - show when service is refunded */}
+            {service.refundedAt && (
+              <div className="mt-3 pt-3 border-t">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <h4 className="text-xs font-semibold text-red-700 mb-2 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    REFUNDED
+                  </h4>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-red-600">Amount:</span>
+                      <span className="font-bold text-red-700">₹{service.refundAmount?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <div>
+                      <span className="text-red-600">Reason:</span>
+                      <p className="text-red-700 mt-0.5">{service.refundReason}</p>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-red-600">Method:</span>
+                      <span className="text-red-700">{service.refundPaymentMethod?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-red-500">
+                      <span>By:</span>
+                      <span>{service.refundedBy?.name} on {new Date(service.refundedAt).toLocaleDateString('en-IN')}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1170,6 +1221,14 @@ export default function ServiceDetail() {
         serviceId={service.id}
         pricingSummary={pricingSummary}
         currentStatus={service.status}
+      />
+
+      {/* Refund Modal */}
+      <RefundModal
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+        serviceId={service.id}
+        totalPaid={pricingSummary.totalPaid}
       />
     </div>
   );

@@ -49,6 +49,20 @@ export interface Service {
   isWarrantyRepair?: boolean;
   warrantyReason?: string;
   matchingFaultIds?: string[];
+  // Refund fields
+  refundAmount?: number;
+  refundReason?: string;
+  refundPaymentMethodId?: string;
+  refundedAt?: string;
+  refundedById?: string;
+  refundPaymentMethod?: {
+    id: string;
+    name: string;
+  };
+  refundedBy?: {
+    id: string;
+    name: string;
+  };
   dataWarrantyAccepted?: boolean;
   sendNotificationOnAssign?: boolean;
   createdById?: string;
@@ -684,6 +698,17 @@ export const serviceApi = {
    */
   deleteNote: async (serviceId: string, noteId: string): Promise<{ success: boolean }> => {
     const response = await api.delete(`/services/${serviceId}/notes/${noteId}`);
+    return response.data.data;
+  },
+
+  /**
+   * Process service refund - refund all payments and cancel service
+   */
+  processRefund: async (
+    serviceId: string,
+    data: { reason: string; paymentMethodId: string }
+  ): Promise<Service> => {
+    const response = await api.post(`/services/${serviceId}/refund`, data);
     return response.data.data;
   },
 };

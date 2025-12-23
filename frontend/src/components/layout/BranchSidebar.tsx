@@ -62,6 +62,11 @@ const navItems: NavItem[] = [
     icon: Users,
   },
   {
+    name: 'My Tasks',
+    path: '/branch/my-tasks',
+    icon: ClipboardList,
+  },
+  {
     name: 'Services',
     path: '/branch/services',
     icon: Wrench,

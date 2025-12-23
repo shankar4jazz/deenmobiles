@@ -63,7 +63,9 @@ import JobSheetTemplateForm from './pages/jobsheet-templates/JobSheetTemplateFor
 import CategoryManager from './pages/jobsheet-templates/CategoryManager';
 import SettingsMainPage from './pages/settings/SettingsMainPage';
 import TechnicianManagement from './pages/admin/TechnicianManagement';
+import TaskManagement from './pages/admin/TaskManagement';
 import PointsHistoryPage from './pages/technician/PointsHistoryPage';
+import MyTasks from './pages/tasks/MyTasks';
 import ReportsPage from './pages/reports/ReportsPage';
 
 // Create a client for React Query
@@ -113,6 +115,7 @@ function App() {
               <Route path="petty-cash/transfers" element={<PettyCashTransfersPage />} />
               <Route path="petty-cash/requests" element={<PettyCashRequestsPage />} />
               <Route path="technicians" element={<TechnicianManagement />} />
+              <Route path="tasks" element={<TaskManagement />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="settings" element={<SettingsMainPage />} />
             </Route>
@@ -130,6 +133,7 @@ function App() {
               <Route path="technician-dashboard" element={<TechnicianDashboard />} />
               <Route path="points-history" element={<PointsHistoryPage />} />
               <Route path="technicians" element={<TechnicianManagement />} />
+              <Route path="my-tasks" element={<MyTasks />} />
               <Route path="invoices" element={<InvoiceList />} />
               <Route path="invoices/create" element={<CreateInvoice />} />
               <Route path="invoices/:id" element={<InvoiceDetail />} />

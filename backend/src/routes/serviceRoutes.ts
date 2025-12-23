@@ -586,6 +586,22 @@ router.delete(
   ServiceController.deleteNote
 );
 
+/**
+ * @route   POST /api/v1/services/:id/refund
+ * @desc    Process service refund
+ * @access  Private (Manager, Admin)
+ */
+router.post(
+  '/:id/refund',
+  authorize(
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.processRefund
+);
+
 export default router;
 
 // Route update

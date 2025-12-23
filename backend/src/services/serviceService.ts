@@ -755,6 +755,18 @@ export class ServiceService {
               name: true,
             },
           },
+          refundPaymentMethod: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          refundedBy: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           previousService: {
             select: {
               id: true,
@@ -3253,6 +3265,132 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error checking previous services', { error, customerDeviceId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to check previous services');
+    }
+  }
+
+  /**
+   * Process service refund - refund all payments and cancel service
+   */
+  static async processServiceRefund(data: {
+    serviceId: string;
+    reason: string;
+    paymentMethodId: string;
+    userId: string;
+    companyId: string;
+    branchId: string;
+  }) {
+    const { serviceId, reason, paymentMethodId, userId, companyId, branchId } = data;
+
+    try {
+      // Get service with payment entries
+      const service = await prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          companyId,
+        },
+        include: {
+          paymentEntries: true,
+          customer: true,
+        },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      // Validate service is not already cancelled or refunded
+      if (service.status === 'CANCELLED') {
+        throw new AppError(400, 'Service is already cancelled');
+      }
+
+      if (service.refundedAt) {
+        throw new AppError(400, 'Service has already been refunded');
+      }
+
+      // Calculate total paid amount
+      const paymentTotal = service.paymentEntries.reduce((sum, entry) => sum + entry.amount, 0);
+      const totalPaid = paymentTotal + (service.advancePayment || 0);
+
+      if (totalPaid <= 0) {
+        throw new AppError(400, 'No payments to refund');
+      }
+
+      // Verify payment method exists
+      const paymentMethod = await prisma.paymentMethod.findFirst({
+        where: {
+          id: paymentMethodId,
+          companyId,
+        },
+      });
+
+      if (!paymentMethod) {
+        throw new AppError(404, 'Payment method not found');
+      }
+
+      // Process refund in transaction
+      const updatedService = await prisma.$transaction(async (tx) => {
+        // Update service with refund info and cancel
+        const refundedService = await tx.service.update({
+          where: { id: serviceId },
+          data: {
+            status: 'CANCELLED',
+            refundAmount: totalPaid,
+            refundReason: reason,
+            refundPaymentMethodId: paymentMethodId,
+            refundedAt: new Date(),
+            refundedById: userId,
+          },
+          include: {
+            customer: true,
+            refundPaymentMethod: true,
+            refundedBy: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        // Create status history entry
+        await tx.serviceStatusHistory.create({
+          data: {
+            serviceId,
+            status: 'CANCELLED',
+            notes: `Service refunded. Amount: ₹${totalPaid}. Reason: ${reason}`,
+            changedBy: userId,
+          },
+        });
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'REFUND',
+            entity: 'service',
+            entityId: serviceId,
+            details: JSON.stringify({
+              refundAmount: totalPaid,
+              reason,
+              paymentMethodId,
+              paymentMethodName: paymentMethod.name,
+            }),
+          },
+        });
+
+        return refundedService;
+      });
+
+      Logger.info('Service refund processed successfully', {
+        serviceId,
+        refundAmount: totalPaid,
+        reason,
+      });
+
+      return updatedService;
+    } catch (error) {
+      Logger.error('Error processing service refund', { error, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to process refund');
     }
   }
 }

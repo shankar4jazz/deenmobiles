@@ -58,6 +58,7 @@ model Company {
   technicianProfiles          TechnicianProfile[]
   documentNumberFormats       DocumentNumberFormat[]
   dailyOpeningBalances        DailyOpeningBalance[]
+  tasks                       Task[]
 
   @@map("companies")
 }
@@ -99,6 +100,7 @@ model Branch {
   technicianProfiles  TechnicianProfile[]
   documentSequences   DocumentSequence[]
   dailyOpeningBalances DailyOpeningBalance[]
+  tasks               Task[]
 
   @@index([companyId])
   @@index([managerId])
@@ -156,7 +158,10 @@ model User {
   technicianNotifications    TechnicianNotification[]
   serviceNotes               ServiceNote[]              @relation("ServiceNotesByUser")
   deviceReturns              Service[]                  @relation("DeviceReturnedBy")
+  serviceRefundsProcessed    Service[]                  @relation("ServiceRefundsBy")
   approvedParts              ServicePart[]              @relation("UserPartApprovals")
+  tasksAssigned              Task[]                     @relation("TaskAssignee")
+  tasksCreated               Task[]                     @relation("TaskCreator")
 
   @@index([companyId])
   @@index([branchId])
@@ -291,6 +296,12 @@ model Service {
   notServiceableReason String?              // Reason why device cannot be serviced
   deviceReturnedAt  DateTime?              // When device was physically returned to customer
   deviceReturnedById String?               // User who returned device to customer
+  // Refund fields
+  refundAmount          Float?
+  refundReason          String?             @db.Text
+  refundPaymentMethodId String?
+  refundedAt            DateTime?
+  refundedById          String?
   // Repeated service tracking
   isRepeatedService Boolean                @default(false) // True if device was serviced within 30 days
   previousServiceId String?                // Link to the previous service
@@ -312,6 +323,8 @@ model Service {
   assignedTo        User?                  @relation("ServiceAssignedTo", fields: [assignedToId], references: [id])
   createdBy         User?                  @relation("ServiceCreatedBy", fields: [createdById], references: [id])
   deviceReturnedBy  User?                  @relation("DeviceReturnedBy", fields: [deviceReturnedById], references: [id])
+  refundPaymentMethod PaymentMethod?       @relation("ServiceRefunds", fields: [refundPaymentMethodId], references: [id])
+  refundedBy        User?                  @relation("ServiceRefundsBy", fields: [refundedById], references: [id])
   branch            Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
   company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer          Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -856,6 +869,7 @@ model PaymentMethod {
   pettyCashTransfers PettyCashTransfer[]
   refundTransactions RefundTransaction[] @relation("RefundPaymentMethod")
   paymentEntries     PaymentEntry[]      @relation("PaymentEntries")
+  serviceRefunds     Service[]           @relation("ServiceRefunds")
   openingBalances    DailyOpeningBalance[] @relation("PaymentMethodOpeningBalances")
 
   @@index([companyId])
@@ -1910,6 +1924,21 @@ enum SequenceResetFrequency {
   YEARLY
 }
 
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 model DocumentNumberFormat {
   id                     String                  @id @default(uuid())
   documentType           DocumentType
@@ -1975,4 +2004,53 @@ model DailyOpeningBalance {
   @@index([branchId])
   @@index([companyId])
   @@map("daily_opening_balances")
+}
+
+// ============================================
+// Task Management
+// ============================================
+
+model Task {
+  id           String       @id @default(uuid())
+  taskNumber   String       @unique
+  title        String
+  description  String?      @db.Text
+  status       TaskStatus   @default(PENDING)
+  priority     TaskPriority @default(MEDIUM)
+
+  // Assignment
+  assignedToId String
+  assignedTo   User         @relation("TaskAssignee", fields: [assignedToId], references: [id])
+
+  // Creator
+  createdById  String
+  createdBy    User         @relation("TaskCreator", fields: [createdById], references: [id])
+
+  // Multi-tenancy
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId     String
+  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  // Dates
+  dueDate      DateTime
+  completedAt  DateTime?
+
+  // Bulk tracking (tasks created together share same batchId)
+  batchId      String?
+
+  // Notes
+  notes        String?      @db.Text
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([companyId])
+  @@index([branchId])
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([status])
+  @@index([dueDate])
+  @@index([batchId])
+  @@map("tasks")
 }

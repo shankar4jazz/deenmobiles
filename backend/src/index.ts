@@ -41,6 +41,7 @@ import technicianRoutes from './routes/technicianRoutes';
 import publicRoutes from './routes/publicRoutes';
 import documentNumberRoutes from './routes/documentNumberRoutes';
 import reportRoutes from './routes/reportRoutes';
+import taskRoutes from './routes/taskRoutes';
 
 const app: Application = express();
 
@@ -117,6 +118,7 @@ app.use(`/api/${config.apiVersion}/job-sheet-template-categories`, jobSheetTempl
 app.use(`/api/${config.apiVersion}/technicians`, technicianRoutes);
 app.use(`/api/${config.apiVersion}/document-numbers`, documentNumberRoutes);
 app.use(`/api/${config.apiVersion}/reports`, reportRoutes);
+app.use(`/api/${config.apiVersion}/tasks`, taskRoutes);
 
 // Public routes (no authentication required)
 app.use(`/api/${config.apiVersion}/public`, publicRoutes);
