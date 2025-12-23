@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ImageUpload from '@/components/common/ImageUpload';
 import { employeeApi } from '@/services/employeeApi';
 import { branchApi } from '@/services/branchApi';
@@ -25,6 +25,7 @@ const mapRoleNameToEnum = (roleName: string): UserRole => {
 export default function EditEmployee() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [error, setError] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -168,6 +169,10 @@ export default function EditEmployee() {
   const updateMutation = useMutation({
     mutationFn: (data: EmployeeUpdateData) => employeeApi.updateEmployee(id!, data),
     onSuccess: () => {
+      // Invalidate employee caches to reflect updated data
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-list'] });
+      queryClient.invalidateQueries({ queryKey: ['employee', id] });
       navigate('/admin/employees');
     },
     onError: (error: any) => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, AlertCircle, Loader2 } from 'lucide-react';
 import { supplierApi } from '../../services/supplierApi';
 import { SupplierFormData } from '../../types';
@@ -24,6 +24,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
   onSuccess,
 }) => {
   const user = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState<SupplierFormData>({
     name: '',
     supplierCode: '',
@@ -56,6 +57,9 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
   const createMutation = useMutation({
     mutationFn: (data: SupplierFormData) => supplierApi.createSupplier(data),
     onSuccess: () => {
+      // Invalidate supplier list cache to show new supplier
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers-dropdown'] });
       onSuccess?.();
       resetForm();
     },
