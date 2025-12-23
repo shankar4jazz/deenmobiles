@@ -8,18 +8,15 @@ import {
   Smartphone,
   AlertCircle,
   Calendar,
-  CalendarDays,
   Wallet,
   Download,
   Loader2,
-  ChevronDown,
-  IndianRupee,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { branchApi } from '../../services/branchApi';
-import { reportApi, type ReportFilters, type DateFilter, type MonthFilter } from '../../services/reportApi';
+import { reportApi, type ReportFilters, type DateFilter } from '../../services/reportApi';
 
-type ReportType = 'booking-person' | 'technician' | 'brand' | 'fault' | 'daily-transaction' | 'monthly-transaction' | 'cash-settlement';
+type ReportType = 'booking-person' | 'technician' | 'brand' | 'fault' | 'daily-transaction' | 'cash-settlement';
 type DatePreset = 'today' | 'yesterday' | 'last-week' | 'last-month' | 'custom';
 
 const reportTabs: { id: ReportType; label: string; icon: React.ReactNode }[] = [
@@ -28,7 +25,6 @@ const reportTabs: { id: ReportType; label: string; icon: React.ReactNode }[] = [
   { id: 'brand', label: 'Brand', icon: <Smartphone className="w-4 h-4" /> },
   { id: 'fault', label: 'Fault', icon: <AlertCircle className="w-4 h-4" /> },
   { id: 'daily-transaction', label: 'Daily Transaction', icon: <Calendar className="w-4 h-4" /> },
-  { id: 'monthly-transaction', label: 'Monthly Transaction', icon: <CalendarDays className="w-4 h-4" /> },
   { id: 'cash-settlement', label: 'Cash Settlement', icon: <Wallet className="w-4 h-4" /> },
 ];
 
@@ -46,8 +42,6 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState(today.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   const [selectedDate, setSelectedDate] = useState(today.toISOString().split('T')[0]);
-  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(
     user?.branchId || undefined
   );
@@ -88,17 +82,6 @@ export default function ReportsPage() {
     setStartDate(startStr);
     setEndDate(endStr);
     setSelectedDate(startStr);
-
-    // For monthly transaction, set the month/year
-    if (preset === 'last-month') {
-      const lastMonth = new Date(now);
-      lastMonth.setMonth(lastMonth.getMonth() - 1);
-      setSelectedMonth(lastMonth.getMonth() + 1);
-      setSelectedYear(lastMonth.getFullYear());
-    } else {
-      setSelectedMonth(start.getMonth() + 1);
-      setSelectedYear(start.getFullYear());
-    }
   };
 
   const canSelectBranch = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
@@ -111,15 +94,11 @@ export default function ReportsPage() {
   });
 
   // Build filters based on active tab
-  const getFilters = (): ReportFilters | DateFilter | MonthFilter => {
+  const getFilters = (): ReportFilters | DateFilter => {
     const branchId = selectedBranchId;
 
     if (activeTab === 'daily-transaction' || activeTab === 'cash-settlement') {
       return { date: selectedDate, branchId };
-    }
-
-    if (activeTab === 'monthly-transaction') {
-      return { year: selectedYear, month: selectedMonth, branchId };
     }
 
     return { startDate, endDate, branchId };
@@ -141,8 +120,6 @@ export default function ReportsPage() {
           return reportApi.getFaultReport(filters as ReportFilters);
         case 'daily-transaction':
           return reportApi.getDailyTransactionReport(filters as DateFilter);
-        case 'monthly-transaction':
-          return reportApi.getMonthlyTransactionReport(filters as MonthFilter);
         case 'cash-settlement':
           return reportApi.getDailyCashSettlement(filters as DateFilter);
         default:
@@ -229,49 +206,6 @@ export default function ReportsPage() {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    if (activeTab === 'monthly-transaction') {
-      return (
-        <div className="flex flex-col gap-3 w-full">
-          {presetButtons}
-          {datePreset === 'custom' && (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Month:</label>
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {new Date(2000, i).toLocaleString('default', { month: 'long' })}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Year:</label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {Array.from({ length: 5 }, (_, i) => {
-                    const year = today.getFullYear() - i;
-                    return (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
             </div>
           )}
         </div>

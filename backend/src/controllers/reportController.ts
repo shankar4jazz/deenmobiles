@@ -130,29 +130,6 @@ export class ReportController {
   });
 
   /**
-   * GET /api/v1/reports/monthly-transaction
-   * Monthly transaction report
-   */
-  static getMonthlyTransactionReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const companyId = req.user!.companyId;
-    const userRole = req.user!.role;
-
-    let branchId = req.query.branchId as string | undefined;
-
-    // Apply branch filter for branch-specific roles
-    if (req.user!.branchId && userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
-      branchId = req.user!.branchId;
-    }
-
-    const year = parseInt(req.query.year as string);
-    const month = parseInt(req.query.month as string);
-
-    const report = await reportService.getMonthlyTransactionReport(companyId, branchId, year, month);
-
-    return ApiResponse.success(res, report, 'Monthly transaction report retrieved successfully');
-  });
-
-  /**
    * GET /api/v1/reports/cash-settlement
    * Daily cash settlement report
    */

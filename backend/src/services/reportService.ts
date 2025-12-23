@@ -62,16 +62,6 @@ interface DailyTransactionReport {
   transactions: TransactionDetail[];
 }
 
-interface MonthlyTransactionReport {
-  year: number;
-  month: number;
-  totalAmount: number;
-  paymentCount: number;
-  byDay: { date: string; amount: number; count: number }[];
-  byMethod: { methodId: string; methodName: string; amount: number; count: number }[];
-  transactions: TransactionDetail[];
-}
-
 interface CashSettlementMethod {
   paymentMethodId: string;
   paymentMethodName: string;
@@ -648,121 +638,7 @@ export class ReportService {
   }
 
   /**
-   * 6. Monthly Transaction Report
-   * All payments for a month
-   */
-  async getMonthlyTransactionReport(companyId: string, branchId: string | undefined, year: number, month: number): Promise<MonthlyTransactionReport> {
-    const startOfMonth = new Date(year, month - 1, 1);
-    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
-
-    const where: any = {
-      companyId,
-      paymentDate: {
-        gte: startOfMonth,
-        lte: endOfMonth,
-      },
-    };
-
-    const payments = await prisma.paymentEntry.findMany({
-      where,
-      include: {
-        paymentMethod: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        service: {
-          select: {
-            id: true,
-            ticketNumber: true,
-            branchId: true,
-            customer: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        paymentDate: 'asc',
-      },
-    });
-
-    // Filter by branch if specified
-    const filteredPayments = branchId
-      ? payments.filter((p) => p.service?.branchId === branchId)
-      : payments;
-
-    // Group by day
-    const dayMap = new Map<string, { amount: number; count: number }>();
-    for (const payment of filteredPayments) {
-      const dayKey = payment.paymentDate.toISOString().split('T')[0];
-      if (!dayMap.has(dayKey)) {
-        dayMap.set(dayKey, { amount: 0, count: 0 });
-      }
-      const day = dayMap.get(dayKey)!;
-      day.amount += payment.amount;
-      day.count++;
-    }
-
-    const byDay = Array.from(dayMap.entries())
-      .map(([date, data]) => ({
-        date,
-        amount: data.amount,
-        count: data.count,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    // Group by payment method
-    const methodMap = new Map<string, { methodName: string; amount: number; count: number }>();
-    for (const payment of filteredPayments) {
-      const methodId = payment.paymentMethodId;
-      const methodName = payment.paymentMethod.name;
-
-      if (!methodMap.has(methodId)) {
-        methodMap.set(methodId, { methodName, amount: 0, count: 0 });
-      }
-
-      const method = methodMap.get(methodId)!;
-      method.amount += payment.amount;
-      method.count++;
-    }
-
-    const byMethod = Array.from(methodMap.entries()).map(([methodId, data]) => ({
-      methodId,
-      methodName: data.methodName,
-      amount: data.amount,
-      count: data.count,
-    }));
-
-    const transactions: TransactionDetail[] = filteredPayments.map((p) => ({
-      id: p.id,
-      amount: p.amount,
-      paymentMethodId: p.paymentMethodId,
-      paymentMethodName: p.paymentMethod.name,
-      paymentDate: p.paymentDate,
-      notes: p.notes,
-      transactionId: p.transactionId,
-      serviceId: p.serviceId,
-      ticketNumber: p.service?.ticketNumber || null,
-      customerName: p.service?.customer?.name || null,
-    }));
-
-    return {
-      year,
-      month,
-      totalAmount: filteredPayments.reduce((sum, p) => sum + p.amount, 0),
-      paymentCount: filteredPayments.length,
-      byDay,
-      byMethod,
-      transactions,
-    };
-  }
-
-  /**
-   * 7. Daily Cash Settlement Report
+   * 6. Daily Cash Settlement Report
    * Opening balance, transactions, closing balance per payment method
    */
   async getDailyCashSettlement(companyId: string, branchId: string, date: Date): Promise<DailyCashSettlementReport> {

@@ -86,21 +86,6 @@ router.get(
 );
 
 /**
- * @route   GET /api/v1/reports/monthly-transaction
- * @desc    Get monthly transaction report
- * @access  Private (Manager+)
- */
-router.get(
-  '/monthly-transaction',
-  authorize(
-    UserRole.SUPER_ADMIN,
-    UserRole.ADMIN,
-    UserRole.MANAGER
-  ),
-  ReportController.getMonthlyTransactionReport
-);
-
-/**
  * @route   GET /api/v1/reports/cash-settlement
  * @desc    Get daily cash settlement report
  * @access  Private (Manager+, Receptionist)

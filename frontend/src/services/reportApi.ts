@@ -110,16 +110,6 @@ export interface DailyTransactionReport {
   transactions: TransactionDetail[];
 }
 
-export interface MonthlyTransactionReport {
-  year: number;
-  month: number;
-  totalAmount: number;
-  paymentCount: number;
-  byDay: { date: string; amount: number; count: number }[];
-  byMethod: PaymentMethodBreakdown[];
-  transactions: TransactionDetail[];
-}
-
 export interface DailyCashSettlementReport {
   date: string;
   branchId: string;
@@ -136,12 +126,6 @@ export interface ReportFilters {
 
 export interface DateFilter {
   date: string;
-  branchId?: string;
-}
-
-export interface MonthFilter {
-  year: number;
-  month: number;
   branchId?: string;
 }
 
@@ -177,13 +161,7 @@ export const reportApi = {
     return response.data.data;
   },
 
-  // 6. Monthly Transaction Report
-  getMonthlyTransactionReport: async (filters: MonthFilter): Promise<MonthlyTransactionReport> => {
-    const response = await api.get('/reports/monthly-transaction', { params: filters });
-    return response.data.data;
-  },
-
-  // 7. Daily Cash Settlement Report
+  // 6. Daily Cash Settlement Report
   getDailyCashSettlement: async (filters: DateFilter): Promise<DailyCashSettlementReport> => {
     const response = await api.get('/reports/cash-settlement', { params: filters });
     return response.data.data;
