@@ -449,7 +449,7 @@ export default function CreateService() {
                         }`}
                       />
                     </div>
-                    <span className="text-sm text-gray-600">Notify technician when assigned</span>
+                    <span className="text-sm text-gray-600">Send SMS notification to customer</span>
                   </label>
                 )}
               />
