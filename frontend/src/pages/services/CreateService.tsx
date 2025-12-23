@@ -431,7 +431,7 @@ export default function CreateService() {
               />
             </FormRow>
 
-            <FormRow label="Notifications">
+            <FormRow label="Customer Notification">
               <Controller
                 control={control}
                 name="sendNotificationOnAssign"

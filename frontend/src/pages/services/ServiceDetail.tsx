@@ -377,7 +377,7 @@ export default function ServiceDetail() {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
               Device Intake
             </h3>
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-4 gap-3 mb-3">
               {/* Password - compact */}
               <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                 <div className="text-xs text-gray-500">Password/PIN</div>
@@ -399,6 +399,17 @@ export default function ServiceDetail() {
                 <div className="text-xs text-gray-500">Condition</div>
                 <div className="font-medium text-sm">
                   {service.condition?.name || <span className="text-gray-400 font-normal">-</span>}
+                </div>
+              </div>
+              {/* Data Warranty */}
+              <div>
+                <div className="text-xs text-gray-500">Data Warranty</div>
+                <div className="font-medium text-sm">
+                  {service.dataWarrantyAccepted ? (
+                    <span className="text-green-600">Accepted</span>
+                  ) : (
+                    <span className="text-red-600">Not Accepted</span>
+                  )}
                 </div>
               </div>
             </div>
