@@ -154,6 +154,7 @@ model User {
   technicianNotifications    TechnicianNotification[]
   serviceNotes               ServiceNote[]              @relation("ServiceNotesByUser")
   deviceReturns              Service[]                  @relation("DeviceReturnedBy")
+  approvedParts              ServicePart[]              @relation("UserPartApprovals")
 
   @@index([companyId])
   @@index([branchId])
@@ -286,6 +287,11 @@ model Service {
   notServiceableReason String?              // Reason why device cannot be serviced
   deviceReturnedAt  DateTime?              // When device was physically returned to customer
   deviceReturnedById String?               // User who returned device to customer
+  // Repeated service tracking
+  isRepeatedService Boolean                @default(false) // True if device was serviced within 30 days
+  previousServiceId String?                // Link to the previous service
+  previousService   Service?               @relation("RepeatedService", fields: [previousServiceId], references: [id], onDelete: SetNull)
+  repeatedServices  Service[]              @relation("RepeatedService")
   invoice           Invoice?
   jobSheet          JobSheet?
   estimate          Estimate? // Formal estimate linked to service
@@ -316,6 +322,8 @@ model Service {
   @@index([ticketNumber])
   @@index([status])
   @@index([createdById])
+  @@index([previousServiceId])
+  @@index([customerDeviceId, createdAt]) // For repeated service lookups
   @@map("services")
 }
 
@@ -366,15 +374,24 @@ model ServicePart {
   totalPrice        Float
   createdAt         DateTime         @default(now())
 
+  // Customer approval fields
+  isApproved        Boolean          @default(false)
+  approvalMethod    String?          // PHONE_CALL, WHATSAPP, IN_PERSON, SMS
+  approvalNote      String?
+  approvedAt        DateTime?
+  approvedById      String?
+
   part              Part?            @relation(fields: [partId], references: [id], onDelete: Cascade)
   branchInventory   BranchInventory? @relation(fields: [branchInventoryId], references: [id], onDelete: SetNull)
   item              Item?            @relation(fields: [itemId], references: [id], onDelete: SetNull)
   service           Service          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  approvedBy        User?            @relation("UserPartApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
 
   @@index([serviceId])
   @@index([partId])
   @@index([branchInventoryId])
   @@index([itemId])
+  @@index([approvedById])
   @@map("service_parts")
 }
 

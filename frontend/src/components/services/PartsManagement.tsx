@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { serviceApi, BranchInventoryPart } from '@/services/serviceApi';
-import { Package, Plus, Trash2, AlertCircle, Search, X, Minus, Pencil, Check } from 'lucide-react';
+import { serviceApi, BranchInventoryPart, ApprovalMethod } from '@/services/serviceApi';
+import { Package, Plus, Trash2, AlertCircle, Search, X, Minus, Pencil, Check, CheckCircle, Clock, Phone, MessageCircle, User, MessageSquare } from 'lucide-react';
 
 interface PartsManagementProps {
   serviceId: string;
@@ -22,6 +22,11 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
   const [editingPartId, setEditingPartId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState(0);
   const [editUnitPrice, setEditUnitPrice] = useState(0);
+
+  // Approval state
+  const [approvingPartId, setApprovingPartId] = useState<string | null>(null);
+  const [approvalMethod, setApprovalMethod] = useState<ApprovalMethod>('PHONE_CALL');
+  const [approvalNote, setApprovalNote] = useState('');
 
   // Fetch available parts from branch inventory (shows most used by default)
   const { data: availableParts = [], isLoading: isLoadingParts } = useQuery({
@@ -59,6 +64,18 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
       setEditingPartId(null);
+    },
+  });
+
+  // Approve part mutation
+  const approvePartMutation = useMutation({
+    mutationFn: ({ partId, data }: { partId: string; data: { approvalMethod: ApprovalMethod; approvalNote?: string } }) =>
+      serviceApi.approveServicePart(serviceId, partId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      setApprovingPartId(null);
+      setApprovalMethod('PHONE_CALL');
+      setApprovalNote('');
     },
   });
 
@@ -107,6 +124,31 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
   // Cancel edit
   const cancelEdit = () => {
     setEditingPartId(null);
+  };
+
+  // Handle approve part
+  const handleApprove = (partId: string) => {
+    approvePartMutation.mutate({
+      partId,
+      data: {
+        approvalMethod,
+        approvalNote: approvalNote || undefined,
+      },
+    });
+  };
+
+  // Approval method options
+  const approvalMethods: { value: ApprovalMethod; label: string; icon: React.ReactNode }[] = [
+    { value: 'PHONE_CALL', label: 'Phone Call', icon: <Phone className="h-4 w-4" /> },
+    { value: 'WHATSAPP', label: 'WhatsApp', icon: <MessageCircle className="h-4 w-4" /> },
+    { value: 'IN_PERSON', label: 'In Person', icon: <User className="h-4 w-4" /> },
+    { value: 'SMS', label: 'SMS', icon: <MessageSquare className="h-4 w-4" /> },
+  ];
+
+  // Get approval method label
+  const getApprovalMethodLabel = (method: string) => {
+    const found = approvalMethods.find((m) => m.value === method);
+    return found?.label || method;
   };
 
   // Helper function to get part name (handles both new and legacy data)
@@ -335,6 +377,9 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Total Price
                   </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                    Approval
+                  </th>
                   {canEdit && (
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                       Actions
@@ -408,6 +453,82 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
                         <span>₹{part.totalPrice.toFixed(2)}</span>
                       )}
                     </td>
+                    <td className="px-4 py-3">
+                      {part.isApproved ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <CheckCircle className="h-3 w-3" />
+                            Approved
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {getApprovalMethodLabel(part.approvalMethod)}
+                          </span>
+                        </div>
+                      ) : approvingPartId === part.id ? (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg min-w-[200px]">
+                          <div className="text-sm font-medium text-gray-700 mb-2">Approve Part</div>
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Method</label>
+                              <select
+                                value={approvalMethod}
+                                onChange={(e) => setApprovalMethod(e.target.value as ApprovalMethod)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                              >
+                                {approvalMethods.map((m) => (
+                                  <option key={m.value} value={m.value}>
+                                    {m.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Note (optional)</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Spoke with customer at 3pm"
+                                value={approvalNote}
+                                onChange={(e) => setApprovalNote(e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                              />
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => handleApprove(part.id)}
+                                disabled={approvePartMutation.isPending}
+                                className="flex-1 px-2 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                              >
+                                {approvePartMutation.isPending ? 'Approving...' : 'Confirm'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setApprovingPartId(null);
+                                  setApprovalNote('');
+                                }}
+                                className="px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-800"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                            <Clock className="h-3 w-3" />
+                            Pending
+                          </span>
+                          {canEdit && (
+                            <button
+                              onClick={() => setApprovingPartId(part.id)}
+                              className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                            >
+                              Approve
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     {canEdit && (
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
@@ -474,12 +595,13 @@ export default function PartsManagement({ serviceId, parts, canEdit }: PartsMana
       )}
 
       {/* Error Messages */}
-      {(addPartMutation.isError || updatePartMutation.isError) && (
+      {(addPartMutation.isError || updatePartMutation.isError || approvePartMutation.isError) && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
           <AlertCircle className="h-4 w-4" />
           <span>
             {(addPartMutation.error as any)?.response?.data?.message ||
              (updatePartMutation.error as any)?.response?.data?.message ||
+             (approvePartMutation.error as any)?.response?.data?.message ||
              'Failed to update part'}
           </span>
         </div>

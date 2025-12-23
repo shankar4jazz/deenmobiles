@@ -1224,7 +1224,8 @@ export class ServiceService {
 
   /**
    * Add service part (with BranchInventory integration)
-   * If part already exists in service, increases quantity instead of creating new
+   * Part is added as unapproved - stock is NOT deducted until customer approves
+   * If part already exists in service (unapproved), increases quantity instead of creating new
    */
   static async addServicePart(data: AddServicePartData) {
     try {
@@ -1260,43 +1261,18 @@ export class ServiceService {
           throw new AppError(404, 'Part not found in branch inventory');
         }
 
-        // Check stock availability
+        // Check stock availability (warning only - stock is reserved but not deducted until approval)
         const currentStock = Number(branchInventory.stockQuantity);
         if (currentStock < quantity) {
           throw new AppError(400, `Insufficient stock. Available: ${currentStock}, Required: ${quantity}`);
         }
 
-        // Check if this part already exists in this service
+        // Check if this part already exists in this service (only unapproved parts can be merged)
         const existingPart = await tx.servicePart.findFirst({
           where: {
             serviceId,
             branchInventoryId,
-          },
-        });
-
-        // Calculate new stock
-        const newStock = currentStock - quantity;
-
-        // Update branch inventory stock
-        await tx.branchInventory.update({
-          where: { id: branchInventoryId },
-          data: { stockQuantity: newStock },
-        });
-
-        // Create stock movement record
-        const stockMovement = await tx.stockMovement.create({
-          data: {
-            branchInventoryId,
-            movementType: StockMovementType.SERVICE_USE,
-            quantity: quantity,
-            previousQty: currentStock,
-            newQty: newStock,
-            referenceType: 'SERVICE',
-            referenceId: serviceId,
-            notes: `Used in service ${serviceId}`,
-            userId,
-            branchId: service.branchId,
-            companyId,
+            isApproved: false, // Only merge with unapproved parts
           },
         });
 
@@ -1305,7 +1281,7 @@ export class ServiceService {
         let action: string;
 
         if (existingPart) {
-          // Update existing part - increase quantity
+          // Update existing unapproved part - increase quantity
           const newQuantity = existingPart.quantity + quantity;
           totalPrice = unitPrice * newQuantity;
 
@@ -1335,23 +1311,15 @@ export class ServiceService {
                   itemCode: true,
                 },
               },
+              approvedBy: {
+                select: { id: true, name: true },
+              },
             },
-          });
-
-          // Update service actual cost (add only the new quantity's price)
-          const currentActualCost = service.actualCost || 0;
-          const labourCost = service.labourCharge || 0;
-          // Recalculate: remove old total, add new total (include labour charge)
-          const oldTotalPrice = existingPart.totalPrice;
-          const newPartsTotal = (currentActualCost - labourCost) - oldTotalPrice + totalPrice;
-          await tx.service.update({
-            where: { id: serviceId },
-            data: { actualCost: newPartsTotal + labourCost },
           });
 
           action = 'SERVICE_PART_QUANTITY_INCREASED';
         } else {
-          // Create new service part record
+          // Create new unapproved service part record
           totalPrice = unitPrice * quantity;
 
           servicePart = await tx.servicePart.create({
@@ -1362,6 +1330,7 @@ export class ServiceService {
               quantity,
               unitPrice,
               totalPrice,
+              isApproved: false, // Awaiting customer approval
             },
             include: {
               branchInventory: {
@@ -1382,20 +1351,16 @@ export class ServiceService {
                   itemCode: true,
                 },
               },
+              approvedBy: {
+                select: { id: true, name: true },
+              },
             },
-          });
-
-          // Update service actual cost (parts total + labour charge)
-          const currentActualCost = service.actualCost || 0;
-          const labourCost = service.labourCharge || 0;
-          const currentPartsTotal = currentActualCost - labourCost;
-          await tx.service.update({
-            where: { id: serviceId },
-            data: { actualCost: currentPartsTotal + totalPrice + labourCost },
           });
 
           action = 'SERVICE_PART_ADDED';
         }
+
+        // Note: Stock is NOT deducted and actualCost is NOT updated until approval
 
         // Create activity log
         await tx.activityLog.create({
@@ -1411,9 +1376,8 @@ export class ServiceService {
               quantity,
               unitPrice,
               totalPrice,
-              previousStock: currentStock,
-              newStock,
-              stockMovementId: stockMovement.id,
+              currentStock,
+              pendingApproval: true,
               merged: !!existingPart,
             }),
           },
@@ -1422,7 +1386,7 @@ export class ServiceService {
         return servicePart;
       });
 
-      Logger.info('Service part added successfully', {
+      Logger.info('Service part added (pending approval)', {
         serviceId,
         branchInventoryId,
         quantity,
@@ -1438,6 +1402,8 @@ export class ServiceService {
 
   /**
    * Update service part (quantity and/or unit price)
+   * For unapproved parts: no stock changes (stock wasn't deducted yet)
+   * For approved parts: adjust stock accordingly
    */
   static async updateServicePart(
     servicePartId: string,
@@ -1473,8 +1439,8 @@ export class ServiceService {
         const newUnitPrice = updates.unitPrice ?? oldUnitPrice;
         const newTotalPrice = newQuantity * newUnitPrice;
 
-        // Handle stock adjustment if quantity changed
-        if (updates.quantity !== undefined && updates.quantity !== oldQuantity && servicePart.branchInventoryId) {
+        // Handle stock adjustment ONLY if part is approved and quantity changed
+        if (servicePart.isApproved && updates.quantity !== undefined && updates.quantity !== oldQuantity && servicePart.branchInventoryId) {
           const branchInventoryId = servicePart.branchInventoryId;
           const branchInventory = await tx.branchInventory.findUnique({
             where: { id: branchInventoryId },
@@ -1515,6 +1481,19 @@ export class ServiceService {
           }
         }
 
+        // For unapproved parts, just check stock availability if increasing quantity
+        if (!servicePart.isApproved && updates.quantity !== undefined && updates.quantity > oldQuantity && servicePart.branchInventoryId) {
+          const branchInventory = await tx.branchInventory.findUnique({
+            where: { id: servicePart.branchInventoryId },
+          });
+          if (branchInventory) {
+            const currentStock = Number(branchInventory.stockQuantity);
+            if (currentStock < newQuantity) {
+              throw new AppError(400, `Insufficient stock. Available: ${currentStock}, Required: ${newQuantity}`);
+            }
+          }
+        }
+
         // Update service part
         const updatedPart = await tx.servicePart.update({
           where: { id: servicePartId },
@@ -1534,19 +1513,24 @@ export class ServiceService {
             item: {
               select: { id: true, itemName: true, itemCode: true },
             },
+            approvedBy: {
+              select: { id: true, name: true },
+            },
           },
         });
 
-        // Update service actual cost (parts total + labour charge)
-        const currentActualCost = servicePart.service.actualCost || 0;
-        const labourCost = servicePart.service.labourCharge || 0;
-        const currentPartsTotal = currentActualCost - labourCost;
-        const costDiff = newTotalPrice - oldTotalPrice;
-        const newPartsTotal = Math.max(0, currentPartsTotal + costDiff);
-        await tx.service.update({
-          where: { id: serviceId },
-          data: { actualCost: newPartsTotal + labourCost },
-        });
+        // Update service actual cost ONLY if part is approved
+        if (servicePart.isApproved) {
+          const currentActualCost = servicePart.service.actualCost || 0;
+          const labourCost = servicePart.service.labourCharge || 0;
+          const currentPartsTotal = currentActualCost - labourCost;
+          const costDiff = newTotalPrice - oldTotalPrice;
+          const newPartsTotal = Math.max(0, currentPartsTotal + costDiff);
+          await tx.service.update({
+            where: { id: serviceId },
+            data: { actualCost: newPartsTotal + labourCost },
+          });
+        }
 
         // Create activity log
         await tx.activityLog.create({
@@ -1563,6 +1547,7 @@ export class ServiceService {
               newUnitPrice,
               oldTotalPrice,
               newTotalPrice,
+              isApproved: servicePart.isApproved,
             }),
           },
         });
@@ -1579,7 +1564,9 @@ export class ServiceService {
   }
 
   /**
-   * Remove service part (restore stock with movement record)
+   * Remove service part
+   * For unapproved parts: just delete (no stock was deducted)
+   * For approved parts: restore stock with movement record
    */
   static async removeServicePart(servicePartId: string, serviceId: string, userId: string, companyId: string) {
     try {
@@ -1618,73 +1605,79 @@ export class ServiceService {
 
         let itemName = 'Unknown Part';
 
-        // Handle new BranchInventory-based parts
-        if (servicePart.branchInventoryId) {
-          const branchInventoryId = servicePart.branchInventoryId;
-          const branchInventory = await tx.branchInventory.findUnique({
-            where: { id: branchInventoryId },
-          });
-
-          if (branchInventory) {
-            const currentStock = Number(branchInventory.stockQuantity);
-            const newStock = currentStock + servicePart.quantity;
-
-            // Restore stock
-            await tx.branchInventory.update({
+        // Only restore stock if part was APPROVED (stock was deducted)
+        if (servicePart.isApproved) {
+          // Handle new BranchInventory-based parts
+          if (servicePart.branchInventoryId) {
+            const branchInventoryId = servicePart.branchInventoryId;
+            const branchInventory = await tx.branchInventory.findUnique({
               where: { id: branchInventoryId },
-              data: { stockQuantity: newStock },
             });
 
-            // Create reverse stock movement
-            await tx.stockMovement.create({
-              data: {
-                branchInventoryId: branchInventoryId,
-                movementType: StockMovementType.RETURN,
-                quantity: servicePart.quantity,
-                previousQty: currentStock,
-                newQty: newStock,
-                referenceType: 'SERVICE_PART_REMOVED',
-                referenceId: servicePartId,
-                notes: `Part removed from service ${serviceId}`,
-                userId,
-                branchId: service.branchId,
-                companyId,
-              },
-            });
+            if (branchInventory) {
+              const currentStock = Number(branchInventory.stockQuantity);
+              const newStock = currentStock + servicePart.quantity;
 
-            itemName = servicePart.branchInventory?.item?.itemName || servicePart.item?.itemName || 'Unknown Part';
+              // Restore stock
+              await tx.branchInventory.update({
+                where: { id: branchInventoryId },
+                data: { stockQuantity: newStock },
+              });
+
+              // Create reverse stock movement
+              await tx.stockMovement.create({
+                data: {
+                  branchInventoryId: branchInventoryId,
+                  movementType: StockMovementType.RETURN,
+                  quantity: servicePart.quantity,
+                  previousQty: currentStock,
+                  newQty: newStock,
+                  referenceType: 'SERVICE_PART_REMOVED',
+                  referenceId: servicePartId,
+                  notes: `Part removed from service ${serviceId}`,
+                  userId,
+                  branchId: service.branchId,
+                  companyId,
+                },
+              });
+
+              itemName = servicePart.branchInventory?.item?.itemName || servicePart.item?.itemName || 'Unknown Part';
+            }
           }
-        }
-        // Handle legacy Part-based records (backward compatibility)
-        else if (servicePart.partId && servicePart.part) {
-          const partId = servicePart.partId;
-          const part = servicePart.part;
-          const previousQty = part.quantity;
-          const newQty = previousQty + servicePart.quantity;
+          // Handle legacy Part-based records (backward compatibility)
+          else if (servicePart.partId && servicePart.part) {
+            const partId = servicePart.partId;
+            const part = servicePart.part;
+            const previousQty = part.quantity;
+            const newQty = previousQty + servicePart.quantity;
 
-          await tx.part.update({
-            where: { id: partId },
-            data: { quantity: newQty },
+            await tx.part.update({
+              where: { id: partId },
+              data: { quantity: newQty },
+            });
+
+            itemName = part.name;
+          }
+
+          // Update service actual cost only for approved parts
+          const currentActualCost = service.actualCost || 0;
+          const labourCost = service.labourCharge || 0;
+          const currentPartsTotal = currentActualCost - labourCost;
+          const newPartsTotal = Math.max(0, currentPartsTotal - servicePart.totalPrice);
+          await tx.service.update({
+            where: { id: serviceId },
+            data: {
+              actualCost: newPartsTotal + labourCost,
+            },
           });
-
-          itemName = part.name;
+        } else {
+          // Unapproved part - just get item name for logging
+          itemName = servicePart.branchInventory?.item?.itemName || servicePart.item?.itemName || servicePart.part?.name || 'Unknown Part';
         }
 
         // Delete service part
         await tx.servicePart.delete({
           where: { id: servicePartId },
-        });
-
-        // Update service actual cost (parts total + labour charge)
-        const currentActualCost = service.actualCost || 0;
-        const labourCost = service.labourCharge || 0;
-        const currentPartsTotal = currentActualCost - labourCost;
-        const newPartsTotal = Math.max(0, currentPartsTotal - servicePart.totalPrice);
-        await tx.service.update({
-          where: { id: serviceId },
-          data: {
-            actualCost: newPartsTotal + labourCost,
-          },
         });
 
         // Create activity log
@@ -1701,6 +1694,7 @@ export class ServiceService {
               itemName,
               quantity: servicePart.quantity,
               totalPrice: servicePart.totalPrice,
+              wasApproved: servicePart.isApproved,
             }),
           },
         });
@@ -1714,6 +1708,149 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error removing service part', { error, servicePartId, serviceId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to remove service part');
+    }
+  }
+
+  /**
+   * Approve service part (deduct stock and record approval)
+   * Called when customer approves the use of a part
+   */
+  static async approveServicePart(
+    servicePartId: string,
+    serviceId: string,
+    userId: string,
+    companyId: string,
+    approvalMethod: string,
+    approvalNote?: string
+  ) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // Get service part with all relations
+        const servicePart = await tx.servicePart.findFirst({
+          where: {
+            id: servicePartId,
+            serviceId,
+            service: { companyId },
+          },
+          include: {
+            service: { select: { branchId: true, actualCost: true, labourCharge: true } },
+            branchInventory: {
+              include: {
+                item: { select: { id: true, itemName: true, itemCode: true } },
+              },
+            },
+            item: { select: { id: true, itemName: true, itemCode: true } },
+          },
+        });
+
+        if (!servicePart) {
+          throw new AppError(404, 'Service part not found');
+        }
+
+        if (servicePart.isApproved) {
+          throw new AppError(400, 'Service part is already approved');
+        }
+
+        if (!servicePart.branchInventoryId) {
+          throw new AppError(400, 'Cannot approve legacy part without inventory reference');
+        }
+
+        // Check current stock availability
+        const branchInventory = await tx.branchInventory.findUnique({
+          where: { id: servicePart.branchInventoryId },
+        });
+
+        if (!branchInventory) {
+          throw new AppError(404, 'Branch inventory not found');
+        }
+
+        const currentStock = Number(branchInventory.stockQuantity);
+        if (currentStock < servicePart.quantity) {
+          throw new AppError(400, `Insufficient stock. Available: ${currentStock}, Required: ${servicePart.quantity}`);
+        }
+
+        // Deduct stock
+        const newStock = currentStock - servicePart.quantity;
+        await tx.branchInventory.update({
+          where: { id: servicePart.branchInventoryId },
+          data: { stockQuantity: newStock },
+        });
+
+        // Create stock movement record
+        await tx.stockMovement.create({
+          data: {
+            branchInventoryId: servicePart.branchInventoryId,
+            movementType: StockMovementType.SERVICE_USE,
+            quantity: servicePart.quantity,
+            previousQty: currentStock,
+            newQty: newStock,
+            referenceType: 'SERVICE_PART_APPROVED',
+            referenceId: servicePartId,
+            notes: `Approved for service ${serviceId} via ${approvalMethod}`,
+            userId,
+            branchId: servicePart.service.branchId,
+            companyId,
+          },
+        });
+
+        // Update service part with approval info
+        const updatedPart = await tx.servicePart.update({
+          where: { id: servicePartId },
+          data: {
+            isApproved: true,
+            approvalMethod,
+            approvalNote: approvalNote || null,
+            approvedAt: new Date(),
+            approvedById: userId,
+          },
+          include: {
+            branchInventory: {
+              include: {
+                item: { select: { id: true, itemName: true, itemCode: true } },
+              },
+            },
+            item: { select: { id: true, itemName: true, itemCode: true } },
+            approvedBy: { select: { id: true, name: true } },
+          },
+        });
+
+        // Update service actual cost (add this part's total to approved parts total)
+        const currentActualCost = servicePart.service.actualCost || 0;
+        const labourCost = servicePart.service.labourCharge || 0;
+        const currentPartsTotal = currentActualCost - labourCost;
+        await tx.service.update({
+          where: { id: serviceId },
+          data: { actualCost: currentPartsTotal + servicePart.totalPrice + labourCost },
+        });
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'SERVICE_PART_APPROVED',
+            entity: 'service',
+            entityId: serviceId,
+            details: JSON.stringify({
+              servicePartId,
+              itemName: servicePart.branchInventory?.item?.itemName || servicePart.item?.itemName,
+              quantity: servicePart.quantity,
+              totalPrice: servicePart.totalPrice,
+              approvalMethod,
+              approvalNote,
+              previousStock: currentStock,
+              newStock,
+            }),
+          },
+        });
+
+        return updatedPart;
+      });
+
+      Logger.info('Service part approved', { servicePartId, serviceId, approvalMethod });
+      return result;
+    } catch (error) {
+      Logger.error('Error approving service part', { error, servicePartId, serviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to approve service part');
     }
   }
 
@@ -2520,6 +2657,87 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error updating service labour charge', { error, serviceId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to update labour charge');
+    }
+  }
+
+  /**
+   * Check if a device has been serviced within the last 30 days
+   * Returns info about the most recent service if found
+   */
+  static async checkPreviousServices(
+    customerDeviceId: string,
+    companyId: string
+  ): Promise<{
+    isRepeated: boolean;
+    lastService: {
+      id: string;
+      ticketNumber: string;
+      createdAt: Date;
+      status: ServiceStatus;
+      damageCondition: string;
+      completedAt?: Date;
+    } | null;
+    daysSinceLastService: number | null;
+  }> {
+    try {
+      // Calculate date 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // Find the most recent service for this device within 30 days
+      const previousService = await prisma.service.findFirst({
+        where: {
+          customerDeviceId,
+          companyId,
+          createdAt: {
+            gte: thirtyDaysAgo,
+          },
+          status: {
+            notIn: [ServiceStatus.CANCELLED],
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          id: true,
+          ticketNumber: true,
+          createdAt: true,
+          status: true,
+          damageCondition: true,
+          completedAt: true,
+        },
+      });
+
+      if (!previousService) {
+        return {
+          isRepeated: false,
+          lastService: null,
+          daysSinceLastService: null,
+        };
+      }
+
+      // Calculate days since last service
+      const now = new Date();
+      const daysSinceLastService = Math.floor(
+        (now.getTime() - previousService.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      return {
+        isRepeated: true,
+        lastService: {
+          id: previousService.id,
+          ticketNumber: previousService.ticketNumber,
+          createdAt: previousService.createdAt,
+          status: previousService.status,
+          damageCondition: previousService.damageCondition,
+          completedAt: previousService.completedAt || undefined,
+        },
+        daysSinceLastService,
+      };
+    } catch (error) {
+      Logger.error('Error checking previous services', { error, customerDeviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to check previous services');
     }
   }
 }

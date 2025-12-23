@@ -267,6 +267,37 @@ export class ServiceController {
   });
 
   /**
+   * POST /api/v1/services/:id/parts/:partId/approve
+   * Approve a service part (deduct stock and record approval)
+   */
+  static approveServicePart = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id, partId } = req.params;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+    const { approvalMethod, approvalNote } = req.body;
+
+    if (!approvalMethod) {
+      throw new AppError(400, 'Approval method is required');
+    }
+
+    const validMethods = ['PHONE_CALL', 'WHATSAPP', 'IN_PERSON', 'SMS'];
+    if (!validMethods.includes(approvalMethod)) {
+      throw new AppError(400, `Invalid approval method. Must be one of: ${validMethods.join(', ')}`);
+    }
+
+    const servicePart = await ServiceService.approveServicePart(
+      partId,
+      id,
+      userId,
+      companyId,
+      approvalMethod,
+      approvalNote
+    );
+
+    return ApiResponse.success(res, servicePart, 'Service part approved successfully');
+  });
+
+  /**
    * PUT /api/v1/services/:id/status
    * Update service status
    */

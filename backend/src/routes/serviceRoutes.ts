@@ -262,6 +262,23 @@ router.put(
 );
 
 /**
+ * @route   POST /api/v1/services/:id/parts/:partId/approve
+ * @desc    Approve a service part (deduct stock and record customer approval)
+ * @access  Private (Technician, Manager, Admin)
+ */
+router.post(
+  '/:id/parts/:partId/approve',
+  authorize(
+    UserRole.TECHNICIAN,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate([...serviceIdValidation, ...partIdValidation]),
+  ServiceController.approveServicePart
+);
+
+/**
  * @route   PUT /api/v1/services/:id/status
  * @desc    Update service status
  * @access  Private (Technician, Manager, Admin)

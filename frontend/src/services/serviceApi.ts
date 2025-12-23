@@ -122,6 +122,16 @@ export interface ServicePart {
   unitPrice: number;
   totalPrice: number;
   createdAt: string;
+  // Customer approval fields
+  isApproved: boolean;
+  approvalMethod?: string;     // PHONE_CALL, WHATSAPP, IN_PERSON, SMS
+  approvalNote?: string;
+  approvedAt?: string;
+  approvedById?: string;
+  approvedBy?: {
+    id: string;
+    name: string;
+  };
   part?: {                     // Legacy
     id: string;
     name: string;
@@ -297,6 +307,13 @@ export interface AddServicePartData {
   unitPrice: number;
 }
 
+export type ApprovalMethod = 'PHONE_CALL' | 'WHATSAPP' | 'IN_PERSON' | 'SMS';
+
+export interface ApproveServicePartData {
+  approvalMethod: ApprovalMethod;
+  approvalNote?: string;
+}
+
 export const serviceApi = {
   /**
    * Create a new service
@@ -450,6 +467,18 @@ export const serviceApi = {
     data: { quantity?: number; unitPrice?: number }
   ): Promise<ServicePart> => {
     const response = await api.put(`/services/${serviceId}/parts/${partId}`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Approve a service part (deduct stock and record customer approval)
+   */
+  approveServicePart: async (
+    serviceId: string,
+    partId: string,
+    data: ApproveServicePartData
+  ): Promise<ServicePart> => {
+    const response = await api.post(`/services/${serviceId}/parts/${partId}/approve`, data);
     return response.data.data;
   },
 
