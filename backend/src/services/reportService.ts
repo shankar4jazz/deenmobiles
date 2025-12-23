@@ -182,7 +182,6 @@ export class ReportService {
       totals: {
         totalServices: services.length,
         totalRevenue: summary.reduce((sum, s) => sum + s.totalRevenue, 0),
-        uniqueBookingPersons: summary.length,
       },
     };
   }
