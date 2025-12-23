@@ -683,6 +683,12 @@ export class ServiceService {
               paymentDate: 'desc',
             },
           },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       });
 
