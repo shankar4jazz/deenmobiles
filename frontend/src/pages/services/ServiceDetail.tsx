@@ -908,7 +908,10 @@ export default function ServiceDetail() {
             serviceId={service.id}
             branchId={service.branchId}
             currentAssignee={service.assignedTo}
-            canAssign={user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'}
+            canAssign={
+              (user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') &&
+              ![ServiceStatus.COMPLETED, ServiceStatus.DELIVERED, ServiceStatus.CANCELLED, ServiceStatus.NOT_SERVICEABLE].includes(service.status)
+            }
           />
 
           {/* Pricing - Simplified */}
