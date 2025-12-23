@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, CreditCard, Check, Truck, CheckCircle } from 'lucide-react';
+import { X, CreditCard, Check, Truck } from 'lucide-react';
 import { serviceApi, ServiceStatus, BulkPaymentEntryData } from '@/services/serviceApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { toast } from 'sonner';
@@ -38,7 +38,6 @@ export default function MultiPaymentModal({
 
   // State for payment entries (keyed by payment method id)
   const [paymentEntries, setPaymentEntries] = useState<Record<string, PaymentMethodEntry>>({});
-  const [markAsCompleted, setMarkAsCompleted] = useState(false);
   const [markAsDelivered, setMarkAsDelivered] = useState(false);
   const [globalNotes, setGlobalNotes] = useState('');
 
@@ -74,14 +73,10 @@ export default function MultiPaymentModal({
 
   const remainingBalance = pricingSummary.balanceDue - totalEntered;
 
-  // Auto-check completed/delivered when balance is 0
+  // Auto-check delivered when balance is 0
   useEffect(() => {
-    if (remainingBalance <= 0 && totalEntered > 0) {
-      if (currentStatus === ServiceStatus.COMPLETED) {
-        setMarkAsDelivered(true);
-      } else if (currentStatus !== ServiceStatus.DELIVERED) {
-        setMarkAsCompleted(true);
-      }
+    if (remainingBalance <= 0 && totalEntered > 0 && currentStatus !== ServiceStatus.DELIVERED) {
+      setMarkAsDelivered(true);
     }
   }, [remainingBalance, totalEntered, currentStatus]);
 
@@ -98,7 +93,6 @@ export default function MultiPaymentModal({
       const data: BulkPaymentEntryData = {
         payments: validPayments,
         notes: globalNotes || undefined,
-        markAsCompleted,
         markAsDelivered,
       };
 
@@ -106,13 +100,7 @@ export default function MultiPaymentModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
-      let message = 'Payment collected successfully';
-      if (markAsDelivered) {
-        message = 'Payment collected & marked as delivered';
-      } else if (markAsCompleted) {
-        message = 'Payment collected & marked as completed';
-      }
-      toast.success(message);
+      toast.success(markAsDelivered ? 'Payment collected & marked as delivered' : 'Payment collected successfully');
       handleClose();
     },
     onError: (error: any) => {
@@ -122,7 +110,6 @@ export default function MultiPaymentModal({
 
   const resetForm = () => {
     setPaymentEntries({});
-    setMarkAsCompleted(false);
     setMarkAsDelivered(false);
     setGlobalNotes('');
   };
@@ -260,41 +247,20 @@ export default function MultiPaymentModal({
             </div>
           </div>
 
-          {/* Status Update Checkboxes */}
+          {/* Mark as Delivered Checkbox */}
           {currentStatus !== ServiceStatus.DELIVERED && (
-            <div className="flex gap-4 mt-4">
-              {/* Mark as Completed - show when not yet completed */}
-              {currentStatus !== ServiceStatus.COMPLETED && (
-                <label className="flex-1 flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={markAsCompleted}
-                    onChange={(e) => setMarkAsCompleted(e.target.checked)}
-                    className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium text-gray-700">Mark as Completed</span>
-                  </div>
-                </label>
-              )}
-
-              {/* Mark as Delivered - show when completed */}
-              {currentStatus === ServiceStatus.COMPLETED && (
-                <label className="flex-1 flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={markAsDelivered}
-                    onChange={(e) => setMarkAsDelivered(e.target.checked)}
-                    className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-5 h-5 text-purple-600" />
-                    <span className="text-sm font-medium text-gray-700">Mark as Delivered</span>
-                  </div>
-                </label>
-              )}
-            </div>
+            <label className="flex items-center gap-3 p-3 mt-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={markAsDelivered}
+                onChange={(e) => setMarkAsDelivered(e.target.checked)}
+                className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+              />
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-purple-600" />
+                <span className="text-sm font-medium text-gray-700">Mark as Delivered</span>
+              </div>
+            </label>
           )}
 
           {/* Notes */}

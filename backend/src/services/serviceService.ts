@@ -2708,7 +2708,6 @@ export class ServiceService {
       transactionId?: string;
     }>;
     notes?: string;
-    markAsCompleted?: boolean;
     markAsDelivered?: boolean;
     userId: string;
     companyId: string;
@@ -2790,60 +2789,21 @@ export class ServiceService {
           },
         });
 
-        // Track status for logging
-        let currentStatus = service.status;
+        // Mark as delivered if requested and status is not already DELIVERED
+        if (data.markAsDelivered && service.status !== ServiceStatus.DELIVERED) {
+          const updateData: any = {
+            status: ServiceStatus.DELIVERED,
+            deliveredAt: new Date(),
+          };
 
-        // Mark as completed if requested and status is not yet COMPLETED or DELIVERED
-        if (data.markAsCompleted && service.status !== ServiceStatus.COMPLETED && service.status !== ServiceStatus.DELIVERED) {
+          // Also set completedAt if not already set
+          if (!service.completedAt) {
+            updateData.completedAt = new Date();
+          }
+
           updatedService = await tx.service.update({
             where: { id: data.serviceId },
-            data: {
-              status: ServiceStatus.COMPLETED,
-              completedAt: new Date(),
-            },
-            include: {
-              customer: true,
-              assignedTo: true,
-              branch: true,
-            },
-          });
-
-          // Create status history record
-          await tx.serviceStatusHistory.create({
-            data: {
-              serviceId: data.serviceId,
-              status: ServiceStatus.COMPLETED,
-              notes: 'Marked as completed during payment collection',
-              changedBy: data.userId,
-            },
-          });
-
-          // Log status change activity
-          await tx.activityLog.create({
-            data: {
-              userId: data.userId,
-              action: 'STATUS_UPDATE',
-              entity: 'service',
-              entityId: data.serviceId,
-              details: JSON.stringify({
-                oldStatus: currentStatus,
-                newStatus: ServiceStatus.COMPLETED,
-                notes: 'Marked as completed during payment collection',
-              }),
-            },
-          });
-
-          currentStatus = ServiceStatus.COMPLETED;
-        }
-
-        // Mark as delivered if requested and status is COMPLETED
-        if (data.markAsDelivered && (service.status === ServiceStatus.COMPLETED || data.markAsCompleted)) {
-          updatedService = await tx.service.update({
-            where: { id: data.serviceId },
-            data: {
-              status: ServiceStatus.DELIVERED,
-              deliveredAt: new Date(),
-            },
+            data: updateData,
             include: {
               customer: true,
               assignedTo: true,
@@ -2869,7 +2829,7 @@ export class ServiceService {
               entity: 'service',
               entityId: data.serviceId,
               details: JSON.stringify({
-                oldStatus: currentStatus,
+                oldStatus: service.status,
                 newStatus: ServiceStatus.DELIVERED,
                 notes: 'Marked as delivered during payment collection',
               }),
@@ -2881,12 +2841,11 @@ export class ServiceService {
           serviceId: data.serviceId,
           paymentCount: createdPaymentEntries.length,
           totalAmount,
-          markedAsCompleted: data.markAsCompleted,
           markedAsDelivered: data.markAsDelivered,
         });
 
         // Award delivery points if marked as delivered (async, don't block)
-        if (data.markAsDelivered && (service.status === ServiceStatus.COMPLETED || data.markAsCompleted) && service.assignedToId) {
+        if (data.markAsDelivered && service.status !== ServiceStatus.DELIVERED && service.assignedToId) {
           PointsService.onServiceDelivered(data.serviceId).catch((err) => {
             Logger.error('Failed to award delivery points', { error: err, serviceId: data.serviceId });
           });
