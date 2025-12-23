@@ -19,6 +19,9 @@ import {
   MapPin,
   Phone,
   Mail,
+  FileText,
+  Wallet,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function ManagerBranchDashboard() {
@@ -166,6 +169,52 @@ export default function ManagerBranchDashboard() {
             </div>
             <h3 className="text-gray-600 text-xs font-medium mb-1">Revenue</h3>
             <p className="text-2xl font-bold text-gray-900">₹{stats.revenue.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Quick Reports */}
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-gray-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Quick Reports</h3>
+            </div>
+            <button
+              onClick={() => navigate('/branch/reports')}
+              className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+            >
+              View All <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button
+              onClick={() => navigate('/branch/reports?type=daily-transaction')}
+              className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-left"
+            >
+              <Calendar className="h-4 w-4 text-blue-600" />
+              <span className="text-xs font-medium text-gray-900">Daily Transactions</span>
+            </button>
+            <button
+              onClick={() => navigate('/branch/reports?type=cash-settlement')}
+              className="flex items-center gap-2 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-left"
+            >
+              <Wallet className="h-4 w-4 text-green-600" />
+              <span className="text-xs font-medium text-gray-900">Cash Settlement</span>
+            </button>
+            <button
+              onClick={() => navigate('/branch/reports?type=booking-person')}
+              className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-left"
+            >
+              <Users className="h-4 w-4 text-purple-600" />
+              <span className="text-xs font-medium text-gray-900">Booking Report</span>
+            </button>
+            <button
+              onClick={() => navigate('/branch/reports?type=technician')}
+              className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-left"
+            >
+              <Wrench className="h-4 w-4 text-orange-600" />
+              <span className="text-xs font-medium text-gray-900">Technician Report</span>
+            </button>
           </div>
         </div>
 

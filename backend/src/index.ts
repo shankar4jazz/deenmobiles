@@ -40,6 +40,7 @@ import jobSheetTemplateCategoryRoutes from './routes/jobSheetTemplateCategoryRou
 import technicianRoutes from './routes/technicianRoutes';
 import publicRoutes from './routes/publicRoutes';
 import documentNumberRoutes from './routes/documentNumberRoutes';
+import reportRoutes from './routes/reportRoutes';
 
 const app: Application = express();
 
@@ -115,6 +116,7 @@ app.use(`/api/${config.apiVersion}/job-sheet-templates`, jobSheetTemplateRoutes)
 app.use(`/api/${config.apiVersion}/job-sheet-template-categories`, jobSheetTemplateCategoryRoutes);
 app.use(`/api/${config.apiVersion}/technicians`, technicianRoutes);
 app.use(`/api/${config.apiVersion}/document-numbers`, documentNumberRoutes);
+app.use(`/api/${config.apiVersion}/reports`, reportRoutes);
 
 // Public routes (no authentication required)
 app.use(`/api/${config.apiVersion}/public`, publicRoutes);
@@ -166,6 +168,8 @@ process.on('SIGTERM', () => {
 });
 
 export default app;
+
+
 
 
 

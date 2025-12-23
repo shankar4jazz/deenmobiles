@@ -64,6 +64,7 @@ import CategoryManager from './pages/jobsheet-templates/CategoryManager';
 import SettingsMainPage from './pages/settings/SettingsMainPage';
 import TechnicianManagement from './pages/admin/TechnicianManagement';
 import PointsHistoryPage from './pages/technician/PointsHistoryPage';
+import ReportsPage from './pages/reports/ReportsPage';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -112,6 +113,7 @@ function App() {
               <Route path="petty-cash/transfers" element={<PettyCashTransfersPage />} />
               <Route path="petty-cash/requests" element={<PettyCashRequestsPage />} />
               <Route path="technicians" element={<TechnicianManagement />} />
+              <Route path="reports" element={<ReportsPage />} />
               <Route path="settings" element={<SettingsMainPage />} />
             </Route>
           ) : null}
@@ -159,7 +161,7 @@ function App() {
               <Route path="petty-cash/request" element={<RequestPettyCashPage />} />
               <Route path="petty-cash/my-requests" element={<MyPettyCashRequestsPage />} />
               <Route path="petty-cash/history" element={<PettyCashTransferHistoryPage />} />
-              <Route path="reports" element={<ManagerBranchDashboard />} />
+              <Route path="reports" element={<ReportsPage />} />
               <Route path="settings" element={<SettingsMainPage />} />
             </Route>
           ) : null}
