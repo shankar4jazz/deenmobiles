@@ -85,6 +85,11 @@ const navItems: NavItem[] = [
         path: '/branch/estimates',
         icon: ClipboardList,
       },
+      {
+        name: 'Sales Returns',
+        path: '/branch/sales-returns',
+        icon: RotateCcw,
+      },
     ],
   },
   {

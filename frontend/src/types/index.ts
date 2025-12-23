@@ -1216,3 +1216,143 @@ export interface BranchInventoryFilters {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
+
+// ============================================================================
+// Sales Return Types
+// ============================================================================
+
+export type SalesReturnReason =
+  | 'DEFECTIVE'
+  | 'WRONG_ITEM'
+  | 'CUSTOMER_CHANGED_MIND'
+  | 'DUPLICATE_BILLING'
+  | 'PRICE_ADJUSTMENT'
+  | 'OTHER';
+
+export type SalesReturnStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
+
+export interface SalesReturnItem {
+  id: string;
+  salesReturnId: string;
+  invoiceItemId: string;
+  returnQuantity: number;
+  unitPrice: number;
+  returnAmount: number;
+  reason?: string;
+  createdAt: string;
+  invoiceItem?: {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+  };
+}
+
+export interface SalesReturn {
+  id: string;
+  returnNumber: string;
+  invoiceId: string;
+  customerId: string;
+  returnStatus: SalesReturnStatus;
+  returnReason: SalesReturnReason;
+  totalReturnAmount: number;
+  refundedAmount: number;
+  refundProcessed: boolean;
+  paymentMethodId?: string;
+  referenceNumber?: string;
+  notes?: string;
+  returnDate: string;
+  branchId: string;
+  companyId: string;
+  createdById: string;
+  processedById?: string;
+  processedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    totalAmount: number;
+    paidAmount: number;
+    paymentStatus: string;
+    customer?: {
+      id: string;
+      name: string;
+      phone: string;
+      email?: string;
+    };
+  };
+  customer?: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string;
+  };
+  items: SalesReturnItem[];
+  paymentMethod?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  createdBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  processedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+}
+
+export interface EligibleInvoice {
+  id: string;
+  invoiceNumber: string;
+  totalAmount: number;
+  paidAmount: number;
+  paymentStatus: string;
+  createdAt: string;
+  customer?: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string;
+  };
+  items: {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+    salesReturnItems: {
+      id: string;
+      returnQuantity: number;
+    }[];
+  }[];
+}
+
+export interface CreateSalesReturnData {
+  invoiceId: string;
+  returnReason: SalesReturnReason;
+  notes?: string;
+  branchId: string;
+  isFullReturn?: boolean;
+  items?: {
+    invoiceItemId: string;
+    returnQuantity: number;
+    reason?: string;
+  }[];
+}
+
+export interface ProcessSalesRefundData {
+  paymentMethodId?: string;
+  referenceNumber?: string;
+  notes?: string;
+}

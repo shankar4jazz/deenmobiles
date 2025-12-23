@@ -48,6 +48,7 @@ import CreateService from './pages/services/CreateService';
 import ServiceDetail from './pages/services/ServiceDetail';
 import TechnicianDashboard from './pages/services/TechnicianDashboard';
 import InvoiceList from './pages/invoices/InvoiceList';
+import SalesReturnManagement from './pages/sales-returns/SalesReturnManagement';
 import InvoiceDetail from './pages/invoices/InvoiceDetail';
 import CreateInvoice from './pages/invoices/CreateInvoice';
 import TemplateList from './pages/invoices/templates/TemplateList';
@@ -143,6 +144,7 @@ function App() {
               <Route path="estimates" element={<EstimateList />} />
               <Route path="estimates/create" element={<CreateEstimate />} />
               <Route path="estimates/:id" element={<EstimateDetail />} />
+              <Route path="sales-returns" element={<SalesReturnManagement />} />
               <Route path="customers" element={<CustomersPage />} />
               <Route path="items" element={<ItemsList />} />
               <Route path="inventory" element={<InventoryList />} />
