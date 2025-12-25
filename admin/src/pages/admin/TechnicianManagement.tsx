@@ -356,7 +356,7 @@ export default function TechnicianManagement() {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">All Branches</option>
-                {branchesData?.map((branch: any) => (
+                {branchesData?.branches?.map((branch: any) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
                   </option>
