@@ -14,50 +14,43 @@ interface NavItem {
 
 const getNavItems = (role: string): NavItem[] => {
   const baseItems: NavItem[] = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   ];
 
   if (role === UserRole.SUPER_ADMIN || role === UserRole.ADMIN) {
-    baseItems.push({ name: 'Branches', icon: Package, path: '/admin/branches' });
-    baseItems.push({ name: 'Roles', icon: Shield, path: '/admin/roles' });
-    baseItems.push({ name: 'Employees', icon: UserCog, path: '/admin/employees' });
+    baseItems.push({ name: 'Branches', icon: Package, path: '/branches' });
+    baseItems.push({ name: 'Roles', icon: Shield, path: '/roles' });
+    baseItems.push({ name: 'Employees', icon: UserCog, path: '/employees' });
+    baseItems.push({ name: 'Items', icon: Package, path: '/items' });
+    baseItems.push({ name: 'Master Data', icon: Database, path: '/masters' });
 
     // Petty Cash Management for Admins
     baseItems.push({
       name: 'Petty Cash',
       icon: Wallet,
-      path: '/admin/petty-cash',
+      path: '/petty-cash',
       children: [
-        { name: 'Transfers', icon: Receipt, path: '/admin/petty-cash/transfers' },
-        { name: 'Branch Requests', icon: AlertCircle, path: '/admin/petty-cash/requests' },
+        { name: 'Transfers', icon: Receipt, path: '/petty-cash/transfers' },
+        { name: 'Branch Requests', icon: AlertCircle, path: '/petty-cash/requests' },
       ],
     });
 
     // Task Management for Admins
-    baseItems.push({ name: 'Task Management', icon: ClipboardList, path: '/admin/tasks' });
+    baseItems.push({ name: 'Task Management', icon: ClipboardList, path: '/tasks' });
 
     // Warranty Management for Admins
-    baseItems.push({ name: 'Warranties', icon: ShieldCheck, path: '/admin/warranties' });
-  }
+    baseItems.push({ name: 'Warranties', icon: ShieldCheck, path: '/warranties' });
 
-  // Master Data access for Admin, Branch Admin, and Manager roles
-  if (
-    role === UserRole.SUPER_ADMIN ||
-    role === UserRole.ADMIN ||
-    role === UserRole.BRANCH_ADMIN ||
-    role === UserRole.MANAGER
-  ) {
-    // Super Admin and Admin use /admin/masters (DashboardLayout)
-    // Branch Admin and Manager use /branch/masters (BranchLayout)
-    const mastersPath = (role === UserRole.SUPER_ADMIN || role === UserRole.ADMIN)
-      ? '/admin/masters'
-      : '/branch/masters';
-    baseItems.push({ name: 'Master Data', icon: Database, path: mastersPath });
+    // Technicians
+    baseItems.push({ name: 'Technicians', icon: UserCog, path: '/technicians' });
+
+    // Reports
+    baseItems.push({ name: 'Reports', icon: BarChart3, path: '/reports' });
   }
 
   // Settings for Super Admin only
   if (role === UserRole.SUPER_ADMIN) {
-    baseItems.push({ name: 'Settings', icon: Settings, path: '/admin/settings' });
+    baseItems.push({ name: 'Settings', icon: Settings, path: '/settings' });
   }
 
   return baseItems;
