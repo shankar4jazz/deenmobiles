@@ -89,8 +89,8 @@ export default function ReportsPage() {
 
   // Fetch branches for filter
   const { data: branches = [] } = useQuery({
-    queryKey: ['branches'],
-    queryFn: () => branchApi.getBranches(),
+    queryKey: ['branches-list'],
+    queryFn: () => branchApi.getBranchList(),
     enabled: canSelectBranch,
   });
 

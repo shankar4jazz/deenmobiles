@@ -31,8 +31,8 @@ export default function GSTR1ReportPage() {
   const canSelectBranch = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
   const { data: branches = [] } = useQuery({
-    queryKey: ['branches'],
-    queryFn: () => branchApi.getBranches(),
+    queryKey: ['branches-list'],
+    queryFn: () => branchApi.getBranchList(),
     enabled: canSelectBranch,
   });
 

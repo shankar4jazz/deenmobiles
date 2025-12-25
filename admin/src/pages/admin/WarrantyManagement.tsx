@@ -71,7 +71,7 @@ export default function WarrantyManagement() {
   // Fetch branches for filter
   const { data: branchesData } = useQuery({
     queryKey: ['branches-list'],
-    queryFn: () => branchApi.getBranches(),
+    queryFn: () => branchApi.getBranchList(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
