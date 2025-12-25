@@ -3,6 +3,16 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build arguments for Vite (must be set at build time)
+ARG VITE_API_URL
+ARG VITE_API_VERSION=v1
+ARG VITE_SOCKET_URL
+
+# Set as environment variables for the build
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_API_VERSION=$VITE_API_VERSION
+ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
+
 # Copy package files
 COPY package*.json ./
 
