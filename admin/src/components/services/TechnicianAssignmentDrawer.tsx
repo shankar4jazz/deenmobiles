@@ -1,0 +1,354 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { serviceApi } from '@/services/serviceApi';
+import { technicianApi, TechnicianForAssignment } from '@/services/technicianApi';
+import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
+import {
+  X,
+  Search,
+  Filter,
+  Star,
+  Zap,
+  CheckCircle,
+  UserPlus,
+  AlertCircle,
+} from 'lucide-react';
+
+interface TechnicianAssignmentDrawerProps {
+  serviceId: string;
+  branchId?: string;
+  serviceCategoryId?: string;
+  currentAssignee?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+type SortOption = 'workload' | 'rating' | 'points';
+
+export default function TechnicianAssignmentDrawer({
+  serviceId,
+  branchId,
+  serviceCategoryId,
+  currentAssignee,
+  isOpen,
+  onClose,
+}: TechnicianAssignmentDrawerProps) {
+  const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [notes, setNotes] = useState('');
+  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('workload');
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState<string | null>(null);
+
+  // Fetch technicians for assignment - uses consistent query keys
+  const { data: techniciansData, isLoading } = useQuery({
+    queryKey: technicianKeys.forAssignment(branchId || '', serviceCategoryId),
+    queryFn: () =>
+      technicianApi.getTechniciansForAssignment({
+        branchId: branchId!,
+        categoryId: serviceCategoryId,
+        available: showAvailableOnly || undefined,
+        sortBy,
+      }),
+    enabled: isOpen && !!branchId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  // Assign technician mutation
+  const assignMutation = useMutation({
+    mutationFn: (data: { technicianId: string; notes?: string }) =>
+      serviceApi.assignTechnician(serviceId, data.technicianId, data.notes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
+      queryClient.invalidateQueries({ queryKey: technicianKeys.all });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.all });
+      setSearchQuery('');
+      setNotes('');
+      setSelectedTechnicianId(null);
+      onClose();
+    },
+  });
+
+  const technicians = techniciansData?.technicians || [];
+  const filteredTechnicians = technicians.filter(
+    (tech: TechnicianForAssignment) =>
+      tech.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tech.email && tech.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const handleAssign = () => {
+    if (selectedTechnicianId) {
+      assignMutation.mutate({ technicianId: selectedTechnicianId, notes });
+    }
+  };
+
+  const getWorkloadColor = (percent: number) => {
+    if (percent >= 80) return 'bg-red-500';
+    if (percent >= 50) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+
+      {/* Drawer */}
+      <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-slide-in-right">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <UserPlus className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Assign Technician</h2>
+                <p className="text-sm text-white/80">Select a technician for this service</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Search & Filters */}
+        <div className="p-4 border-b bg-gray-50 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showAvailableOnly}
+                onChange={(e) => setShowAvailableOnly(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-gray-600">Available only</span>
+            </label>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="workload">Lowest Workload</option>
+                <option value="rating">Highest Rating</option>
+                <option value="points">Most Points</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Technicians List - Compact Cards */}
+        <div className="flex-1 overflow-y-auto p-3">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mb-2" />
+              <p className="text-gray-500 text-sm">Loading technicians...</p>
+            </div>
+          ) : filteredTechnicians.length === 0 ? (
+            <div className="text-center py-8">
+              <UserPlus className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">
+                {technicians.length === 0
+                  ? 'No technicians available'
+                  : 'No technicians match your search'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {filteredTechnicians.map((tech: TechnicianForAssignment) => {
+                const isSelected = selectedTechnicianId === tech.id;
+                const isCurrent = currentAssignee?.id === tech.id;
+
+                return (
+                  <div
+                    key={tech.id}
+                    onClick={() => !isCurrent && setSelectedTechnicianId(tech.id)}
+                    className={`relative p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : isCurrent
+                        ? 'border-green-500 bg-green-50 cursor-default'
+                        : 'border-gray-200 hover:border-blue-300 bg-white'
+                    }`}
+                  >
+                    {/* Selection Indicator */}
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 p-0.5 bg-blue-500 rounded-full">
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                    {isCurrent && (
+                      <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-medium rounded">
+                        Current
+                      </div>
+                    )}
+
+                    {/* Avatar & Status */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="relative flex-shrink-0">
+                        {tech.profileImage ? (
+                          <img
+                            src={tech.profileImage}
+                            alt={tech.name}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                            <span className="text-white font-semibold text-xs">
+                              {tech.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                            tech.profile.isAvailable ? 'bg-green-500' : 'bg-gray-400'
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 text-sm truncate">{tech.name}</h3>
+                        {tech.profile.currentLevel && (
+                          <span
+                            className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                            style={{
+                              backgroundColor: `${tech.profile.currentLevel.badgeColor}20`,
+                              color: tech.profile.currentLevel.badgeColor
+                            }}
+                          >
+                            {tech.profile.currentLevel.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Mini Stats */}
+                    <div className="flex items-center gap-2 text-[10px] mb-2">
+                      {tech.profile.averageRating && (
+                        <div className="flex items-center gap-0.5 text-yellow-600">
+                          <Star className="w-3 h-3 fill-current" />
+                          <span className="font-medium">{tech.profile.averageRating.toFixed(1)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-0.5 text-purple-600">
+                        <Zap className="w-3 h-3" />
+                        <span className="font-medium">{tech.profile.totalPoints >= 1000 ? `${(tech.profile.totalPoints/1000).toFixed(1)}k` : tech.profile.totalPoints}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 text-green-600">
+                        <CheckCircle className="w-3 h-3" />
+                        <span className="font-medium">{tech.profile.totalServicesCompleted}</span>
+                      </div>
+                    </div>
+
+                    {/* Workload Mini Bar */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${getWorkloadColor(tech.workloadPercent)} rounded-full`}
+                          style={{ width: `${Math.min(100, tech.workloadPercent)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-500 font-medium">
+                        {tech.totalWorkload}/{tech.profile.maxConcurrentJobs}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t bg-white p-4 space-y-3">
+          {/* Notes */}
+          <textarea
+            placeholder="Assignment notes (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          />
+
+          {/* Error */}
+          {assignMutation.isError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>
+                {(assignMutation.error as any)?.response?.data?.message || 'Failed to assign technician'}
+              </span>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAssign}
+              disabled={!selectedTechnicianId || assignMutation.isPending}
+              className={`flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                selectedTechnicianId && !assignMutation.isPending
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                  : 'bg-gray-300 cursor-not-allowed'
+              }`}
+            >
+              {assignMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4" />
+                  Assign Technician
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slide-in-right {
+          from {
+            transform: translateX(100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out;
+        }
+      `}</style>
+    </div>
+  );
+}

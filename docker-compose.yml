@@ -46,6 +46,23 @@ services:
     networks:
       - deenmobiles-network
 
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:5000}
+        - VITE_API_VERSION=${VITE_API_VERSION:-v1}
+        - VITE_SOCKET_URL=${VITE_SOCKET_URL:-http://localhost:5000}
+    container_name: deenmobiles-admin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - deenmobiles-network
+
   website:
     build:
       context: ./website
