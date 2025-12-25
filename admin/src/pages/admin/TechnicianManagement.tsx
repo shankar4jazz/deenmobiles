@@ -369,7 +369,7 @@ export default function TechnicianManagement() {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">All Levels</option>
-                {levelsData?.levels.map((level: TechnicianLevel) => (
+                {levelsData?.levels?.map((level: TechnicianLevel) => (
                   <option key={level.id} value={level.id}>
                     {level.name}
                   </option>
@@ -439,7 +439,7 @@ export default function TechnicianManagement() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {techniciansData?.technicians.map((tech: TechnicianProfile) => (
+                      {techniciansData?.technicians?.map((tech: TechnicianProfile) => (
                         <tr key={tech.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -639,7 +639,7 @@ export default function TechnicianManagement() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {levelsData?.levels
-                      .sort((a: TechnicianLevel, b: TechnicianLevel) => a.sortOrder - b.sortOrder)
+                      ?.sort((a: TechnicianLevel, b: TechnicianLevel) => a.sortOrder - b.sortOrder)
                       .map((level: TechnicianLevel) => (
                         <tr key={level.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -732,7 +732,7 @@ export default function TechnicianManagement() {
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {promotionCandidates.candidates.map((candidate: PromotionCandidate) => (
+                {promotionCandidates?.candidates?.map((candidate: PromotionCandidate) => (
                   <div key={candidate.profile.id} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -883,7 +883,7 @@ export default function TechnicianManagement() {
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {techsWithSkillsData.technicians.map((tech: TechnicianProfile) => (
+                {techsWithSkillsData?.technicians?.map((tech: TechnicianProfile) => (
                   <div key={tech.id} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-4">
