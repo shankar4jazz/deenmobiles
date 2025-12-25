@@ -42,7 +42,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     name: 'Dashboard',
-    path: '/branch/dashboard',
+    path: '/dashboard',
     icon: LayoutDashboard,
   },
   {
@@ -51,24 +51,24 @@ const navItems: NavItem[] = [
     children: [
       {
         name: 'Master Data',
-        path: '/branch/masters',
+        path: '/masters',
         icon: Database,
       },
     ],
   },
   {
     name: 'Employees',
-    path: '/branch/employees',
+    path: '/employees',
     icon: Users,
   },
   {
     name: 'My Tasks',
-    path: '/branch/my-tasks',
+    path: '/my-tasks',
     icon: ClipboardList,
   },
   {
     name: 'Services',
-    path: '/branch/services',
+    path: '/services',
     icon: Wrench,
   },
   {
@@ -77,24 +77,24 @@ const navItems: NavItem[] = [
     children: [
       {
         name: 'Invoices',
-        path: '/branch/invoices',
+        path: '/invoices',
         icon: Receipt,
       },
       {
         name: 'Estimates',
-        path: '/branch/estimates',
+        path: '/estimates',
         icon: ClipboardList,
       },
       {
         name: 'Sales Returns',
-        path: '/branch/sales-returns',
+        path: '/sales-returns',
         icon: RotateCcw,
       },
     ],
   },
   {
     name: 'Customers',
-    path: '/branch/customers',
+    path: '/customers',
     icon: UserCheck,
   },
   {
@@ -103,49 +103,49 @@ const navItems: NavItem[] = [
     children: [
       {
         name: 'Items Catalog',
-        path: '/branch/items',
+        path: '/items',
         icon: Database,
       },
       {
         name: 'Branch Stock',
-        path: '/branch/inventory',
+        path: '/inventory',
         icon: Package,
       },
       {
         name: 'Suppliers',
-        path: '/branch/suppliers',
+        path: '/suppliers',
         icon: Truck,
       },
       {
         name: 'Purchases',
-        path: '/branch/purchases',
+        path: '/purchases',
         icon: ShoppingCart,
       },
       {
         name: 'Purchase Return',
-        path: '/branch/returns-management',
+        path: '/returns-management',
         icon: RotateCcw,
       },
       {
         name: 'Stock Adjust',
-        path: '/branch/inventory/adjust',
+        path: '/inventory/adjust',
         icon: RefreshCw,
       },
     ],
   },
   {
     name: 'Expenses',
-    path: '/branch/expenses',
+    path: '/expenses',
     icon: Wallet,
   },
   {
     name: 'Petty Cash',
-    path: '/branch/petty-cash',
+    path: '/petty-cash',
     icon: Banknote,
   },
   {
     name: 'Reports',
-    path: '/branch/reports',
+    path: '/reports',
     icon: TrendingUp,
   },
   {
@@ -154,7 +154,7 @@ const navItems: NavItem[] = [
     children: [
       {
         name: 'Templates',
-        path: '/branch/settings',
+        path: '/settings',
         icon: FileText,
       },
     ],
