@@ -13,9 +13,9 @@ import {
   Loader2,
   Receipt,
 } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
-import { branchApi } from '../../services/branchApi';
-import { reportApi, type ReportFilters, type DateFilter } from '../../services/reportApi';
+import { useAuthStore } from '@/store/authStore';
+import { branchApi } from '@/services/branchApi';
+import { reportApi, type ReportFilters, type DateFilter } from '@/services/reportApi';
 import GSTR1ReportPage from './GSTR1ReportPage';
 
 type ReportType = 'booking-person' | 'technician' | 'brand' | 'fault' | 'daily-transaction' | 'cash-settlement' | 'gstr1';

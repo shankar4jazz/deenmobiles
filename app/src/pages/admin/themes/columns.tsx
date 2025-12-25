@@ -1,19 +1,19 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Edit, Trash2, ToggleLeft, ToggleRight, Star } from 'lucide-react';
-import { JobSheetTemplate } from '../../services/jobSheetTemplateApi';
-import { formatDate, createSelectionColumn } from '../../utils/tableUtils';
+import { Theme } from '@/services/themeApi';
+import { formatDate, createSelectionColumn } from '@/utils/tableUtils';
 
-export const createJobSheetTemplateColumns = (
-  onView: (template: JobSheetTemplate) => void,
-  onEdit: (template: JobSheetTemplate) => void,
-  onDelete: (template: JobSheetTemplate) => void,
-  onToggleStatus: (template: JobSheetTemplate) => void,
-  onSetDefault: (template: JobSheetTemplate) => void
-): ColumnDef<JobSheetTemplate>[] => [
+export const createThemeColumns = (
+  onView: (theme: Theme) => void,
+  onEdit: (theme: Theme) => void,
+  onDelete: (theme: Theme) => void,
+  onToggleStatus: (theme: Theme) => void,
+  onSetDefault: (theme: Theme) => void
+): ColumnDef<Theme>[] => [
   // Selection column
-  createSelectionColumn<JobSheetTemplate>(),
+  createSelectionColumn<Theme>(),
 
-  // Template Name
+  // Theme Name
   {
     id: 'name',
     accessorKey: 'name',
@@ -36,57 +36,47 @@ export const createJobSheetTemplateColumns = (
     size: 250,
   },
 
-  // Category
+  // Colors Preview
   {
-    id: 'category',
-    header: 'Category',
+    id: 'colors',
+    header: 'Colors',
     cell: ({ row }) => (
-      <div className="text-sm">
-        {row.original.category ? (
-          <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
-            {row.original.category.name}
-          </span>
-        ) : (
-          <span className="text-gray-400 italic">No category</span>
-        )}
+      <div className="flex items-center gap-2">
+        <div
+          className="w-8 h-8 rounded border border-gray-300"
+          style={{ backgroundColor: row.original.primaryColor }}
+          title={`Primary: ${row.original.primaryColor}`}
+        />
+        <div
+          className="w-8 h-8 rounded border border-gray-300"
+          style={{ backgroundColor: row.original.secondaryColor }}
+          title={`Secondary: ${row.original.secondaryColor}`}
+        />
+        <div
+          className="w-8 h-8 rounded border border-gray-300"
+          style={{ backgroundColor: row.original.headerBackgroundColor }}
+          title={`Header: ${row.original.headerBackgroundColor}`}
+        />
       </div>
     ),
     enableSorting: false,
     enableHiding: true,
-    size: 150,
+    size: 130,
   },
 
-  // Display Options
+  // Font
   {
-    id: 'options',
-    header: 'Display Options',
+    id: 'font',
+    header: 'Font',
     cell: ({ row }) => (
-      <div className="flex gap-1">
-        {row.original.showCustomerSignature && (
-          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs" title="Customer Signature">
-            CS
-          </span>
-        )}
-        {row.original.showAuthorizedSignature && (
-          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs" title="Authorized Signature">
-            AS
-          </span>
-        )}
-        {row.original.showCompanyLogo && (
-          <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded text-xs" title="Company Logo">
-            Logo
-          </span>
-        )}
-        {row.original.showContactDetails && (
-          <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded text-xs" title="Contact Details">
-            Contact
-          </span>
-        )}
+      <div className="text-sm">
+        <div className="font-medium text-gray-900">{row.original.fontFamily}</div>
+        <div className="text-gray-500">{row.original.fontSize}pt</div>
       </div>
     ),
     enableSorting: false,
     enableHiding: true,
-    size: 200,
+    size: 120,
   },
 
   // Branch
@@ -108,20 +98,6 @@ export const createJobSheetTemplateColumns = (
     enableSorting: false,
     enableHiding: true,
     size: 150,
-  },
-
-  // Usage Count
-  {
-    id: 'usage',
-    header: 'Usage',
-    cell: ({ row }) => (
-      <div className="text-sm text-gray-600">
-        {row.original._count?.jobSheets || 0} job sheets
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: true,
-    size: 100,
   },
 
   // Status
@@ -153,9 +129,7 @@ export const createJobSheetTemplateColumns = (
     cell: ({ row }) => (
       <div className="text-sm">
         <div className="text-gray-900">{formatDate(row.original.createdAt)}</div>
-        {row.original.createdByUser && (
-          <div className="text-gray-500">{row.original.createdByUser.name}</div>
-        )}
+        <div className="text-gray-500">{row.original.createdByUser.name}</div>
       </div>
     ),
     enableSorting: true,
@@ -208,7 +182,7 @@ export const createJobSheetTemplateColumns = (
             <ToggleLeft className="h-4 w-4" />
           )}
         </button>
-        {!row.original.isDefault && row.original._count?.jobSheets === 0 && (
+        {!row.original.isDefault && (
           <button
             onClick={() => onDelete(row.original)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"

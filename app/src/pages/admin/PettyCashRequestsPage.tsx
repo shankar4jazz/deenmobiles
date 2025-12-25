@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { pettyCashRequestApi } from '../../services/expenseApi';
+import { pettyCashRequestApi } from '@/services/expenseApi';
 import { format } from 'date-fns';
 import {
   Search,
@@ -15,9 +15,9 @@ import {
   Ban,
   AlertCircle,
 } from 'lucide-react';
-import { PettyCashRequest } from '../../types/expense';
-import ApproveRequestModal from '../../components/admin/ApproveRequestModal';
-import RejectRequestModal from '../../components/admin/RejectRequestModal';
+import { PettyCashRequest } from '@/types/expense';
+import ApproveRequestModal from '@/components/admin/ApproveRequestModal';
+import RejectRequestModal from '@/components/admin/RejectRequestModal';
 
 export default function PettyCashRequestsPage() {
   const queryClient = useQueryClient();

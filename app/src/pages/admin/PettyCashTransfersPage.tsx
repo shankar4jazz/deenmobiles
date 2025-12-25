@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { pettyCashTransferApi } from '../../services/expenseApi';
+import { pettyCashTransferApi } from '@/services/expenseApi';
 import { format } from 'date-fns';
 import {
   Plus,
@@ -21,8 +21,8 @@ import {
   PettyCashTransfer,
   CreatePettyCashTransferDto,
   UpdatePettyCashTransferDto,
-} from '../../types/expense';
-import TransferFormModal from '../../components/admin/TransferFormModal';
+} from '@/types/expense';
+import TransferFormModal from '@/components/admin/TransferFormModal';
 
 export default function PettyCashTransfersPage() {
   const queryClient = useQueryClient();

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { jobSheetTemplateCategoryApi, JobSheetTemplateCategory, CreateJobSheetTemplateCategoryData } from '../../services/jobSheetTemplateCategoryApi';
+import { jobSheetTemplateCategoryApi, JobSheetTemplateCategory, CreateJobSheetTemplateCategoryData } from '@/services/jobSheetTemplateCategoryApi';
 import { toast } from 'sonner';
 
 export default function CategoryManager() {

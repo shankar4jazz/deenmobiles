@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { jobSheetTemplateApi, CreateJobSheetTemplateData } from '../../services/jobSheetTemplateApi';
-import { jobSheetTemplateCategoryApi, JobSheetTemplateCategory } from '../../services/jobSheetTemplateCategoryApi';
+import { jobSheetTemplateApi, CreateJobSheetTemplateData } from '@/services/jobSheetTemplateApi';
+import { jobSheetTemplateCategoryApi, JobSheetTemplateCategory } from '@/services/jobSheetTemplateCategoryApi';
 import { toast } from 'sonner';
 
 export default function JobSheetTemplateForm() {

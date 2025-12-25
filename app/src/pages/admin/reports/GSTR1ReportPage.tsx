@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Loader2, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
-import { branchApi } from '../../services/branchApi';
-import { gstr1Api, type GSTR1Filters, type GSTR1Report } from '../../services/gstr1Api';
-import { getPlaceOfSupplyDisplay, MONTH_NAMES, getFilingPeriod } from '../../constants/gst';
+import { useAuthStore } from '@/store/authStore';
+import { branchApi } from '@/services/branchApi';
+import { gstr1Api, type GSTR1Filters, type GSTR1Report } from '@/services/gstr1Api';
+import { getPlaceOfSupplyDisplay, MONTH_NAMES, getFilingPeriod } from '@/constants/gst';
 
 type GSTR1Tab = 'summary' | 'b2b' | 'b2c-large' | 'b2c-small' | 'hsn' | 'documents';
 
