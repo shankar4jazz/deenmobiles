@@ -28,20 +28,20 @@ const DashboardRouter = () => {
       // ADMIN users: redirect to branch dashboard if they have a branch
       // Otherwise show AdminDashboard for full system access
       if (user.managedBranchId || user.branchId) {
-        return <Navigate to="/branch/dashboard" replace />;
+        return <Navigate to="/details" replace />;
       }
       // ADMIN without branch gets full AdminDashboard
       return <AdminDashboard />;
 
     case UserRole.TECHNICIAN:
       // Route technicians to their specialized dashboard showing assigned services
-      return <Navigate to="/branch/technician-dashboard" replace />;
+      return <Navigate to="/technician-dashboard" replace />;
 
     case UserRole.MANAGER:
     case UserRole.RECEPTIONIST:
       // Route branch users to their branch-specific dashboard
       // This shows only their branch data with separate sidebar/topbar
-      return <Navigate to="/branch/dashboard" replace />;
+      return <Navigate to="/details" replace />;
 
     default:
       // Fallback for unknown roles
