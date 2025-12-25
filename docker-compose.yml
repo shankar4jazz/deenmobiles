@@ -46,6 +46,21 @@ services:
     networks:
       - deenmobiles-network
 
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000/api/v1}
+    container_name: deenmobiles-website
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - deenmobiles-network
+
 networks:
   deenmobiles-network:
     driver: bridge
