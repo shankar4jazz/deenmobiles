@@ -49,6 +49,9 @@ import warrantyRoutes from './routes/warrantyRoutes';
 
 const app: Application = express();
 
+// Trust proxy for rate limiting behind reverse proxy (Docker/Nginx)
+app.set('trust proxy', 1);
+
 // Health check (before other middleware to avoid CORS/helmet issues)
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ success: true, data: { status: 'OK', timestamp: new Date().toISOString() }, message: 'Server is healthy' });
