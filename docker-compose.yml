@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  backend:
+  api:
     build:
-      context: ./backend
+      context: ./api
       dockerfile: Dockerfile
-    container_name: deenmobiles-backend
+    container_name: deenmobiles-api
     restart: unless-stopped
     ports:
       - "5000:5000"
@@ -25,24 +25,24 @@ services:
       - AWS_BUCKET_NAME=${AWS_BUCKET_NAME:-deenmobiles}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
     volumes:
-      - backend_uploads:/app/public/uploads
+      - api_uploads:/app/public/uploads
     networks:
       - deenmobiles-network
 
-  frontend:
+  app:
     build:
-      context: ./frontend
+      context: ./app
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:5000}
         - VITE_API_VERSION=${VITE_API_VERSION:-v1}
         - VITE_SOCKET_URL=${VITE_SOCKET_URL:-http://localhost:5000}
-    container_name: deenmobiles-frontend
+    container_name: deenmobiles-app
     restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
-      - backend
+      - api
     networks:
       - deenmobiles-network
 
@@ -51,4 +51,4 @@ networks:
     driver: bridge
 
 volumes:
-  backend_uploads:
+  api_uploads:
