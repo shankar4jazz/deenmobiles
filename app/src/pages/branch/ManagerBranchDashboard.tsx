@@ -122,7 +122,7 @@ export default function ManagerBranchDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* Total Services */}
           <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-               onClick={() => navigate('/branch/services')}>
+               onClick={() => navigate('/services')}>
             <div className="flex items-center justify-between mb-2">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Wrench className="h-5 w-5 text-blue-600" />
@@ -135,7 +135,7 @@ export default function ManagerBranchDashboard() {
 
           {/* Pending Services */}
           <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-               onClick={() => navigate('/branch/services')}>
+               onClick={() => navigate('/services')}>
             <div className="flex items-center justify-between mb-2">
               <div className="p-2 bg-orange-100 rounded-lg">
                 <Clock className="h-5 w-5 text-orange-600" />
@@ -148,7 +148,7 @@ export default function ManagerBranchDashboard() {
 
           {/* Completed Today */}
           <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-               onClick={() => navigate('/branch/services')}>
+               onClick={() => navigate('/services')}>
             <div className="flex items-center justify-between mb-2">
               <div className="p-2 bg-green-100 rounded-lg">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -180,7 +180,7 @@ export default function ManagerBranchDashboard() {
               <h3 className="text-sm font-semibold text-gray-900">Quick Reports</h3>
             </div>
             <button
-              onClick={() => navigate('/branch/reports')}
+              onClick={() => navigate('/reports')}
               className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
             >
               View All <ChevronRight className="h-3 w-3" />
@@ -188,28 +188,28 @@ export default function ManagerBranchDashboard() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
-              onClick={() => navigate('/branch/reports?type=daily-transaction')}
+              onClick={() => navigate('/reports?type=daily-transaction')}
               className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-left"
             >
               <Calendar className="h-4 w-4 text-blue-600" />
               <span className="text-xs font-medium text-gray-900">Transactions</span>
             </button>
             <button
-              onClick={() => navigate('/branch/reports?type=cash-settlement')}
+              onClick={() => navigate('/reports?type=cash-settlement')}
               className="flex items-center gap-2 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-left"
             >
               <Wallet className="h-4 w-4 text-green-600" />
               <span className="text-xs font-medium text-gray-900">Cash Settlement</span>
             </button>
             <button
-              onClick={() => navigate('/branch/reports?type=booking-person')}
+              onClick={() => navigate('/reports?type=booking-person')}
               className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-left"
             >
               <Users className="h-4 w-4 text-purple-600" />
               <span className="text-xs font-medium text-gray-900">Booking Report</span>
             </button>
             <button
-              onClick={() => navigate('/branch/reports?type=technician')}
+              onClick={() => navigate('/reports?type=technician')}
               className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-left"
             >
               <Wrench className="h-4 w-4 text-orange-600" />
@@ -258,7 +258,7 @@ export default function ManagerBranchDashboard() {
               <h3 className="text-sm font-semibold text-gray-900">Services</h3>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors"
-                 onClick={() => navigate('/branch/services')}>
+                 onClick={() => navigate('/services')}>
               <p className="text-3xl font-bold text-purple-600">{branchData._count?.services || 0}</p>
               <p className="text-xs text-gray-600 mt-1">Total services</p>
             </div>
