@@ -75,7 +75,7 @@ export default function RoleList() {
             <p className="text-gray-600 mt-1">Manage user roles and permissions</p>
           </div>
           <button
-            onClick={() => navigate('/admin/roles/create')}
+            onClick={() => navigate('/roles/create')}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:from-purple-700 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl"
           >
             <Plus className="h-5 w-5" />
@@ -215,13 +215,17 @@ export default function RoleList() {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => navigate(`/roles/edit/${role.id}`)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Edit role"
-                              disabled={role.isSystemRole}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
+                                  onClick={() => !role.isSystemRole && navigate(`/roles/edit/${role.id}`)}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    role.isSystemRole 
+                                      ? 'text-gray-400 cursor-not-allowed opacity-50' 
+                                      : 'text-blue-600 hover:bg-blue-50'
+                                  }`}
+                                  title={role.isSystemRole ? "System roles cannot be edited" : "Edit role"}
+                                  disabled={role.isSystemRole}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
                             <button
                               onClick={() => handleDelete(role.id, role.name, role.isSystemRole)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

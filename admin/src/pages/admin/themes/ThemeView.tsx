@@ -21,7 +21,7 @@ export default function ThemeView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['themes'] });
       toast.success('Theme deleted successfully');
-      navigate('/branch/settings?tab=invoice');
+      navigate('/settings?tab=invoice');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to delete theme');
@@ -87,7 +87,7 @@ export default function ThemeView() {
         <div className="text-center">
           <p className="text-red-600">Failed to load theme</p>
           <button
-            onClick={() => navigate('/branch/settings?tab=invoice')}
+            onClick={() => navigate('/settings?tab=invoice')}
             className="mt-4 text-purple-600 hover:text-purple-700"
           >
             Back to Themes
@@ -103,7 +103,7 @@ export default function ThemeView() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/branch/settings?tab=invoice')}
+            onClick={() => navigate('/settings?tab=invoice')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -161,7 +161,7 @@ export default function ThemeView() {
             )}
           </button>
           <button
-            onClick={() => navigate(`/branch/settings?tab=invoice/${id}/edit`)}
+            onClick={() => navigate(`/settings?tab=invoice/${id}/edit`)}
             className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
           >
             <Edit className="w-4 h-4" />

@@ -1,11 +1,38 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Professional API configuration with environment detection
+const getApiUrl = () => {
+  // Priority: Environment variable > Window location > Default
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production, use same origin
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  
+  // Development default
+  return 'http://localhost:3000';
+};
+
+const API_URL = getApiUrl();
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
+
+// Debug logging in development
+if (import.meta.env.DEV) {
+  console.log('🔧 Admin API Configuration:', {
+    API_URL,
+    API_VERSION,
+    BASE_URL: `${API_URL}/api/${API_VERSION}`,
+    ENV: import.meta.env.MODE,
+  });
+}
 
 export const api: AxiosInstance = axios.create({
   baseURL: `${API_URL}/api/${API_VERSION}`,
+  timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',
   },

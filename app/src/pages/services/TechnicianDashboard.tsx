@@ -226,7 +226,7 @@ export default function TechnicianDashboard() {
             filteredServices.map((service) => (
               <div
                 key={service.id}
-                onClick={() => navigate(`/branch/services/${service.id}`)}
+                onClick={() => navigate(`/services/${service.id}`)}
                 className={`p-6 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${getPriorityColor(service)}`}
               >
                 <div className="flex items-start justify-between">

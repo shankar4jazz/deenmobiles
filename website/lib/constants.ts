@@ -52,5 +52,29 @@ export const STATUS_CONFIG: Record<
   },
 };
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+// Professional API URL configuration
+const getApiBaseUrl = () => {
+  // Check for environment variable first
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // Use different URLs for different environments
+  if (process.env.NODE_ENV === 'production') {
+    // In production, use the production API URL
+    return 'https://api.deenmobiles.com/api/v1';
+  }
+  
+  // Development default
+  return 'http://localhost:3000/api/v1';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
+// Log configuration in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔧 Website API Configuration:', {
+    API_BASE_URL,
+    ENV: process.env.NODE_ENV,
+  });
+}

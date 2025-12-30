@@ -21,7 +21,7 @@ export default function EditBranch() {
   const updateMutation = useMutation({
     mutationFn: (data: BranchFormData) => branchApi.updateBranch(id!, data),
     onSuccess: () => {
-      navigate('/admin/branches');
+      navigate('/branches');
     },
     onError: (error: any) => {
       setError(error.response?.data?.message || 'Failed to update branch');
@@ -52,7 +52,7 @@ export default function EditBranch() {
         <div className="flex flex-col items-center justify-center h-96 text-gray-500">
           <p className="text-lg font-medium">Branch not found</p>
           <button
-            onClick={() => navigate('/admin/branches')}
+            onClick={() => navigate('/branches')}
             className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             Back to Branches
@@ -68,7 +68,7 @@ export default function EditBranch() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/admin/branches')}
+            onClick={() => navigate('/branches')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-600" />

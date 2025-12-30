@@ -125,7 +125,7 @@ export default function CreateEmployee() {
       // Invalidate employee list cache to show new employee
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['employees-list'] });
-      navigate('/admin/employees');
+      navigate('/employees');
     },
     onError: (error: any) => {
       const responseData = error.response?.data;
@@ -163,7 +163,7 @@ export default function CreateEmployee() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/admin/employees')}
+            onClick={() => navigate('/employees')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-600" />
@@ -414,7 +414,7 @@ export default function CreateEmployee() {
           <div className="flex items-center justify-end gap-4">
             <button
               type="button"
-              onClick={() => navigate('/admin/employees')}
+              onClick={() => navigate('/employees')}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel

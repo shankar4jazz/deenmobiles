@@ -13,7 +13,7 @@ export default function CreateBranch() {
   const createMutation = useMutation({
     mutationFn: branchApi.createBranch,
     onSuccess: () => {
-      navigate('/admin/branches');
+      navigate('/branches');
     },
     onError: (error: any) => {
       setError(error.response?.data?.message || 'Failed to create branch');
@@ -31,7 +31,7 @@ export default function CreateBranch() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/admin/branches')}
+            onClick={() => navigate('/branches')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-600" />

@@ -54,7 +54,7 @@ export default function EstimateList() {
   });
 
   const handleViewEstimate = (estimate: Estimate) => {
-    navigate(`/branch/estimates/${estimate.id}`);
+    navigate(`/estimates/${estimate.id}`);
   };
 
   const handleDownloadPDF = async (estimate: Estimate) => {
@@ -66,7 +66,7 @@ export default function EstimateList() {
   const handleConvertToInvoice = async (estimate: Estimate) => {
     try {
       const invoice = await estimateApi.convertToInvoice(estimate.id);
-      navigate(`/branch/invoices/${invoice.id}`);
+      navigate(`/invoices/${invoice.id}`);
     } catch (error: any) {
       console.error('Failed to convert estimate:', error);
       alert(error.response?.data?.message || 'Failed to convert estimate to invoice');
@@ -74,7 +74,7 @@ export default function EstimateList() {
   };
 
   const handleCloneEstimate = (estimate: Estimate) => {
-    navigate('/branch/estimates/create', { state: { cloneFrom: estimate } });
+    navigate('/estimates/create', { state: { cloneFrom: estimate } });
   };
 
   const handleReset = () => {
@@ -173,7 +173,7 @@ export default function EstimateList() {
         description: 'Get started by creating your first estimate',
         action: {
           label: 'Create First Estimate',
-          onClick: () => navigate('/branch/estimates/create'),
+          onClick: () => navigate('/estimates/create'),
         },
       };
 
@@ -191,7 +191,7 @@ export default function EstimateList() {
           </p>
         </div>
         <button
-          onClick={() => navigate('/branch/estimates/create')}
+          onClick={() => navigate('/estimates/create')}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />

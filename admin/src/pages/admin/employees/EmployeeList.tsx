@@ -75,7 +75,7 @@ export default function EmployeeList() {
             <p className="text-gray-600 mt-1">Manage your team members</p>
           </div>
           <button
-            onClick={() => navigate('/admin/employees/create')}
+            onClick={() => navigate('/employees/create')}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:from-purple-700 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl"
           >
             <Plus className="h-5 w-5" />

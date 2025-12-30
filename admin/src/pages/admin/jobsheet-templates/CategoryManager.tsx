@@ -97,7 +97,7 @@ export default function CategoryManager() {
         <h1 className="text-2xl font-bold">Job Sheet Theme Categories</h1>
         <div className="flex gap-2">
           <button
-            onClick={() => navigate('/branch/settings?tab=job-sheet')}
+            onClick={() => navigate('/settings?tab=job-sheet')}
             className="px-4 py-2 border rounded hover:bg-gray-50"
           >
             Back to Themes

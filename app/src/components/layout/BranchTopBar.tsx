@@ -22,7 +22,7 @@ export default function BranchTopBar() {
         <div className="flex items-center gap-4">
           {/* Cash Settlement Button */}
           <button
-            onClick={() => navigate('/branch/cash-settlement')}
+            onClick={() => navigate('/cash-settlement')}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-sm"
           >
             <Calculator className="h-4 w-4" />

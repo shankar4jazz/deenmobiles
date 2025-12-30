@@ -67,7 +67,7 @@ export default function ThemeForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['themes'] });
       toast.success('Theme created successfully');
-      navigate('/branch/settings?tab=invoice');
+      navigate('/settings?tab=invoice');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to create theme');
@@ -81,7 +81,7 @@ export default function ThemeForm() {
       queryClient.invalidateQueries({ queryKey: ['themes'] });
       queryClient.invalidateQueries({ queryKey: ['theme', id] });
       toast.success('Theme updated successfully');
-      navigate('/branch/settings?tab=invoice');
+      navigate('/settings?tab=invoice');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update theme');
@@ -126,7 +126,7 @@ export default function ThemeForm() {
       <div className="px-4 py-4 border-b bg-white">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/branch/settings?tab=invoice')}
+            onClick={() => navigate('/settings?tab=invoice')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

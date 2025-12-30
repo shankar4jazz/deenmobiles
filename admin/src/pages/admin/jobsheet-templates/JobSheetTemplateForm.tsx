@@ -63,7 +63,7 @@ export default function JobSheetTemplateForm() {
       });
     } catch (error: any) {
       toast.error('Failed to fetch theme');
-      navigate('/branch/settings?tab=job-sheet');
+      navigate('/settings?tab=job-sheet');
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ export default function JobSheetTemplateForm() {
         await jobSheetTemplateApi.create(data);
         toast.success('Theme created successfully');
       }
-      navigate('/branch/settings?tab=job-sheet');
+      navigate('/settings?tab=job-sheet');
     } catch (error: any) {
       toast.error(error.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} theme`);
     } finally {

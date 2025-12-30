@@ -66,7 +66,7 @@ export default function CreateInvoice() {
     mutationFn: invoiceApi.create,
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      navigate(`/branch/invoices/${invoice.id}`);
+      navigate(`/invoices/${invoice.id}`);
     },
     onError: (error: any) => {
       alert(error.response?.data?.message || 'Failed to create invoice');
@@ -200,7 +200,7 @@ export default function CreateInvoice() {
       <div className="mb-6">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/branch/invoices')}
+            onClick={() => navigate('/invoices')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -493,7 +493,7 @@ export default function CreateInvoice() {
         <div className="flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => navigate('/branch/invoices')}
+            onClick={() => navigate('/invoices')}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Cancel

@@ -63,11 +63,11 @@ export default function ThemeList() {
   });
 
   const handleViewTheme = (theme: Theme) => {
-    navigate(`/branch/settings?tab=invoice/${theme.id}`);
+    navigate(`/settings?tab=invoice/${theme.id}`);
   };
 
   const handleEditTheme = (theme: Theme) => {
-    navigate(`/branch/settings?tab=invoice/${theme.id}/edit`);
+    navigate(`/settings?tab=invoice/${theme.id}/edit`);
   };
 
   const handleDeleteTheme = async (theme: Theme) => {
@@ -168,7 +168,7 @@ export default function ThemeList() {
         description: 'Get started by creating your first PDF theme',
         action: {
           label: 'Create First Theme',
-          onClick: () => navigate('/branch/settings?tab=invoice/create'),
+          onClick: () => navigate('/settings?tab=invoice/create'),
         },
       };
 
@@ -186,7 +186,7 @@ export default function ThemeList() {
           </p>
         </div>
         <button
-          onClick={() => navigate('/branch/settings?tab=invoice/create')}
+          onClick={() => navigate('/settings?tab=invoice/create')}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />

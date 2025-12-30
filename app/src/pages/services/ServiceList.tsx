@@ -200,7 +200,7 @@ export default function ServiceList() {
           <p className="text-sm text-gray-500 mt-1">Manage all service requests</p>
         </div>
         <button
-          onClick={() => navigate('/branch/services/create')}
+          onClick={() => navigate('/services/create')}
           className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -444,7 +444,7 @@ export default function ServiceList() {
                     <tr
                       key={service.id}
                       className="hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/branch/services/${service.id}`)}
+                      onClick={() => navigate(`/services/${service.id}`)}
                     >
                       {/* Column 1: Service & Customer */}
                       <td className="px-4 py-4">
@@ -605,7 +605,7 @@ export default function ServiceList() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/branch/services/${service.id}`);
+                              navigate(`/services/${service.id}`);
                             }}
                             className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                             title="View details"
@@ -652,7 +652,7 @@ export default function ServiceList() {
                   <div className="flex items-start justify-between mb-3">
                     <div
                       className="flex items-center gap-2 cursor-pointer"
-                      onClick={() => navigate(`/branch/services/${service.id}`)}
+                      onClick={() => navigate(`/services/${service.id}`)}
                     >
                       <Calendar className="w-4 h-4 text-gray-400" />
                       <span className="text-sm font-semibold text-gray-900">
@@ -672,7 +672,7 @@ export default function ServiceList() {
 
                   <div
                     className="space-y-2 cursor-pointer"
-                    onClick={() => navigate(`/branch/services/${service.id}`)}
+                    onClick={() => navigate(`/services/${service.id}`)}
                   >
                     <div>
                       <div className="text-sm font-medium text-gray-900">
@@ -793,7 +793,7 @@ export default function ServiceList() {
                     {/* Mobile Action Buttons */}
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => navigate(`/branch/services/${service.id}`)}
+                        onClick={() => navigate(`/services/${service.id}`)}
                         className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                         title="View"
                       >

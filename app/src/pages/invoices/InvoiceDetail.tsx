@@ -89,7 +89,7 @@ export default function InvoiceDetail() {
     mutationFn: () => invoiceApi.delete(id!),
     onSuccess: () => {
       toast.success('Invoice deleted successfully');
-      navigate('/branch/invoices');
+      navigate('/invoices');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to delete invoice');
@@ -158,7 +158,7 @@ export default function InvoiceDetail() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/branch/invoices')}
+            onClick={() => navigate('/invoices')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

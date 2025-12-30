@@ -6,6 +6,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { config } from './config/env';
+import { checkDatabaseConnection } from './config/database';
 import { Logger } from './utils/logger';
 import { ApiResponse } from './utils/response';
 import { errorHandler } from './middleware/errorHandler';
@@ -52,9 +53,45 @@ const app: Application = express();
 // Trust proxy for rate limiting behind reverse proxy (Docker/Nginx)
 app.set('trust proxy', 1);
 
-// Health check (before other middleware to avoid CORS/helmet issues)
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ success: true, data: { status: 'OK', timestamp: new Date().toISOString() }, message: 'Server is healthy' });
+// Health check endpoints (before other middleware to avoid CORS/helmet issues)
+app.get('/health', async (req: Request, res: Response) => {
+  const health = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.env,
+    port: config.port,
+  };
+  
+  res.status(200).json({ 
+    success: true, 
+    data: health, 
+    message: 'Server is healthy' 
+  });
+});
+
+// Detailed health check
+app.get('/health/detailed', async (req: Request, res: Response) => {
+  const checks = {
+    server: true,
+    database: false,
+    timestamp: new Date().toISOString(),
+  };
+  
+  // Check database connection
+  try {
+    checks.database = await checkDatabaseConnection();
+  } catch (error) {
+    console.error('Database health check failed:', error);
+  }
+  
+  const isHealthy = Object.values(checks).every(check => check !== false);
+  
+  res.status(isHealthy ? 200 : 503).json({
+    success: isHealthy,
+    data: checks,
+    message: isHealthy ? 'All systems operational' : 'Some systems degraded',
+  });
 });
 
 // Middleware
@@ -62,18 +99,39 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-// CORS configuration
+// CORS configuration with enhanced security
 const corsOrigins = config.cors.origin.split(',').map(origin => origin.trim()).filter(Boolean);
-app.use(cors({
-  origin: corsOrigins.length === 0
-    ? true  // Allow all origins if none specified
-    : corsOrigins.length === 1
-      ? corsOrigins[0]
-      : corsOrigins,
+
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: Function) {
+    // Allow requests with no origin (like mobile apps, Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in the allowed list
+    if (corsOrigins.includes(origin) || corsOrigins.includes('*')) {
+      callback(null, true);
+    } else if (config.env === 'development') {
+      // In development, allow localhost with any port
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        Logger.info(`Allowing development origin: ${origin}`);
+        callback(null, true);
+      } else {
+        callback(new Error(`Not allowed by CORS: ${origin}`));
+      }
+    } else {
+      callback(new Error(`Not allowed by CORS: ${origin}`));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+  maxAge: 86400, // 24 hours
+};
+
+app.use(cors(corsOptions));
 
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
@@ -144,9 +202,24 @@ app.use(errorHandler);
 
 // Start server
 const PORT = config.port;
-const server = app.listen(PORT, () => {
-  Logger.info(`Server running in ${config.env} mode on port ${PORT}`);
-  Logger.info(`API version: ${config.apiVersion}`);
+const server = app.listen(PORT, async () => {
+  Logger.info('════════════════════════════════════════════');
+  Logger.info('🚀 DeenMobiles API Server Started');
+  Logger.info('════════════════════════════════════════════');
+  Logger.info(`Environment: ${config.env}`);
+  Logger.info(`Port: ${PORT}`);
+  Logger.info(`API Version: ${config.apiVersion}`);
+  Logger.info(`Base URL: ${config.baseUrl || `http://localhost:${PORT}`}`);
+  Logger.info(`Health Check: ${config.baseUrl || `http://localhost:${PORT}`}/health`);
+  Logger.info('────────────────────────────────────────────');
+  
+  // Check database connection on startup
+  const dbConnected = await checkDatabaseConnection();
+  if (!dbConnected) {
+    Logger.warn('⚠️  Database connection failed - API running with limited functionality');
+  }
+  
+  Logger.info('════════════════════════════════════════════');
 });
 
 // Handle unhandled promise rejections

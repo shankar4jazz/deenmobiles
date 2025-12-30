@@ -154,7 +154,7 @@ const navItems: NavItem[] = [
     children: [
       {
         name: 'Templates',
-        path: '/branch/settings',
+        path: '/settings',
         icon: FileText,
       },
     ],

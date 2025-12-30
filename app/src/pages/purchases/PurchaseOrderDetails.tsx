@@ -58,7 +58,7 @@ export default function PurchaseOrderDetails() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">Purchase Order Not Found</h2>
           <button
-            onClick={() => navigate('/branch/purchases')}
+            onClick={() => navigate('/purchases')}
             className="mt-4 text-indigo-600 hover:text-indigo-900"
           >
             Back to Purchase Orders
@@ -74,7 +74,7 @@ export default function PurchaseOrderDetails() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => navigate('/branch/purchases')}
+              onClick={() => navigate('/purchases')}
               className="p-2 hover:bg-gray-100 rounded-full"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -89,7 +89,7 @@ export default function PurchaseOrderDetails() {
           <div className="flex gap-3">
             {po.status !== 'COMPLETED' && po.status !== 'CANCELLED' && (
               <button
-                onClick={() => navigate(`/branch/purchases/${po.id}/receive`)}
+                onClick={() => navigate(`/purchases/${po.id}/receive`)}
                 className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
               >
                 <PackageCheck className="h-5 w-5 mr-2" />
@@ -98,7 +98,7 @@ export default function PurchaseOrderDetails() {
             )}
             {po.grandTotal - po.paidAmount > 0 && (
               <button
-                onClick={() => navigate(`/branch/purchases/${po.id}/payment`)}
+                onClick={() => navigate(`/purchases/${po.id}/payment`)}
                 className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
                 <DollarSign className="h-5 w-5 mr-2" />
@@ -107,7 +107,7 @@ export default function PurchaseOrderDetails() {
             )}
             {po.status !== 'DRAFT' && po.status !== 'CANCELLED' && (
               <button
-                onClick={() => navigate(`/branch/purchases/${po.id}/return`)}
+                onClick={() => navigate(`/purchases/${po.id}/return`)}
                 className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700"
               >
                 <PackageX className="h-5 w-5 mr-2" />

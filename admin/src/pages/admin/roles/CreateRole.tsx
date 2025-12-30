@@ -25,7 +25,7 @@ export default function CreateRole() {
   const createMutation = useMutation({
     mutationFn: roleApi.createRole,
     onSuccess: () => {
-      navigate('/admin/roles');
+      navigate('/roles');
     },
     onError: (error: any) => {
       const responseData = error.response?.data;
@@ -87,7 +87,7 @@ export default function CreateRole() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/admin/roles')}
+            onClick={() => navigate('/roles')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-600" />
@@ -206,7 +206,7 @@ export default function CreateRole() {
           <div className="flex items-center justify-end gap-4">
             <button
               type="button"
-              onClick={() => navigate('/admin/roles')}
+              onClick={() => navigate('/roles')}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel

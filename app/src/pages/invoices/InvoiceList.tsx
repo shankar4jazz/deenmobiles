@@ -62,7 +62,7 @@ export default function InvoiceList() {
     : data?.data;
 
   const handleViewInvoice = (invoice: Invoice) => {
-    navigate(`/branch/invoices/${invoice.id}`);
+    navigate(`/invoices/${invoice.id}`);
   };
 
   const handleDownloadPDF = async (invoice: Invoice) => {
@@ -72,7 +72,7 @@ export default function InvoiceList() {
   };
 
   const handleCloneInvoice = (invoice: Invoice) => {
-    navigate('/branch/invoices/create', { state: { cloneFrom: invoice } });
+    navigate('/invoices/create', { state: { cloneFrom: invoice } });
   };
 
   const handleReset = () => {
@@ -151,7 +151,7 @@ export default function InvoiceList() {
         description: 'Get started by creating your first invoice',
         action: {
           label: 'Create First Invoice',
-          onClick: () => navigate('/branch/invoices/create'),
+          onClick: () => navigate('/invoices/create'),
         },
       };
 
@@ -169,7 +169,7 @@ export default function InvoiceList() {
           </p>
         </div>
         <button
-          onClick={() => navigate('/branch/invoices/create')}
+          onClick={() => navigate('/invoices/create')}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />

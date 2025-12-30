@@ -77,7 +77,7 @@ export default function BranchList() {
             <p className="text-gray-600 mt-1">Manage your service center branches</p>
           </div>
           <button
-            onClick={() => navigate('/admin/branches/create')}
+            onClick={() => navigate('/branches/create')}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:from-purple-700 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl"
           >
             <Plus className="h-5 w-5" />
@@ -243,14 +243,14 @@ export default function BranchList() {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => navigate(`/admin/branches/${branch.id}/dashboard`)}
+                              onClick={() => navigate(`/branches/${branch.id}/dashboard`)}
                               className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                               title="View dashboard"
                             >
                               <BarChart3 className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => navigate(`/admin/branches/edit/${branch.id}`)}
+                              onClick={() => navigate(`/branches/edit/${branch.id}`)}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                               title="Edit branch"
                             >

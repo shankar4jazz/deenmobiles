@@ -64,7 +64,7 @@ export default function BranchDashboard() {
             <h2 className="text-xl font-semibold text-gray-900">Branch Not Found</h2>
             <p className="text-gray-600 mt-2">The branch you're looking for doesn't exist.</p>
             <button
-              onClick={() => navigate('/admin/branches')}
+              onClick={() => navigate('/branches')}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
             >
               Back to Branches
@@ -88,7 +88,7 @@ export default function BranchDashboard() {
         {/* Header with Back Button */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/admin/branches')}
+            onClick={() => navigate('/branches')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-600" />

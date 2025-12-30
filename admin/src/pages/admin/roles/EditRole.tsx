@@ -47,7 +47,7 @@ export default function EditRole() {
   const updateMutation = useMutation({
     mutationFn: (data: Partial<RoleFormData>) => roleApi.updateRole(id!, data),
     onSuccess: () => {
-      navigate('/admin/roles');
+      navigate('/roles');
     },
     onError: (error: any) => {
       setError(error.response?.data?.message || 'Failed to update role');
@@ -114,7 +114,7 @@ export default function EditRole() {
                 System roles cannot be edited. They are predefined roles with specific permissions.
               </p>
               <button
-                onClick={() => navigate('/admin/roles')}
+                onClick={() => navigate('/roles')}
                 className="mt-4 px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors"
               >
                 Back to Roles
@@ -132,7 +132,7 @@ export default function EditRole() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/admin/roles')}
+            onClick={() => navigate('/roles')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-gray-600" />
@@ -244,7 +244,7 @@ export default function EditRole() {
           <div className="flex items-center justify-end gap-4">
             <button
               type="button"
-              onClick={() => navigate('/admin/roles')}
+              onClick={() => navigate('/roles')}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel

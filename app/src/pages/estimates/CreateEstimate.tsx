@@ -63,9 +63,9 @@ export default function CreateEstimate() {
 
       // If user chose to send, navigate to detail page where they can send
       if (sendAfterCreation) {
-        navigate(`/branch/estimates/${estimate.id}`);
+        navigate(`/estimates/${estimate.id}`);
       } else {
-        navigate('/branch/estimates');
+        navigate('/estimates');
       }
     },
     onError: (error: any) => {
@@ -170,7 +170,7 @@ export default function CreateEstimate() {
       <div className="mb-6">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/branch/estimates')}
+            onClick={() => navigate('/estimates')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -416,7 +416,7 @@ export default function CreateEstimate() {
         <div className="flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => navigate('/branch/estimates')}
+            onClick={() => navigate('/estimates')}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Cancel

@@ -63,7 +63,7 @@ export default function InvoiceButton({
       } else {
         // Navigate to invoice detail page
         setTimeout(() => {
-          navigate(`/branch/invoices/${invoice.id}`);
+          navigate(`/invoices/${invoice.id}`);
         }, 1500);
       }
     },
@@ -84,7 +84,7 @@ export default function InvoiceButton({
 
   const handleViewInvoice = () => {
     if (existingInvoice) {
-      navigate(`/branch/invoices/${existingInvoice.id}`);
+      navigate(`/invoices/${existingInvoice.id}`);
     }
   };
 

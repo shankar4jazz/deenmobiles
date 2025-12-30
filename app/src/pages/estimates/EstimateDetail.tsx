@@ -90,7 +90,7 @@ export default function EstimateDetail() {
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ['estimate', id] });
       alert('Estimate converted to invoice successfully');
-      navigate(`/branch/invoices/${invoice.id}`);
+      navigate(`/invoices/${invoice.id}`);
     },
     onError: (error: any) => {
       alert(error.response?.data?.message || 'Failed to convert estimate');
@@ -188,7 +188,7 @@ export default function EstimateDetail() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/branch/estimates')}
+            onClick={() => navigate('/estimates')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -450,7 +450,7 @@ export default function EstimateDetail() {
                     <span className="text-gray-600">Converted to Invoice:</span>
                     <button
                       onClick={() =>
-                        navigate(`/branch/invoices/${estimate.convertedInvoice?.id}`)
+                        navigate(`/invoices/${estimate.convertedInvoice?.id}`)
                       }
                       className="font-medium text-purple-600 hover:text-purple-700 flex items-center gap-1"
                     >

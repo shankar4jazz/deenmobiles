@@ -89,7 +89,7 @@ export default function ReturnItems() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
       alert('Purchase return created successfully! Waiting for confirmation.');
-      navigate(`/branch/purchases/${id}`);
+      navigate(`/purchases/${id}`);
     },
     onError: (error: any) => {
       setError(error.response?.data?.message || 'Failed to create return');
@@ -181,7 +181,7 @@ export default function ReturnItems() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">Purchase Order Not Found</h2>
           <button
-            onClick={() => navigate('/branch/purchases')}
+            onClick={() => navigate('/purchases')}
             className="mt-4 text-indigo-600 hover:text-indigo-900"
           >
             Back to Purchase Orders
@@ -204,7 +204,7 @@ export default function ReturnItems() {
           </p>
           <div className="mt-6">
             <button
-              onClick={() => navigate(`/branch/purchases/${id}`)}
+              onClick={() => navigate(`/purchases/${id}`)}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
             >
               Back to Purchase Order
@@ -221,7 +221,7 @@ export default function ReturnItems() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => navigate(`/branch/purchases/${id}`)}
+            onClick={() => navigate(`/purchases/${id}`)}
             className="p-2 hover:bg-gray-100 rounded-full"
           >
             <ArrowLeft className="h-5 w-5" />

@@ -350,7 +350,7 @@ export default function ServiceDetail() {
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate('/branch/services')}
+            onClick={() => navigate('/services')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -459,7 +459,7 @@ export default function ServiceDetail() {
                 <div className="mt-2 pl-6">
                   <div className="flex items-center gap-2 text-sm">
                     <Link
-                      to={`/branch/services/${service.previousServiceId}`}
+                      to={`/services/${service.previousServiceId}`}
                       className="text-purple-600 hover:text-purple-800 font-medium hover:underline"
                     >
                       {service.previousService?.ticketNumber || 'View Previous Service'}

@@ -1,6 +1,33 @@
 import { API_BASE_URL } from "./constants";
 import type { PublicServiceResponse, CompanyInfo, ApiResponse } from "./types";
 
+// Add error handling wrapper
+async function apiRequest<T>(
+  url: string,
+  options?: RequestInit
+): Promise<T> {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || `Request failed with status ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`API request failed: ${url}`, error);
+    throw error;
+  }
+}
+
 export async function trackService(
   ticket?: string,
   phone?: string
@@ -9,17 +36,13 @@ export async function trackService(
   if (ticket) params.append("ticket", ticket);
   if (phone) params.append("phone", phone);
 
-  const response = await fetch(`${API_BASE_URL}/public/track?${params}`, {
-    cache: "no-store", // Always fetch fresh data
-  });
+  const data = await apiRequest<ApiResponse<PublicServiceResponse | PublicServiceResponse[]>>(
+    `${API_BASE_URL}/public/track?${params}`,
+    { cache: "no-store" }
+  );
 
-  const data: ApiResponse<PublicServiceResponse | PublicServiceResponse[]> =
-    await response.json();
-
-  if (!response.ok || !data.success) {
-    throw new Error(
-      data.message || "Failed to fetch service. Please check your details."
-    );
+  if (!data.success) {
+    throw new Error(data.message || "Failed to fetch service");
   }
 
   return data.data;
@@ -27,11 +50,10 @@ export async function trackService(
 
 export async function getCompanyInfo(): Promise<CompanyInfo> {
   try {
-    const response = await fetch(`${API_BASE_URL}/public/company-info`, {
-      next: { revalidate: 3600 }, // Cache for 1 hour
-    });
-
-    const data: ApiResponse<CompanyInfo> = await response.json();
+    const data = await apiRequest<ApiResponse<CompanyInfo>>(
+      `${API_BASE_URL}/public/company-info`,
+      { next: { revalidate: 3600 } }
+    );
     return data.data;
   } catch {
     return {

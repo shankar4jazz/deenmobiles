@@ -86,11 +86,11 @@ export default function JobSheetTemplateList() {
 
   // Handlers
   const handleView = (template: JobSheetTemplate) => {
-    navigate(`/branch/settings?tab=job-sheet&id=${template.id}`);
+    navigate(`/settings?tab=job-sheet&id=${template.id}`);
   };
 
   const handleEdit = (template: JobSheetTemplate) => {
-    navigate(`/branch/settings?tab=job-sheet&id=${template.id}&edit=true`);
+    navigate(`/settings?tab=job-sheet&id=${template.id}&edit=true`);
   };
 
   const handleDelete = (template: JobSheetTemplate) => {
@@ -143,14 +143,14 @@ export default function JobSheetTemplateList() {
         <h2 className="text-xl font-semibold">Job Sheet Themes</h2>
         <div className="flex gap-2">
           <button
-            onClick={() => navigate('/branch/settings?tab=job-sheet&action=categories')}
+            onClick={() => navigate('/settings?tab=job-sheet&action=categories')}
             className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
           >
             <FolderCog className="w-4 h-4" />
             Manage Categories
           </button>
           <button
-            onClick={() => navigate('/branch/settings?tab=job-sheet&action=create')}
+            onClick={() => navigate('/settings?tab=job-sheet&action=create')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -214,7 +214,7 @@ export default function JobSheetTemplateList() {
           action: !searchTerm
             ? {
                 label: 'Create Theme',
-                onClick: () => navigate('/branch/settings?tab=job-sheet&action=create'),
+                onClick: () => navigate('/settings?tab=job-sheet&action=create'),
               }
             : undefined,
         }}

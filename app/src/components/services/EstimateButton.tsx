@@ -54,12 +54,12 @@ export default function EstimateButton({
 
   const handleCreateEstimate = () => {
     // Navigate to create estimate page with service pre-filled
-    navigate(`/branch/estimates/create?serviceId=${serviceId}${customerId ? `&customerId=${customerId}` : ''}`);
+    navigate(`/estimates/create?serviceId=${serviceId}${customerId ? `&customerId=${customerId}` : ''}`);
   };
 
   const handleViewEstimate = () => {
     if (existingEstimate) {
-      navigate(`/branch/estimates/${existingEstimate.id}`);
+      navigate(`/estimates/${existingEstimate.id}`);
     }
   };
 

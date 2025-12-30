@@ -155,7 +155,7 @@ export default function PurchaseOrderList() {
             </p>
           </div>
           <button
-            onClick={() => navigate('/branch/purchases/create')}
+            onClick={() => navigate('/purchases/create')}
             className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             <Plus className="h-5 w-5 mr-2" />
@@ -444,7 +444,7 @@ export default function PurchaseOrderList() {
               </p>
               <div className="mt-6">
                 <button
-                  onClick={() => navigate('/branch/purchases/create')}
+                  onClick={() => navigate('/purchases/create')}
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
                   <Plus className="h-5 w-5 mr-2" />
@@ -536,7 +536,7 @@ export default function PurchaseOrderList() {
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() =>
-                              navigate(`/branch/purchases/${po.id}`)
+                              navigate(`/purchases/${po.id}`)
                             }
                             className="text-indigo-600 hover:text-indigo-900"
                             title="View Details"
@@ -546,7 +546,7 @@ export default function PurchaseOrderList() {
                           {po.status !== 'COMPLETED' && po.status !== 'CANCELLED' && (
                             <button
                               onClick={() =>
-                                navigate(`/branch/purchases/${po.id}/receive`)
+                                navigate(`/purchases/${po.id}/receive`)
                               }
                               className="text-green-600 hover:text-green-900"
                               title="Receive Items"
@@ -557,7 +557,7 @@ export default function PurchaseOrderList() {
                           {po.grandTotal - po.paidAmount > 0 && (
                             <button
                               onClick={() =>
-                                navigate(`/branch/purchases/${po.id}/payment`)
+                                navigate(`/purchases/${po.id}/payment`)
                               }
                               className="text-blue-600 hover:text-blue-900"
                               title="Make Payment"

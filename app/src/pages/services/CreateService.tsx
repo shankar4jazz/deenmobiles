@@ -388,7 +388,7 @@ export default function CreateService() {
                             <p className="text-xs text-gray-400">
                               {warranty.sourceType === 'SERVICE' ? (
                                 <Link
-                                  to={`/branch/services/${warranty.serviceId}`}
+                                  to={`/services/${warranty.serviceId}`}
                                   target="_blank"
                                   className="text-purple-600 hover:underline flex items-center gap-1"
                                 >
@@ -437,7 +437,7 @@ export default function CreateService() {
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-amber-800">Repeated Service</h4>
                     <Link
-                      to={`/branch/services/${previousServiceInfo.lastService.id}`}
+                      to={`/services/${previousServiceInfo.lastService.id}`}
                       target="_blank"
                       className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium"
                     >
@@ -822,12 +822,12 @@ export default function CreateService() {
           isOpen={showJobSheetModal}
           onClose={() => {
             setShowJobSheetModal(false);
-            navigate(`/branch/services/${createdServiceId}`);
+            navigate(`/services/${createdServiceId}`);
           }}
           serviceId={createdServiceId}
           onNavigateToService={() => {
             setShowJobSheetModal(false);
-            navigate(`/branch/services/${createdServiceId}`);
+            navigate(`/services/${createdServiceId}`);
           }}
         />
       )}
