@@ -8,8 +8,9 @@ import { toast } from 'sonner';
 import { serviceApi, CreateServiceData, PreviousServiceInfo } from '@/services/serviceApi';
 import { warrantyApi, WarrantyRecord, formatWarrantyDays } from '@/services/warrantyApi';
 import { masterDataApi } from '@/services/masterDataApi';
+import { customerDeviceApi } from '@/services/customerDeviceApi';
 import { useAuthStore } from '@/store/authStore';
-import { ArrowLeft, AlertTriangle, ExternalLink, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, ExternalLink, ShieldCheck, ShieldAlert, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CustomerDevice, Customer } from '@/types';
 import { Fault, DamageCondition, Accessory } from '@/types/masters';
@@ -71,6 +72,9 @@ export default function CreateService() {
   const [selectedFaults, setSelectedFaults] = useState<Fault[]>([]);
   const [selectedDamageConditions, setSelectedDamageConditions] = useState<DamageCondition[]>([]);
   const [selectedAccessories, setSelectedAccessories] = useState<Accessory[]>([]);
+  
+  // Auto-selection state
+  const [isDeviceAutoSelected, setIsDeviceAutoSelected] = useState(false);
 
   // Repeated service tracking
   const [previousServiceInfo, setPreviousServiceInfo] = useState<PreviousServiceInfo | null>(null);
@@ -87,19 +91,7 @@ export default function CreateService() {
   // Active warranty claim state
   const [selectedWarrantyId, setSelectedWarrantyId] = useState<string | null>(null);
 
-  // Fetch active warranties for selected customer
-  const { data: customerWarranties, isLoading: isLoadingWarranties } = useQuery({
-    queryKey: ['customer-warranties', selectedCustomer?.id],
-    queryFn: () => warrantyApi.getCustomerWarranties(selectedCustomer!.id),
-    enabled: !!selectedCustomer?.id,
-    staleTime: 30000,
-  });
-
-  // Filter to only show active (non-expired, non-claimed) warranties
-  const activeWarranties = customerWarranties?.filter(
-    (w: WarrantyRecord) => !w.isExpired && !w.isClaimed
-  ) || [];
-
+  // Form setup - moved before queries that use watch values
   const {
     control,
     handleSubmit,
@@ -131,6 +123,27 @@ export default function CreateService() {
   const customerId = watch('customerId');
   const estimatedCost = watch('estimatedCost');
   const noDamage = watch('noDamage');
+  
+  // Fetch customer devices - now customerId is defined
+  const { data: devicesData, isLoading: isLoadingDevicesList } = useQuery({
+    queryKey: ['customer-devices', customerId],
+    queryFn: () => customerDeviceApi.getAllDevices(customerId, { limit: 100, isActive: true }),
+    enabled: !!customerId,
+    staleTime: 30000,
+  });
+
+  // Fetch active warranties for selected customer
+  const { data: customerWarranties, isLoading: isLoadingWarranties } = useQuery({
+    queryKey: ['customer-warranties', selectedCustomer?.id],
+    queryFn: () => warrantyApi.getCustomerWarranties(selectedCustomer!.id),
+    enabled: !!selectedCustomer?.id,
+    staleTime: 30000,
+  });
+
+  // Filter to only show active (non-expired, non-claimed) warranties
+  const activeWarranties = customerWarranties?.filter(
+    (w: WarrantyRecord) => !w.isExpired && !w.isClaimed
+  ) || [];
 
   // Auto-set branch ID
   useEffect(() => {
@@ -148,7 +161,17 @@ export default function CreateService() {
     setSelectedDevice(null);
     setValue('customerDeviceId', '');
     setPreviousServiceInfo(null);
+    setIsDeviceAutoSelected(false);
   }, [customerId, setValue]);
+
+  // Function to reset device selection
+  const handleResetDevice = () => {
+    setValue('customerDeviceId', '');
+    setSelectedDevice(null);
+    setIsDeviceAutoSelected(false);
+    setPreviousServiceInfo(null);
+    toast.info('Device selection cleared', { duration: 1500 });
+  };
 
   // Check for previous services when device is selected or faults change
   const faultIds = watch('faultIds');
@@ -204,6 +227,8 @@ export default function CreateService() {
   const handleDeviceChange = (id: string, device?: CustomerDevice) => {
     setValue('customerDeviceId', id);
     setSelectedDevice(device || null);
+    // When user manually selects a device, mark it as not auto-selected
+    setIsDeviceAutoSelected(false);
   };
 
   const handleFaultsChange = (ids: string[], faults: Fault[], totalPrice: number) => {
@@ -230,12 +255,27 @@ export default function CreateService() {
     toast.success('Customer created and selected');
   };
 
-  const handleDeviceCreated = (device: CustomerDevice) => {
+  const handleDeviceCreated = async (device: CustomerDevice) => {
+    // First close the modal
+    setShowAddDeviceModal(false);
+    
+    // Invalidate the query to refresh the device list
+    await queryClient.invalidateQueries({ queryKey: ['customer-devices', customerId] });
+    
+    // Wait for the queries to be refetched
+    await queryClient.refetchQueries({ queryKey: ['customer-devices', customerId] });
+    
+    // Now set the device as selected
     setValue('customerDeviceId', device.id);
     setSelectedDevice(device);
-    setShowAddDeviceModal(false);
-    queryClient.invalidateQueries({ queryKey: ['customer-devices', customerId] });
-    toast.success('Device added and selected');
+    
+    // Mark as auto-selected since it's the newest device
+    setIsDeviceAutoSelected(true);
+    
+    // Show success message
+    toast.success('New device added and auto-selected', {
+      description: `${device.brand?.name || ''} ${device.model?.name || ''}`.trim()
+    });
   };
 
   const handleImagesChange = (files: File[], previews: string[]) => {
@@ -315,15 +355,44 @@ export default function CreateService() {
             </FormRow>
 
             <FormRow label="Device" required error={errors.customerDeviceId?.message}>
-              <SearchableDeviceSelect
-                value={watch('customerDeviceId')}
-                onChange={handleDeviceChange}
-                customerId={customerId}
-                onAddNew={() => setShowAddDeviceModal(true)}
-                disabled={!customerId}
-                error={errors.customerDeviceId?.message}
-                placeholder={customerId ? 'Select device...' : 'Select customer first'}
-              />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <SearchableDeviceSelect
+                      value={watch('customerDeviceId')}
+                      onChange={handleDeviceChange}
+                      customerId={customerId}
+                      onAddNew={() => setShowAddDeviceModal(true)}
+                      disabled={!customerId}
+                      error={errors.customerDeviceId?.message}
+                      placeholder={
+                        !customerId 
+                          ? 'Select customer first' 
+                          : 'Select device...'
+                      }
+                      // Pass the selected device directly if we have it to ensure it's in the list
+                      devices={selectedDevice ? [selectedDevice, ...(devicesData?.devices || []).filter(d => d.id !== selectedDevice.id)] : undefined}
+                    />
+                  </div>
+                  {isDeviceAutoSelected && selectedDevice && (
+                    <button
+                      type="button"
+                      onClick={handleResetDevice}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                      title="Device was auto-selected. Click to choose a different device"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      <span className="hidden sm:inline">Change</span>
+                    </button>
+                  )}
+                </div>
+                {isDeviceAutoSelected && selectedDevice && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <span>✓</span>
+                    <span>Latest device auto-selected</span>
+                  </p>
+                )}
+              </div>
             </FormRow>
 
             <FormRow label="Fault(s)" required error={errors.faultIds?.message}>

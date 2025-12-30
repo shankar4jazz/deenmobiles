@@ -124,9 +124,17 @@ export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
     try {
       setLoading(true);
       const device = await customerDeviceApi.createDevice(data);
+      
+      // Enhance the device object with brand and model names for immediate display
+      const enhancedDevice = {
+        ...device,
+        brand: brands.find(b => b.id === data.brandId) || device.brand,
+        model: models.find(m => m.id === data.modelId) || device.model,
+      };
+      
       toast.success('Device added successfully');
       reset();
-      onSuccess(device);
+      onSuccess(enhancedDevice);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to add device');
     } finally {
