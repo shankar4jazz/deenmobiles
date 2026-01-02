@@ -113,8 +113,11 @@ const corsOptions = {
     if (corsOrigins.includes(origin) || corsOrigins.includes('*')) {
       callback(null, true);
     } else if (config.env === 'development') {
-      // In development, allow localhost with any port
-      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      // In development, allow localhost and private network IPs with any port
+      const isLocalhost = origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
+      const isPrivateNetwork = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?/.test(origin);
+
+      if (isLocalhost || isPrivateNetwork) {
         Logger.info(`Allowing development origin: ${origin}`);
         callback(null, true);
       } else {

@@ -9,6 +9,8 @@ interface GenerateJobSheetData {
   serviceId: string;
   userId: string;
   templateId?: string;
+  format?: 'A4' | 'A5' | 'thermal' | 'thermal-2' | 'thermal-3';
+  copyType?: 'customer' | 'office' | 'both';
 }
 
 export class JobSheetService {
@@ -37,21 +39,48 @@ export class JobSheetService {
    */
   static async generateJobSheet(data: GenerateJobSheetData): Promise<any> {
     try {
-      const { serviceId, userId, templateId } = data;
+      const { serviceId, userId, templateId, format = 'A4', copyType = 'customer' } = data;
 
-      // Check if service exists
+      // Check if service exists with all related data
       const service = await prisma.service.findUnique({
         where: { id: serviceId },
         include: {
           customer: true,
-          customerDevice: true,
+          customerDevice: {
+            include: {
+              brand: { select: { name: true } },
+              model: { select: { name: true } },
+            },
+          },
           faults: {
             include: {
               fault: true,
             },
           },
+          // Accessories received with the device
+          accessories: {
+            include: {
+              accessory: { select: { id: true, name: true } },
+            },
+          },
+          // Pre-existing damage conditions
+          damageConditions: {
+            include: {
+              damageCondition: { select: { id: true, name: true } },
+            },
+          },
+          // Parts used in service (both tagged and extra spare)
+          partsUsed: {
+            include: {
+              part: { select: { id: true, name: true, partNumber: true } },
+              item: { select: { id: true, itemName: true, itemCode: true } },
+            },
+          },
           assignedTo: {
-            select: { name: true },
+            select: { id: true, name: true },
+          },
+          createdBy: {
+            select: { id: true, name: true },
           },
           branch: {
             select: {
@@ -69,6 +98,7 @@ export class JobSheetService {
               phone: true,
               email: true,
               logo: true,
+              gstin: true,
             },
           },
           previousService: {
@@ -121,35 +151,102 @@ export class JobSheetService {
       // Generate job sheet number
       const jobSheetNumber = await this.generateJobSheetNumber(service.branchId, service.companyId);
 
+      // Separate parts into tagged and extra spare
+      const taggedParts = service.partsUsed
+        ?.filter((p: any) => !p.isExtraSpare)
+        .map((p: any) => ({
+          id: p.id,
+          partName: p.part?.name || p.item?.itemName || 'Unknown Part',
+          partNumber: p.part?.partNumber || p.item?.itemCode || undefined,
+          quantity: p.quantity,
+          unitPrice: Number(p.unitPrice) || 0,
+          totalPrice: Number(p.totalPrice) || 0,
+          faultTag: p.faultTag || undefined,
+        })) || [];
+
+      const extraSpareParts = service.partsUsed
+        ?.filter((p: any) => p.isExtraSpare)
+        .map((p: any) => ({
+          id: p.id,
+          partName: p.part?.name || p.item?.itemName || 'Unknown Part',
+          partNumber: p.part?.partNumber || p.item?.itemCode || undefined,
+          quantity: p.quantity,
+          unitPrice: Number(p.unitPrice) || 0,
+          totalPrice: Number(p.totalPrice) || 0,
+          isApproved: p.isApproved || false,
+          approvalMethod: p.approvalMethod || undefined,
+          approvalNote: p.approvalNote || undefined,
+          approvedAt: p.approvedAt || undefined,
+        })) || [];
+
+      // Prepare accessories
+      const accessories = service.accessories?.map((a: any) => ({
+        id: a.accessory?.id,
+        name: a.accessory?.name || 'Unknown',
+        received: true,
+      })) || [];
+
+      // Prepare damage conditions
+      const damageConditions = service.damageConditions?.map((d: any) => ({
+        id: d.damageCondition?.id,
+        name: d.damageCondition?.name || 'Unknown',
+      })) || [];
+
       // Prepare data for PDF generation
       const pdfData = {
         jobSheetNumber,
+        copyType,
         service: {
           ticketNumber: service.ticketNumber,
           createdAt: service.createdAt,
           deviceModel: service.deviceModel,
           deviceIMEI: service.deviceIMEI || undefined,
           devicePassword: service.devicePassword || undefined,
+          devicePattern: service.devicePattern || undefined,
+          deviceCondition: service.deviceCondition || undefined,
+          intakeNotes: service.intakeNotes || undefined,
           issue: service.damageCondition,
           diagnosis: service.diagnosis || undefined,
-          estimatedCost: service.estimatedCost,
-          advancePayment: service.advancePayment,
+          estimatedCost: Number(service.estimatedCost) || 0,
+          labourCharge: Number(service.labourCharge) || 0,
+          extraSpareAmount: Number(service.extraSpareAmount) || 0,
+          discount: Number(service.discount) || 0,
+          advancePayment: Number(service.advancePayment) || 0,
+          actualCost: service.actualCost ? Number(service.actualCost) : undefined,
+          isWarrantyRepair: service.isWarrantyRepair || false,
+          warrantyReason: service.warrantyReason || undefined,
+          isRepeatedService: !!service.previousServiceId,
+          dataWarrantyAccepted: service.dataWarrantyAccepted || false,
         },
         customer: {
           name: service.customer.name,
           phone: service.customer.phone,
           address: service.customer.address || undefined,
           email: service.customer.email || undefined,
+          whatsappNumber: service.customer.whatsappNumber || undefined,
+          gstin: service.customer.gstin || undefined,
+          idProofType: service.customer.idProofType || undefined,
         },
         customerDevice: service.customerDevice
           ? {
+              brandName: service.customerDevice.brand?.name || undefined,
+              modelName: service.customerDevice.model?.name || undefined,
               color: service.customerDevice.color || undefined,
+              imei: service.customerDevice.imei || undefined,
             }
           : undefined,
+        accessories,
+        damageConditions,
+        faults: service.faults?.map((f: any) => ({ id: f.fault?.id, name: f.fault?.name })) || [],
+        taggedParts,
+        extraSpareParts,
         branch: service.branch,
-        company: service.company,
-        technician: service.assignedTo || undefined,
-        faults: service.faults?.map(f => f.fault) || [],
+        company: {
+          ...service.company,
+          gst: service.company.gstin || undefined,
+        },
+        technician: service.assignedTo ? { id: service.assignedTo.id, name: service.assignedTo.name } : undefined,
+        createdBy: service.createdBy ? { id: service.createdBy.id, name: service.createdBy.name } : undefined,
         template: template ? {
           termsAndConditions: template.termsAndConditions || undefined,
           showCustomerSignature: template.showCustomerSignature,
@@ -158,14 +255,14 @@ export class JobSheetService {
           showContactDetails: template.showContactDetails,
           footerText: template.footerText || undefined,
         } : undefined,
-        // Warranty info
+        // Warranty info (for backwards compatibility)
         isWarrantyRepair: service.isWarrantyRepair || false,
         warrantyReason: service.warrantyReason || undefined,
         previousServiceTicket: service.previousService?.ticketNumber || undefined,
       };
 
-      // Generate PDF
-      const pdfUrl = await pdfGenerationService.generateJobSheetPDF(pdfData);
+      // Generate PDF with specified format and copy type
+      const pdfUrl = await pdfGenerationService.generateJobSheetPDF(pdfData, format, copyType);
 
       // Create job sheet record (with race condition handling)
       try {
@@ -315,24 +412,50 @@ export class JobSheetService {
    */
   static async regenerateJobSheet(
     jobSheetId: string,
-    userId: string
+    userId: string,
+    format: string = 'A4',
+    copyType: 'customer' | 'office' | 'both' = 'customer'
   ): Promise<any> {
     try {
-      // Get existing job sheet
+      // Get existing job sheet with all related data
       const existingJobSheet = await prisma.jobSheet.findUnique({
         where: { id: jobSheetId },
         include: {
           service: {
             include: {
               customer: true,
-              customerDevice: true,
+              customerDevice: {
+                include: {
+                  brand: { select: { name: true } },
+                  model: { select: { name: true } },
+                },
+              },
               faults: {
                 include: {
                   fault: true,
                 },
               },
+              accessories: {
+                include: {
+                  accessory: { select: { id: true, name: true } },
+                },
+              },
+              damageConditions: {
+                include: {
+                  damageCondition: { select: { id: true, name: true } },
+                },
+              },
+              partsUsed: {
+                include: {
+                  part: { select: { id: true, name: true, partNumber: true } },
+                  item: { select: { id: true, itemName: true, itemCode: true } },
+                },
+              },
               assignedTo: {
-                select: { name: true },
+                select: { id: true, name: true },
+              },
+              createdBy: {
+                select: { id: true, name: true },
               },
               branch: true,
               company: true,
@@ -360,35 +483,102 @@ export class JobSheetService {
         });
       }
 
+      // Separate parts into tagged and extra spare
+      const taggedParts = service.partsUsed
+        ?.filter((p: any) => !p.isExtraSpare)
+        .map((p: any) => ({
+          id: p.id,
+          partName: p.part?.name || p.item?.itemName || 'Unknown Part',
+          partNumber: p.part?.partNumber || p.item?.itemCode || undefined,
+          quantity: p.quantity,
+          unitPrice: Number(p.unitPrice) || 0,
+          totalPrice: Number(p.totalPrice) || 0,
+          faultTag: p.faultTag || undefined,
+        })) || [];
+
+      const extraSpareParts = service.partsUsed
+        ?.filter((p: any) => p.isExtraSpare)
+        .map((p: any) => ({
+          id: p.id,
+          partName: p.part?.name || p.item?.itemName || 'Unknown Part',
+          partNumber: p.part?.partNumber || p.item?.itemCode || undefined,
+          quantity: p.quantity,
+          unitPrice: Number(p.unitPrice) || 0,
+          totalPrice: Number(p.totalPrice) || 0,
+          isApproved: p.isApproved || false,
+          approvalMethod: p.approvalMethod || undefined,
+          approvalNote: p.approvalNote || undefined,
+          approvedAt: p.approvedAt || undefined,
+        })) || [];
+
+      // Prepare accessories
+      const accessories = service.accessories?.map((a: any) => ({
+        id: a.accessory?.id,
+        name: a.accessory?.name || 'Unknown',
+        received: true,
+      })) || [];
+
+      // Prepare damage conditions
+      const damageConditions = service.damageConditions?.map((d: any) => ({
+        id: d.damageCondition?.id,
+        name: d.damageCondition?.name || 'Unknown',
+      })) || [];
+
       // Prepare data for PDF generation
       const pdfData = {
         jobSheetNumber: existingJobSheet.jobSheetNumber,
+        copyType,
         service: {
           ticketNumber: service.ticketNumber,
           createdAt: service.createdAt,
           deviceModel: service.deviceModel,
           deviceIMEI: service.deviceIMEI || undefined,
           devicePassword: service.devicePassword || undefined,
+          devicePattern: service.devicePattern || undefined,
+          deviceCondition: service.deviceCondition || undefined,
+          intakeNotes: service.intakeNotes || undefined,
           issue: service.damageCondition,
           diagnosis: service.diagnosis || undefined,
-          estimatedCost: service.estimatedCost,
-          advancePayment: service.advancePayment,
+          estimatedCost: Number(service.estimatedCost) || 0,
+          labourCharge: Number(service.labourCharge) || 0,
+          extraSpareAmount: Number(service.extraSpareAmount) || 0,
+          discount: Number(service.discount) || 0,
+          advancePayment: Number(service.advancePayment) || 0,
+          actualCost: service.actualCost ? Number(service.actualCost) : undefined,
+          isWarrantyRepair: service.isWarrantyRepair || false,
+          warrantyReason: service.warrantyReason || undefined,
+          isRepeatedService: !!service.previousServiceId,
+          dataWarrantyAccepted: service.dataWarrantyAccepted || false,
         },
         customer: {
           name: service.customer.name,
           phone: service.customer.phone,
           address: service.customer.address || undefined,
           email: service.customer.email || undefined,
+          whatsappNumber: service.customer.whatsappNumber || undefined,
+          gstin: service.customer.gstin || undefined,
+          idProofType: service.customer.idProofType || undefined,
         },
         customerDevice: service.customerDevice
           ? {
+              brandName: service.customerDevice.brand?.name || undefined,
+              modelName: service.customerDevice.model?.name || undefined,
               color: service.customerDevice.color || undefined,
+              imei: service.customerDevice.imei || undefined,
             }
           : undefined,
+        accessories,
+        damageConditions,
+        faults: service.faults?.map((f: any) => ({ id: f.fault?.id, name: f.fault?.name })) || [],
+        taggedParts,
+        extraSpareParts,
         branch: service.branch,
-        company: service.company,
-        technician: service.assignedTo || undefined,
-        faults: service.faults?.map(f => f.fault) || [],
+        company: {
+          ...service.company,
+          gst: service.company.gstin || undefined,
+        },
+        technician: service.assignedTo ? { id: service.assignedTo.id, name: service.assignedTo.name } : undefined,
+        createdBy: service.createdBy ? { id: service.createdBy.id, name: service.createdBy.name } : undefined,
         template: template ? {
           termsAndConditions: template.termsAndConditions || undefined,
           showCustomerSignature: template.showCustomerSignature,
@@ -397,14 +587,14 @@ export class JobSheetService {
           showContactDetails: template.showContactDetails,
           footerText: template.footerText || undefined,
         } : undefined,
-        // Warranty info
+        // Warranty info (for backwards compatibility)
         isWarrantyRepair: service.isWarrantyRepair || false,
         warrantyReason: service.warrantyReason || undefined,
         previousServiceTicket: service.previousService?.ticketNumber || undefined,
       };
 
-      // Generate new PDF
-      const pdfUrl = await pdfGenerationService.generateJobSheetPDF(pdfData);
+      // Generate new PDF with specified format and copy type
+      const pdfUrl = await pdfGenerationService.generateJobSheetPDF(pdfData, format, copyType);
 
       // Update job sheet with new PDF URL
       const updatedJobSheet = await prisma.jobSheet.update({
