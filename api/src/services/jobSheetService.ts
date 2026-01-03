@@ -10,7 +10,7 @@ interface GenerateJobSheetData {
   userId: string;
   templateId?: string;
   format?: 'A4' | 'A5' | 'thermal' | 'thermal-2' | 'thermal-3';
-  copyType?: 'customer' | 'office' | 'both';
+  copyType?: 'customer' | 'office';
 }
 
 export class JobSheetService {
@@ -116,12 +116,20 @@ export class JobSheetService {
       // Check if job sheet already exists
       const existingJobSheet = await prisma.jobSheet.findUnique({
         where: { serviceId },
+        include: {
+          service: {
+            select: {
+              ticketNumber: true,
+              deviceModel: true,
+            },
+          },
+          generatedByUser: {
+            select: {
+              name: true,
+            },
+          },
+        },
       });
-
-      if (existingJobSheet) {
-        // Return existing job sheet
-        return existingJobSheet;
-      }
 
       // Fetch template if provided, otherwise get default
       let template = null;
@@ -148,8 +156,9 @@ export class JobSheetService {
         });
       }
 
-      // Generate job sheet number
-      const jobSheetNumber = await this.generateJobSheetNumber(service.branchId, service.companyId);
+      // Use existing job sheet number or generate new one
+      const jobSheetNumber = existingJobSheet?.jobSheetNumber ||
+        await this.generateJobSheetNumber(service.branchId, service.companyId);
 
       // Separate parts into tagged and extra spare
       const taggedParts = service.partsUsed
@@ -217,6 +226,7 @@ export class JobSheetService {
           warrantyReason: service.warrantyReason || undefined,
           isRepeatedService: !!service.previousServiceId,
           dataWarrantyAccepted: service.dataWarrantyAccepted || false,
+          status: service.status || 'RECEIVED',
         },
         customer: {
           name: service.customer.name,
@@ -264,7 +274,36 @@ export class JobSheetService {
       // Generate PDF with specified format and copy type
       const pdfUrl = await pdfGenerationService.generateJobSheetPDF(pdfData, format, copyType);
 
-      // Create job sheet record (with race condition handling)
+      // Update existing or create new job sheet record
+      if (existingJobSheet) {
+        // Update existing job sheet with new PDF
+        const updatedJobSheet = await prisma.jobSheet.update({
+          where: { id: existingJobSheet.id },
+          data: {
+            pdfUrl,
+            templateId: template?.id,
+            updatedAt: new Date(),
+          },
+          include: {
+            service: {
+              select: {
+                ticketNumber: true,
+                deviceModel: true,
+              },
+            },
+            generatedByUser: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+
+        Logger.info(`Job sheet ${jobSheetNumber} regenerated for service ${service.ticketNumber} (${format}/${copyType})`);
+        return updatedJobSheet;
+      }
+
+      // Create new job sheet record
       try {
         const jobSheet = await prisma.jobSheet.create({
           data: {
@@ -291,30 +330,26 @@ export class JobSheetService {
           },
         });
 
-        Logger.info(`Job sheet ${jobSheetNumber} generated for service ${service.ticketNumber}`);
+        Logger.info(`Job sheet ${jobSheetNumber} created for service ${service.ticketNumber} (${format}/${copyType})`);
         return jobSheet;
       } catch (createError: any) {
         // Handle race condition - job sheet was created by another request
         if (createError.code === 'P2002') {
-          Logger.info(`Job sheet already exists for service ${serviceId}, returning existing`);
+          Logger.info(`Job sheet already exists for service ${serviceId}, regenerating`);
+          // Regenerate for the existing record
           const existing = await prisma.jobSheet.findUnique({
             where: { serviceId },
-            include: {
-              service: {
-                select: {
-                  ticketNumber: true,
-                  deviceModel: true,
-                },
-              },
-              generatedByUser: {
-                select: {
-                  name: true,
-                },
-              },
-            },
           });
           if (existing) {
-            return existing;
+            const regenerated = await prisma.jobSheet.update({
+              where: { id: existing.id },
+              data: { pdfUrl, updatedAt: new Date() },
+              include: {
+                service: { select: { ticketNumber: true, deviceModel: true } },
+                generatedByUser: { select: { name: true } },
+              },
+            });
+            return regenerated;
           }
         }
         throw createError;
@@ -549,6 +584,7 @@ export class JobSheetService {
           warrantyReason: service.warrantyReason || undefined,
           isRepeatedService: !!service.previousServiceId,
           dataWarrantyAccepted: service.dataWarrantyAccepted || false,
+          status: service.status || 'RECEIVED',
         },
         customer: {
           name: service.customer.name,

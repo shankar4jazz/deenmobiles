@@ -67,12 +67,25 @@ export interface JobSheetListResponse {
   };
 }
 
+// Job Sheet Format Types
+export type JobSheetFormat = 'A4' | 'A5' | 'thermal';
+
+// Job Sheet Copy Types
+export type JobSheetCopyType = 'customer' | 'office';
+
 // Job Sheet API Functions
 export const jobSheetApi = {
-  // Generate job sheet from service
-  generateFromService: async (serviceId: string, templateId?: string): Promise<JobSheet> => {
+  // Generate job sheet from service with format and copy type support
+  generateFromService: async (
+    serviceId: string,
+    templateId?: string,
+    format: JobSheetFormat = 'A4',
+    copyType: JobSheetCopyType = 'customer'
+  ): Promise<JobSheet> => {
     const response = await api.post(`/services/${serviceId}/jobsheet`, {
       templateId,
+      format,
+      copyType,
     });
     return response.data.data;
   },
@@ -104,9 +117,13 @@ export const jobSheetApi = {
     return response.data.data;
   },
 
-  // Regenerate job sheet PDF
-  regeneratePDF: async (id: string): Promise<JobSheet> => {
-    const response = await api.post(`/jobsheets/${id}/regenerate`);
+  // Regenerate job sheet PDF with format and copy type support
+  regeneratePDF: async (
+    id: string,
+    format: JobSheetFormat = 'A4',
+    copyType: JobSheetCopyType = 'customer'
+  ): Promise<JobSheet> => {
+    const response = await api.post(`/jobsheets/${id}/regenerate`, { format, copyType });
     return response.data.data;
   },
 

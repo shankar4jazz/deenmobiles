@@ -78,6 +78,7 @@ interface JobSheetData {
     warrantyReason?: string;
     isRepeatedService?: boolean;
     dataWarrantyAccepted?: boolean;
+    status?: string;
   };
   customer: {
     name: string;
@@ -130,6 +131,7 @@ interface JobSheetData {
 interface InvoiceData {
   invoiceNumber: string;
   invoiceDate: Date;
+  copyType?: 'original' | 'duplicate' | 'customer';
   service: {
     ticketNumber: string;
     createdAt: Date;
@@ -138,6 +140,7 @@ interface InvoiceData {
     diagnosis?: string;
     actualCost?: number;
     estimatedCost: number;
+    labourCharge?: number;
     advancePayment: number;
     completedAt?: Date;
   };
@@ -169,6 +172,9 @@ interface InvoiceData {
   totalAmount: number;
   paidAmount: number;
   balanceAmount: number;
+  discount?: number;
+  cgstRate?: number;
+  sgstRate?: number;
   paymentStatus: string;
 }
 
@@ -231,8 +237,9 @@ export class PDFGenerationService {
     const jobSheetsDir = path.join(this.uploadDir, 'jobsheets');
     const invoicesDir = path.join(this.uploadDir, 'invoices');
     const estimatesDir = path.join(this.uploadDir, 'estimates');
+    const logosDir = path.join(this.uploadDir, 'logos');
 
-    [jobSheetsDir, invoicesDir, estimatesDir].forEach((dir) => {
+    [jobSheetsDir, invoicesDir, estimatesDir, logosDir].forEach((dir) => {
       try {
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
@@ -242,6 +249,126 @@ export class PDFGenerationService {
         console.warn(`Could not create directory ${dir}:`, error);
       }
     });
+  }
+
+  /**
+   * Validate logo file - check if it exists, is readable, and has valid size
+   */
+  private validateLogoFile(logoPath: string): { valid: boolean; error?: string; buffer?: Buffer } {
+    try {
+      // Check if file exists
+      if (!fs.existsSync(logoPath)) {
+        return { valid: false, error: 'File does not exist' };
+      }
+
+      // Get file stats
+      const stats = fs.statSync(logoPath);
+
+      // Check if it's a file (not directory)
+      if (!stats.isFile()) {
+        return { valid: false, error: 'Path is not a file' };
+      }
+
+      // Check file size (must be > 0 and < 10MB)
+      if (stats.size === 0) {
+        return { valid: false, error: 'File is empty' };
+      }
+      if (stats.size > 10 * 1024 * 1024) {
+        return { valid: false, error: 'File too large (>10MB)' };
+      }
+
+      // Read file into buffer
+      const buffer = fs.readFileSync(logoPath);
+
+      // Check PNG signature (first 8 bytes)
+      const pngSignature = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      const jpegSignature = Buffer.from([0xFF, 0xD8, 0xFF]);
+
+      const isPNG = buffer.slice(0, 8).equals(pngSignature);
+      const isJPEG = buffer.slice(0, 3).equals(jpegSignature);
+
+      if (!isPNG && !isJPEG) {
+        return { valid: false, error: 'File is not a valid PNG or JPEG image' };
+      }
+
+      console.log(`[Logo] Valid ${isPNG ? 'PNG' : 'JPEG'} file: ${logoPath} (${stats.size} bytes)`);
+      return { valid: true, buffer };
+
+    } catch (error: any) {
+      return { valid: false, error: `Failed to read file: ${error.message}` };
+    }
+  }
+
+  /**
+   * Resolve logo path - handles URLs, relative paths, and absolute paths
+   * Returns null if logo cannot be resolved
+   * Falls back to default logo.png if no logo specified
+   */
+  private resolveLogoPath(logo: string | null | undefined): string | null {
+    // Default logo path - fallback if no logo specified in database
+    const defaultLogoPath = path.join(this.uploadDir, 'logos', 'logo.png');
+
+    console.log(`[Logo] Resolving logo path. Input: ${logo || '(none)'}`);
+    console.log(`[Logo] Default logo path: ${defaultLogoPath}`);
+
+    // If no logo specified, try default logo
+    if (!logo) {
+      if (fs.existsSync(defaultLogoPath)) {
+        console.log(`[Logo] Using default logo: ${defaultLogoPath}`);
+        return defaultLogoPath;
+      }
+      console.log(`[Logo] No logo specified and default not found`);
+      return null;
+    }
+
+    // If it's a URL (http/https), return as-is - PDFKit can load from URLs
+    if (logo.startsWith('http://') || logo.startsWith('https://')) {
+      console.log(`[Logo] Using URL: ${logo}`);
+      return logo;
+    }
+
+    // Check if it's a true Windows absolute path (e.g., C:\path or D:\path)
+    // NOT just a path starting with / or \ (which is a web-relative path)
+    const isWindowsAbsolute = /^[A-Za-z]:[\\/]/.test(logo);
+    if (isWindowsAbsolute) {
+      const exists = fs.existsSync(logo);
+      console.log(`[Logo] Windows absolute path ${logo} exists: ${exists}`);
+      return exists ? logo : null;
+    }
+
+    // Handle relative/web paths - remove leading slashes and try multiple locations
+    const cleanLogo = logo.replace(/^[\/\\]+/, '');
+    const logoFilename = path.basename(cleanLogo);
+
+    const possiblePaths = [
+      // Direct path in uploadDir/logos (most common case)
+      path.join(this.uploadDir, 'logos', logoFilename),
+      // Relative to public directory (e.g., /uploads/logos/logo.png -> public/uploads/logos/logo.png)
+      path.join(process.cwd(), 'public', cleanLogo),
+      // Full path with uploads/logos structure
+      path.join(process.cwd(), 'public', 'uploads', 'logos', logoFilename),
+      // Default logo path as last resort
+      defaultLogoPath,
+    ];
+
+    console.log(`[Logo] Checking paths for "${logo}":`);
+    for (const logoPath of possiblePaths) {
+      try {
+        if (fs.existsSync(logoPath)) {
+          const stats = fs.statSync(logoPath);
+          if (stats.isFile() && stats.size > 0) {
+            console.log(`[Logo] FOUND: ${logoPath} (${stats.size} bytes)`);
+            return logoPath;
+          }
+        }
+      } catch (e: any) {
+        // Silently continue to next path
+      }
+    }
+
+    // Logo file not found
+    console.warn(`[Logo] Logo file not found: ${logo}`);
+    return null;
   }
 
   /**
@@ -263,12 +390,7 @@ export class PDFGenerationService {
             docOptions = { size: 'A5', margin: 25 };
             break;
           case 'thermal':
-          case 'thermal-3':
             docOptions = { size: [216, 800], margin: 8 }; // 3 inch width (216 points), auto height
-            isThermal = true;
-            break;
-          case 'thermal-2':
-            docOptions = { size: [144, 800], margin: 5 }; // 2 inch width (144 points)
             isThermal = true;
             break;
           case 'a4':
@@ -287,43 +409,21 @@ export class PDFGenerationService {
 
         if (isThermal) {
           // Thermal receipt format
-          if (copyType === 'both') {
-            this.addJobSheetThermalCustomer(doc, data, format);
-            // Add page break for office copy
-            doc.addPage();
-            this.addJobSheetThermalOffice(doc, data, format);
-          } else if (copyType === 'office') {
+          if (copyType === 'office') {
             this.addJobSheetThermalOffice(doc, data, format);
           } else {
             this.addJobSheetThermalCustomer(doc, data, format);
           }
         } else if (format.toLowerCase() === 'a5') {
           // A5 compact format
-          if (copyType === 'both') {
-            this.addJobSheetA5Customer(doc, data);
-            doc.addPage();
-            this.addJobSheetA5Office(doc, data);
-          } else if (copyType === 'office') {
+          if (copyType === 'office') {
             this.addJobSheetA5Office(doc, data);
           } else {
             this.addJobSheetA5Customer(doc, data);
           }
         } else {
           // A4 format
-          if (copyType === 'both') {
-            // Check if content fits in 60/40 split or needs separate pages
-            const needsSeparatePages = this.calculateA4ContentHeight(data) > 480; // ~60% of page
-
-            if (needsSeparatePages) {
-              // Separate pages for each copy
-              this.addJobSheetA4CustomerFull(doc, data);
-              doc.addPage();
-              this.addJobSheetA4OfficeFull(doc, data);
-            } else {
-              // Combined layout (60/40 split)
-              this.addJobSheetA4BothCopies(doc, data);
-            }
-          } else if (copyType === 'office') {
+          if (copyType === 'office') {
             this.addJobSheetA4OfficeFull(doc, data);
           } else {
             this.addJobSheetA4CustomerFull(doc, data);
@@ -427,7 +527,7 @@ export class PDFGenerationService {
   }
 
   /**
-   * A4 Customer Copy - Full Page Layout
+   * A4 Customer Copy - Single Page Compact Layout
    */
   private addJobSheetA4CustomerFull(doc: PDFKit.PDFDocument, data: JobSheetData): void {
     const margin = 30;
@@ -435,356 +535,373 @@ export class PDFGenerationService {
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
 
-    let yPos = 30;
+    // Colors
+    const primaryColor = '#0d9488';
+    const textDark = '#1f2937';
+    const textMuted = '#6b7280';
+    const borderColor = '#e5e7eb';
+    const bgLight = '#f9fafb';
+
+    let yPos = 25;
 
     // ===== HEADER SECTION =====
-    // Company Logo & Name
-    if (data.template?.showCompanyLogo !== false) {
-      doc.fontSize(18).font('Helvetica-Bold')
-        .text(data.company.name, margin, yPos, { width: contentWidth, align: 'center' });
-      yPos += 22;
+    const logoSize = 45;
+    const resolvedLogo = this.resolveLogoPath(data.company.logo);
+    let logoRendered = false;
 
-      doc.fontSize(10).font('Helvetica')
-        .fillColor('#0d9488')
-        .text('SERVICE CENTER', margin, yPos, { width: contentWidth, align: 'center' });
-      doc.fillColor('#000000');
-      yPos += 15;
+    if (data.template?.showCompanyLogo !== false && resolvedLogo) {
+      try {
+        doc.image(resolvedLogo, margin, yPos, { fit: [logoSize, logoSize] });
+        logoRendered = true;
+      } catch (e: any) {
+        console.error(`[Logo] Failed: ${e.message}`);
+      }
     }
 
-    // Contact Details
+    const textX = logoRendered ? margin + logoSize + 12 : margin;
+    const textW = logoRendered ? contentWidth - logoSize - 12 : contentWidth;
+    const headerAlign = logoRendered ? 'left' : 'center';
+
+    doc.fontSize(16).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.company.name, textX, yPos, { width: textW, align: headerAlign });
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(primaryColor)
+      .text('SERVICE CENTER', textX, yPos + 18, { width: textW, align: headerAlign });
+
     if (data.template?.showContactDetails !== false) {
-      doc.fontSize(9).font('Helvetica')
-        .text(data.branch.address || data.company.address, margin, yPos, { width: contentWidth, align: 'center' });
-      yPos += 12;
-      doc.text(`Ph: ${data.branch.phone || data.company.phone}`, margin, yPos, { width: contentWidth, align: 'center' });
-      yPos += 12;
-      if (data.company.gst) {
-        doc.text(`GST: ${data.company.gst}`, margin, yPos, { width: contentWidth, align: 'center' });
+      const address = data.branch.address || data.company.address || '';
+      const phone = data.branch.phone || data.company.phone || '';
+      doc.fontSize(8).font('Helvetica').fillColor(textMuted)
+        .text(`${address}${address && phone ? ' | ' : ''}${phone ? 'Ph: ' + phone : ''}`, textX, yPos + 30, { width: textW, align: headerAlign });
+    }
+
+    yPos = Math.max(yPos + logoSize + 8, yPos + 45);
+
+    // ===== TITLE BAR =====
+    doc.rect(margin, yPos, contentWidth, 22).fill(primaryColor);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#ffffff')
+      .text('SERVICE JOB SHEET - CUSTOMER COPY', margin, yPos + 5, { width: contentWidth, align: 'center' });
+    yPos += 24;
+
+    // ===== WARRANTY BADGE =====
+    if (data.service.isWarrantyRepair) {
+      doc.rect(margin, yPos, contentWidth, 18).fill('#fef3c7');
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#92400e')
+        .text('WARRANTY REPAIR', margin, yPos + 4, { width: contentWidth, align: 'center' });
+      yPos += 20;
+    }
+
+    // ===== JOB INFO BAR =====
+    doc.rect(margin, yPos, contentWidth, 28).fill(bgLight).stroke(borderColor);
+
+    const col1 = margin + 10;
+    const col2 = margin + 145;
+    const col3 = margin + 290;
+    const col4 = margin + 420;
+
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted);
+    doc.text('JOB #', col1, yPos + 5);
+    doc.text('TICKET', col2, yPos + 5);
+    doc.text('DATE', col3, yPos + 5);
+    doc.text('STATUS', col4, yPos + 5);
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(primaryColor);
+    doc.text(data.jobSheetNumber, col1, yPos + 14);
+    doc.fillColor(textDark).text(data.service.ticketNumber, col2, yPos + 14);
+    doc.font('Helvetica').text(format(new Date(data.service.createdAt), 'dd/MM/yyyy HH:mm'), col3, yPos + 14);
+
+    // Status badge
+    const status = data.service.status || 'RECEIVED';
+    const statusColors: Record<string, { bg: string; text: string }> = {
+      'RECEIVED': { bg: '#dbeafe', text: '#1e40af' },
+      'IN_PROGRESS': { bg: '#fef3c7', text: '#92400e' },
+      'COMPLETED': { bg: '#d1fae5', text: '#065f46' },
+      'DELIVERED': { bg: '#e0e7ff', text: '#3730a3' },
+    };
+    const statusStyle = statusColors[status] || statusColors['RECEIVED'];
+    doc.rect(col4, yPos + 12, 70, 14).fill(statusStyle.bg);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(statusStyle.text)
+      .text(status.replace('_', ' '), col4, yPos + 14, { width: 70, align: 'center' });
+
+    yPos += 32;
+
+    // ===== CUSTOMER & DEVICE SECTION =====
+    const colWidth = (contentWidth - 15) / 2;
+    const leftCol = margin;
+    const rightCol = margin + colWidth + 15;
+
+    // Section headers
+    doc.rect(leftCol, yPos, colWidth, 18).fill(bgLight).stroke(borderColor);
+    doc.rect(rightCol, yPos, colWidth, 18).fill(bgLight).stroke(borderColor);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark);
+    doc.text('CUSTOMER DETAILS', leftCol + 8, yPos + 5);
+    doc.text('DEVICE DETAILS', rightCol + 8, yPos + 5);
+    yPos += 20;
+
+    // Customer info
+    let leftY = yPos + 5;
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.customer.name, leftCol + 8, leftY);
+    leftY += 14;
+
+    doc.fontSize(9).font('Helvetica').fillColor(textDark)
+      .text(data.customer.phone, leftCol + 8, leftY);
+    if (data.customer.whatsappNumber && data.customer.whatsappNumber !== data.customer.phone) {
+      doc.fillColor(textMuted).text(` (WA: ${data.customer.whatsappNumber})`, leftCol + 80, leftY);
+    }
+    leftY += 12;
+
+    if (data.customer.address) {
+      doc.fontSize(8).fillColor(textMuted)
+        .text(data.customer.address, leftCol + 8, leftY, { width: colWidth - 16 });
+      leftY += 12;
+    }
+
+    if (data.customer.email) {
+      doc.fontSize(8).fillColor(textMuted)
+        .text(data.customer.email, leftCol + 8, leftY);
+      leftY += 12;
+    }
+
+    // Device info
+    let rightY = yPos + 5;
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.service.deviceModel, rightCol + 8, rightY);
+    rightY += 14;
+
+    if (data.service.deviceIMEI) {
+      doc.fontSize(8).font('Helvetica').fillColor(textMuted).text('IMEI:', rightCol + 8, rightY);
+      doc.fillColor(textDark).text(data.service.deviceIMEI, rightCol + 45, rightY);
+      rightY += 11;
+    }
+
+    if (data.service.devicePassword) {
+      doc.fontSize(8).font('Helvetica').fillColor(textMuted).text('PWD:', rightCol + 8, rightY);
+      doc.fillColor(textDark).text(data.service.devicePassword, rightCol + 45, rightY);
+      rightY += 11;
+    }
+
+    if (data.customerDevice?.color) {
+      doc.fontSize(8).font('Helvetica').fillColor(textMuted).text('Color:', rightCol + 8, rightY);
+      doc.fillColor(textDark).text(data.customerDevice.color, rightCol + 45, rightY);
+      rightY += 11;
+    }
+
+    yPos = Math.max(leftY, rightY) + 8;
+
+    // ===== ACCESSORIES & DAMAGE =====
+    if ((data.accessories && data.accessories.length > 0) || (data.damageConditions && data.damageConditions.length > 0)) {
+      doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+      yPos += 6;
+
+      if (data.accessories && data.accessories.length > 0) {
+        doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted).text('ACCESSORIES:', margin, yPos);
+        doc.font('Helvetica').fillColor(textDark)
+          .text(data.accessories.map(a => a.name).join(', '), margin + 80, yPos, { width: contentWidth - 80 });
+        yPos += 12;
+      }
+
+      if (data.damageConditions && data.damageConditions.length > 0) {
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#dc2626').text('PRE-DAMAGE:', margin, yPos);
+        doc.font('Helvetica').fillColor('#dc2626')
+          .text(data.damageConditions.map(d => d.name).join(', '), margin + 80, yPos, { width: contentWidth - 80 });
         yPos += 12;
       }
     }
 
-    // Title Bar
-    yPos += 5;
-    doc.rect(margin, yPos, contentWidth, 24).fill('#0d9488');
-    doc.fontSize(12).font('Helvetica-Bold').fillColor('#ffffff')
-      .text('SERVICE JOB SHEET', margin, yPos + 6, { width: contentWidth, align: 'center' });
-    doc.fillColor('#000000');
-    yPos += 32;
+    // ===== FAULTS / ISSUE SECTION =====
+    doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+    yPos += 6;
 
-    // Warranty Badge (if applicable)
-    if (data.service.isWarrantyRepair) {
-      doc.rect(margin, yPos, contentWidth, 20).fill('#fef3c7');
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#92400e')
-        .text('** WARRANTY REPAIR **', margin, yPos + 5, { width: contentWidth, align: 'center' });
-      doc.fillColor('#000000');
-      yPos += 25;
-    }
-
-    // ===== JOB INFO ROW =====
-    const jobInfoY = yPos;
-    doc.fontSize(8).font('Helvetica').fillColor('#666666').text('JOB NUMBER', margin, yPos);
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#0d9488')
-      .text(data.jobSheetNumber, margin, yPos + 10);
-
-    doc.fontSize(8).font('Helvetica').fillColor('#666666').text('TICKET ID', margin + 180, yPos);
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000')
-      .text(data.service.ticketNumber, margin + 180, yPos + 10);
-
-    doc.fontSize(8).font('Helvetica').fillColor('#666666').text('DATE IN', margin + 350, yPos);
-    doc.fontSize(10).font('Helvetica').fillColor('#000000')
-      .text(format(new Date(data.service.createdAt), 'dd/MM/yyyy HH:mm'), margin + 350, yPos + 10);
-    yPos += 35;
-
-    // Divider
-    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-    yPos += 10;
-
-    // ===== TWO COLUMN LAYOUT: CUSTOMER & DEVICE =====
-    const colWidth = (contentWidth - 20) / 2;
-    const leftCol = margin;
-    const rightCol = margin + colWidth + 20;
-    const sectionStartY = yPos;
-
-    // Customer Details (Left Column)
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333')
-      .text('CUSTOMER DETAILS', leftCol, yPos);
-    yPos += 15;
-
-    doc.fontSize(8).font('Helvetica').fillColor('#666666').text('CUSTOMER NAME', leftCol, yPos);
-    yPos += 10;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(data.customer.name, leftCol, yPos);
-    yPos += 15;
-
-    doc.fontSize(8).font('Helvetica').fillColor('#666666').text('PHONE NUMBER', leftCol, yPos);
-    yPos += 10;
-    doc.fontSize(10).font('Helvetica').fillColor('#000000').text(data.customer.phone, leftCol, yPos);
-    yPos += 15;
-
-    if (data.customer.address) {
-      doc.fontSize(8).font('Helvetica').fillColor('#666666').text('ADDRESS', leftCol, yPos);
-      yPos += 10;
-      doc.fontSize(9).font('Helvetica').fillColor('#000000')
-        .text(data.customer.address, leftCol, yPos, { width: colWidth });
-      yPos += 25;
-    }
-
-    // Device Details (Right Column)
-    let rightY = sectionStartY;
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333')
-      .text('DEVICE DETAILS', rightCol, rightY);
-    rightY += 15;
-
-    doc.fontSize(8).font('Helvetica').fillColor('#666666').text('DEVICE / MODEL', rightCol, rightY);
-    rightY += 10;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(data.service.deviceModel, rightCol, rightY);
-    rightY += 15;
-
-    if (data.service.deviceIMEI) {
-      doc.fontSize(8).font('Helvetica').fillColor('#666666').text('IMEI', rightCol, rightY);
-      rightY += 10;
-      doc.fontSize(10).font('Helvetica').fillColor('#000000').text(data.service.deviceIMEI, rightCol, rightY);
-      rightY += 15;
-    }
-
-    if (data.service.devicePassword) {
-      doc.fontSize(8).font('Helvetica').fillColor('#666666').text('PASSWORD', rightCol, rightY);
-      rightY += 10;
-      doc.fontSize(10).font('Helvetica').fillColor('#000000').text(data.service.devicePassword, rightCol, rightY);
-      rightY += 15;
-    }
-
-    if (data.customerDevice?.color) {
-      doc.fontSize(8).font('Helvetica').fillColor('#666666').text('COLOR', rightCol, rightY);
-      rightY += 10;
-      doc.fontSize(10).font('Helvetica').fillColor('#000000').text(data.customerDevice.color, rightCol, rightY);
-      rightY += 15;
-    }
-
-    yPos = Math.max(yPos, rightY) + 10;
-
-    // ===== ACCESSORIES (if any) =====
-    if (data.accessories && data.accessories.length > 0) {
-      doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-      yPos += 10;
-
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333').text('ACCESSORIES RECEIVED', margin, yPos);
-      yPos += 15;
-
-      const accessoryText = data.accessories.map(a => `☑ ${a.name}`).join('   ');
-      doc.fontSize(9).font('Helvetica').fillColor('#000000').text(accessoryText, margin, yPos, { width: contentWidth });
-      yPos += 15;
-    }
-
-    // ===== PRE-EXISTING DAMAGE (if any) =====
-    if (data.damageConditions && data.damageConditions.length > 0) {
-      doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-      yPos += 10;
-
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333').text('PRE-EXISTING DAMAGE', margin, yPos);
-      yPos += 15;
-
-      data.damageConditions.forEach(d => {
-        doc.fontSize(9).font('Helvetica').fillColor('#000000').text(`• ${d.name}`, margin + 10, yPos);
-        yPos += 12;
-      });
-      yPos += 5;
-    }
-
-    // ===== FAULTS / ISSUES =====
-    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-    yPos += 10;
-
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333').text('FAULTS / ISSUES', margin, yPos);
-    yPos += 15;
+    doc.rect(margin, yPos, contentWidth, 16).fill('#fef2f2').stroke('#fecaca');
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#991b1b')
+      .text('REPORTED ISSUE / FAULTS', margin + 8, yPos + 4);
+    yPos += 18;
 
     if (data.faults && data.faults.length > 0) {
-      data.faults.forEach(f => {
-        doc.fontSize(9).font('Helvetica').fillColor('#dc2626').text('●', margin + 5, yPos);
-        doc.fillColor('#000000').text(f.name, margin + 20, yPos);
-        yPos += 14;
+      data.faults.forEach(fault => {
+        doc.fontSize(9).font('Helvetica').fillColor('#dc2626')
+          .text(`• ${fault.name}`, margin + 10, yPos);
+        yPos += 12;
       });
     }
 
     if (data.service.issue) {
-      doc.fontSize(8).font('Helvetica').fillColor('#666666').text('Customer Complaint:', margin, yPos);
-      yPos += 10;
-      doc.fontSize(9).font('Helvetica').fillColor('#000000')
-        .text(data.service.issue, margin + 10, yPos, { width: contentWidth - 20 });
-      yPos += 20;
+      doc.fontSize(8).font('Helvetica').fillColor(textMuted)
+        .text(`Note: ${data.service.issue}`, margin + 10, yPos, { width: contentWidth - 20 });
+      yPos += 12;
     }
+
+    yPos += 4;
 
     // ===== TAGGED PARTS =====
     if (data.taggedParts && data.taggedParts.length > 0) {
-      doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-      yPos += 10;
+      doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+      yPos += 6;
 
-      doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333').text('🏷️ TAGGED PARTS (Included in Estimate)', margin, yPos);
-      yPos += 15;
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark).text('PARTS FOR REPAIR', margin, yPos);
+      yPos += 14;
 
-      // Table Header
-      doc.rect(margin, yPos, contentWidth, 18).fill('#f3f4f6');
-      doc.fontSize(8).font('Helvetica-Bold').fillColor('#333333');
-      doc.text('#', margin + 5, yPos + 5);
-      doc.text('PART NAME', margin + 25, yPos + 5);
-      if (data.taggedParts.some(p => p.partNumber)) {
-        doc.text('SKU', margin + 250, yPos + 5);
-      }
-      doc.text('QTY', margin + 350, yPos + 5);
-      doc.text('AMOUNT', margin + 420, yPos + 5);
-      yPos += 20;
+      // Table header
+      doc.rect(margin, yPos, contentWidth, 16).fill(bgLight);
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted);
+      doc.text('PART NAME', margin + 8, yPos + 4);
+      doc.text('QTY', margin + 380, yPos + 4, { width: 40, align: 'center' });
+      doc.text('AMOUNT', margin + 430, yPos + 4, { width: 70, align: 'right' });
+      yPos += 18;
 
-      // Table Rows
-      data.taggedParts.forEach((part, index) => {
-        doc.fontSize(9).font('Helvetica').fillColor('#000000');
-        doc.text(String(index + 1), margin + 5, yPos);
-        doc.text(part.partName, margin + 25, yPos, { width: 200 });
-        if (part.partNumber) {
-          doc.fontSize(8).fillColor('#666666').text(part.partNumber, margin + 250, yPos);
-        }
-        doc.fontSize(9).fillColor('#000000');
-        doc.text(String(part.quantity), margin + 355, yPos);
-        doc.text(`Rs.${part.totalPrice.toFixed(0)}`, margin + 420, yPos);
-        yPos += 16;
+      // Table rows
+      data.taggedParts.forEach(part => {
+        doc.fontSize(9).font('Helvetica').fillColor(textDark);
+        doc.text(part.partName.substring(0, 55), margin + 8, yPos);
+        doc.text(String(part.quantity), margin + 380, yPos, { width: 40, align: 'center' });
+        doc.text(`Rs. ${part.totalPrice.toLocaleString()}`, margin + 430, yPos, { width: 70, align: 'right' });
+        yPos += 14;
       });
 
-      // Tagged Parts Total
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333')
-        .text(`Tagged Parts Total: Rs.${totals.taggedPartsTotal.toFixed(0)}`, margin + 350, yPos);
-      yPos += 20;
+      doc.rect(margin + 350, yPos, 155, 0.5).fill(borderColor);
+      yPos += 4;
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark)
+        .text('Parts Total:', margin + 350, yPos);
+      doc.text(`Rs. ${totals.taggedPartsTotal.toLocaleString()}`, margin + 430, yPos, { width: 70, align: 'right' });
+      yPos += 14;
     }
 
     // ===== EXTRA SPARE PARTS =====
     if (data.extraSpareParts && data.extraSpareParts.length > 0) {
-      doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-      yPos += 10;
+      doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+      yPos += 6;
 
-      doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333').text('EXTRA SPARE PARTS (Customer Approved)', margin, yPos);
-      yPos += 15;
+      doc.rect(margin, yPos, contentWidth, 16).fill('#fef3c7');
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#92400e')
+        .text('ADDITIONAL PARTS (Customer Requested)', margin + 8, yPos + 4);
+      yPos += 18;
 
-      // Table Header
-      doc.rect(margin, yPos, contentWidth, 18).fill('#fef3c7');
+      // Table header
+      doc.rect(margin, yPos, contentWidth, 16).fill('#fffbeb');
       doc.fontSize(8).font('Helvetica-Bold').fillColor('#92400e');
-      doc.text('#', margin + 5, yPos + 5);
-      doc.text('PART NAME', margin + 25, yPos + 5);
-      doc.text('QTY', margin + 280, yPos + 5);
-      doc.text('AMOUNT', margin + 330, yPos + 5);
-      doc.text('APPROVED', margin + 420, yPos + 5);
-      yPos += 20;
+      doc.text('PART NAME', margin + 8, yPos + 4);
+      doc.text('QTY', margin + 320, yPos + 4, { width: 40, align: 'center' });
+      doc.text('AMOUNT', margin + 370, yPos + 4, { width: 60, align: 'right' });
+      doc.text('STATUS', margin + 440, yPos + 4, { width: 60, align: 'center' });
+      yPos += 18;
 
-      // Table Rows
-      data.extraSpareParts.forEach((part, index) => {
-        doc.fontSize(9).font('Helvetica').fillColor('#000000');
-        doc.text(String(index + 1), margin + 5, yPos);
-        doc.text(part.partName, margin + 25, yPos, { width: 230 });
-        doc.text(String(part.quantity), margin + 285, yPos);
-        doc.text(`Rs.${part.totalPrice.toFixed(0)}`, margin + 330, yPos);
+      // Table rows
+      data.extraSpareParts.forEach(part => {
+        doc.fontSize(9).font('Helvetica').fillColor(textDark);
+        doc.text(part.partName.substring(0, 45), margin + 8, yPos);
+        doc.text(String(part.quantity), margin + 320, yPos, { width: 40, align: 'center' });
+        doc.text(`Rs. ${part.totalPrice.toLocaleString()}`, margin + 370, yPos, { width: 60, align: 'right' });
 
-        // Approval status with icon
-        if (part.isApproved) {
-          doc.fontSize(8).fillColor('#16a34a')
-            .text(`[Y] ${this.formatApprovalMethod(part.approvalMethod)}`, margin + 415, yPos);
-        } else {
-          doc.fontSize(8).fillColor('#dc2626').text('[N] Pending', margin + 415, yPos);
-        }
-        doc.fillColor('#000000');
-        yPos += 18;
+        const approved = part.isApproved;
+        doc.fontSize(8).font('Helvetica-Bold')
+          .fillColor(approved ? '#059669' : '#dc2626')
+          .text(approved ? 'Approved' : 'Pending', margin + 440, yPos, { width: 60, align: 'center' });
+        yPos += 14;
       });
 
-      // Extra Spare Total
       doc.fontSize(9).font('Helvetica-Bold').fillColor('#92400e')
-        .text(`Extra Spare Total: Rs.${totals.extraSpareTotal.toFixed(0)}`, margin + 330, yPos);
-      doc.fillColor('#000000');
-      yPos += 20;
+        .text('Extra Parts Total:', margin + 300, yPos);
+      doc.text(`Rs. ${totals.extraSpareTotal.toLocaleString()}`, margin + 430, yPos, { width: 70, align: 'right' });
+      yPos += 14;
     }
 
-    // ===== COST SUMMARY & TERMS (Side by Side) =====
-    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-    yPos += 10;
+    // ===== TERMS & COST SUMMARY SECTION =====
+    yPos += 6;
+    doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+    yPos += 8;
 
-    const termsColWidth = contentWidth * 0.55;
-    const costColWidth = contentWidth * 0.42;
-    const costColX = margin + termsColWidth + 15;
+    const termsWidth = contentWidth * 0.52;
+    const costWidth = contentWidth * 0.44;
+    const costX = margin + termsWidth + 12;
 
-    // Terms & Conditions (Left)
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333').text('TERMS & CONDITIONS', margin, yPos);
-    const termsY = yPos + 15;
-    const terms = data.template?.termsAndConditions ||
-      '• Advance payment is strictly non-refundable.\n• Device must be collected within 7 days of service completion.\n• Company is not responsible for data loss. Please backup data.\n• Warranty: 30 days (Parts), 15 days (Labor).\n• Additional charges apply for hidden faults found during service.';
+    // Terms Section
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark).text('TERMS & CONDITIONS', margin, yPos);
 
-    doc.fontSize(7).font('Helvetica').fillColor('#333333')
-      .text(terms, margin, termsY, { width: termsColWidth - 10 });
-
-    // Cost Summary (Right)
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333').text('COST SUMMARY', costColX, yPos);
-    let costY = yPos + 15;
-
-    const costItems = [
-      { label: 'Estimated Cost', value: data.service.estimatedCost },
-      { label: 'Labour Charge', value: data.service.labourCharge || 0 },
-      { label: 'Extra Spare Parts', value: totals.extraSpareTotal },
+    const defaultTerms = [
+      '1. Advance payment is non-refundable.',
+      '2. Device must be collected within 7 days of completion.',
+      '3. We are not responsible for data loss during repair.',
+      '4. Warranty: 30 days for parts, 15 days for service.',
+      '5. Additional charges may apply for parts replacement.',
+      '6. Device password required for testing purposes.',
+      '7. Accessories left are at customer\'s own risk.'
     ];
+    const termsText = data.template?.termsAndConditions || defaultTerms.join('\n');
 
-    if (data.service.discount && data.service.discount > 0) {
-      costItems.push({ label: 'Discount', value: -data.service.discount });
-    }
-
-    costItems.forEach(item => {
-      doc.fontSize(9).font('Helvetica').fillColor('#333333');
-      doc.text(item.label, costColX, costY);
-      doc.text(`Rs.${Math.abs(item.value).toFixed(2)}`, costColX + costColWidth - 80, costY, { align: 'right', width: 80 });
-      costY += 14;
+    let termsY = yPos + 14;
+    const termsLines = termsText.split('\n').length > 1 ? termsText.split('\n') : defaultTerms;
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted);
+    termsLines.forEach(term => {
+      doc.text(term, margin, termsY, { width: termsWidth - 10 });
+      termsY += 10;
     });
 
-    // Divider
-    doc.moveTo(costColX, costY).lineTo(costColX + costColWidth, costY).lineWidth(0.5).stroke('#cccccc');
-    costY += 8;
+    // Cost Summary Section
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark).text('COST SUMMARY', costX, yPos);
 
-    // Total Amount
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#333333');
-    doc.text('TOTAL AMOUNT', costColX, costY);
-    doc.fontSize(11).fillColor('#0d9488')
-      .text(`Rs.${totals.totalAmount.toFixed(2)}`, costColX + costColWidth - 80, costY, { align: 'right', width: 80 });
-    costY += 16;
+    doc.rect(costX, yPos + 12, costWidth, 85).stroke(borderColor);
 
-    // Advance & Balance
-    doc.fontSize(9).font('Helvetica').fillColor('#333333');
-    doc.text('Advance Paid', costColX, costY);
-    doc.text(`Rs.${data.service.advancePayment.toFixed(2)}`, costColX + costColWidth - 80, costY, { align: 'right', width: 80 });
+    let costY = yPos + 18;
+    const labelX = costX + 10;
+    const valueX = costX + costWidth - 70;
+
+    const costItems: [string, number, string?][] = [
+      ['Estimated Cost', data.service.estimatedCost],
+      ['Labour Charge', data.service.labourCharge || 0],
+      ['Extra Parts', totals.extraSpareTotal],
+    ];
+    if (data.service.discount && data.service.discount > 0) {
+      costItems.push(['Discount', -data.service.discount, '#059669']);
+    }
+
+    costItems.forEach(([label, value, color]) => {
+      doc.fontSize(9).font('Helvetica').fillColor(textMuted).text(label, labelX, costY);
+      doc.fillColor(color || textDark).text(`Rs. ${Math.abs(value).toLocaleString()}`, valueX, costY, { width: 60, align: 'right' });
+      costY += 12;
+    });
+
+    doc.rect(costX + 8, costY, costWidth - 16, 0.5).fill(borderColor);
+    costY += 6;
+
+    // Total
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark).text('TOTAL', labelX, costY);
+    doc.fillColor(primaryColor).text(`Rs. ${totals.totalAmount.toLocaleString()}`, valueX, costY, { width: 60, align: 'right' });
     costY += 14;
 
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#dc2626');
-    doc.text('BALANCE DUE', costColX, costY);
-    doc.text(`Rs.${totals.balanceDue.toFixed(2)}`, costColX + costColWidth - 80, costY, { align: 'right', width: 80 });
+    // Advance
+    doc.fontSize(9).font('Helvetica').fillColor(textMuted).text('Advance Paid', labelX, costY);
+    doc.fillColor('#059669').text(`Rs. ${data.service.advancePayment.toLocaleString()}`, valueX, costY, { width: 60, align: 'right' });
+    costY += 12;
 
-    yPos = Math.max(yPos + 100, costY + 20);
+    // Balance
+    doc.rect(costX + 8, costY - 2, costWidth - 16, 16).fill('#fef2f2');
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#dc2626').text('BALANCE DUE', labelX, costY);
+    doc.text(`Rs. ${totals.balanceDue.toLocaleString()}`, valueX, costY, { width: 60, align: 'right' });
 
-    // ===== SIGNATURES =====
-    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).lineWidth(0.5).stroke('#cccccc');
-    yPos += 20;
+    yPos = Math.max(termsY, costY + 20) + 10;
 
-    if (data.template?.showCustomerSignature !== false) {
-      doc.fontSize(8).font('Helvetica').fillColor('#666666')
-        .text('_______________________________', margin, yPos);
-      doc.text('CUSTOMER SIGNATURE', margin, yPos + 12);
-      doc.fontSize(7).text('I agree to terms and conditions', margin, yPos + 22);
-    }
+    // ===== SIGNATURE SECTION =====
+    doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+    yPos += 12;
 
-    if (data.template?.showAuthorizedSignature !== false) {
-      doc.fontSize(8).font('Helvetica').fillColor('#666666')
-        .text('_______________________________', pageWidth - margin - 150, yPos);
-      doc.text('AUTHORIZED SIGNATURE', pageWidth - margin - 150, yPos + 12);
-      doc.fontSize(7).text(`For ${data.company.name}`, pageWidth - margin - 150, yPos + 22);
-    }
+    const sigWidth = 120;
+    const sigLeftX = margin + 20;
+    const sigRightX = pageWidth - margin - sigWidth - 20;
+
+    // Signature boxes
+    doc.rect(sigLeftX, yPos, sigWidth, 40).stroke(borderColor);
+    doc.rect(sigRightX, yPos, sigWidth, 40).stroke(borderColor);
+
+    doc.fontSize(8).font('Helvetica').fillColor(textMuted);
+    doc.text('Customer Signature', sigLeftX, yPos + 45, { width: sigWidth, align: 'center' });
+    doc.text('Authorized Signature', sigRightX, yPos + 45, { width: sigWidth, align: 'center' });
+
+    yPos += 60;
 
     // ===== FOOTER =====
-    const footerText = data.template?.footerText || 'Thank you for choosing our services!';
-    doc.fontSize(8).font('Helvetica-Oblique').fillColor('#666666')
-      .text(footerText, margin, 800, { width: contentWidth, align: 'center' });
-
-    if (data.company.website) {
-      doc.text(data.company.website, margin, 812, { width: contentWidth, align: 'center' });
-    }
+    const footer = data.template?.footerText || 'Thank you for choosing our service. We appreciate your business!';
+    doc.fontSize(9).font('Helvetica-Oblique').fillColor(textMuted)
+      .text(footer, margin, yPos, { width: contentWidth, align: 'center' });
   }
 
   /**
@@ -903,7 +1020,7 @@ export class PDFGenerationService {
       if (data.accessories && data.accessories.length > 0) {
         doc.fontSize(8).font('Helvetica-Bold').fillColor('#333333').text('Accessories:', margin + 10, yPos + 8);
         doc.font('Helvetica').fillColor('#000000')
-          .text(data.accessories.map(a => `☑ ${a.name}`).join('  '), margin + 80, yPos + 8, { width: 200 });
+          .text(data.accessories.map(a => `[x] ${a.name}`).join('  '), margin + 80, yPos + 8, { width: 200 });
       }
 
       if (data.damageConditions && data.damageConditions.length > 0) {
@@ -920,7 +1037,7 @@ export class PDFGenerationService {
     yPos += 15;
 
     if (data.faults && data.faults.length > 0) {
-      const faultsText = data.faults.map(f => `● ${f.name}`).join('   ');
+      const faultsText = data.faults.map(f => `* ${f.name}`).join('   ');
       doc.fontSize(9).font('Helvetica').fillColor('#000000').text(faultsText, margin, yPos, { width: contentWidth });
       yPos += 20;
     }
@@ -1134,7 +1251,7 @@ export class PDFGenerationService {
     yPos += 10;
 
     if (data.faults && data.faults.length > 0) {
-      const faultText = data.faults.map(f => `● ${f.name}`).join('  ');
+      const faultText = data.faults.map(f => `* ${f.name}`).join('  ');
       doc.fontSize(7).font('Helvetica').fillColor('#000000').text(faultText, margin, yPos, { width: contentWidth });
       yPos += 12;
     }
@@ -1440,22 +1557,37 @@ export class PDFGenerationService {
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
 
-    let yPos = 20;
+    let yPos = 15;
 
-    // Company Header
-    if (data.template?.showCompanyLogo !== false) {
-      doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000')
-        .text(data.company.name, margin, yPos, { width: contentWidth, align: 'center' });
-      yPos += 14;
-      doc.fontSize(7).fillColor('#0d9488').text('SERVICE CENTER', margin, yPos, { width: contentWidth, align: 'center' });
-      yPos += 10;
+    // Logo and Company Header
+    const logoSize = 28;
+    const resolvedLogo = this.resolveLogoPath(data.company.logo);
+    let logoRendered = false;
+
+    if (data.template?.showCompanyLogo !== false && resolvedLogo) {
+      try {
+        doc.image(resolvedLogo, margin, yPos, { fit: [logoSize, logoSize] });
+        logoRendered = true;
+      } catch (e: any) {
+        console.error(`[Logo] A5 failed: ${e.message}`);
+      }
     }
+
+    const textX = logoRendered ? margin + logoSize + 6 : margin;
+    const textW = logoRendered ? contentWidth - logoSize - 6 : contentWidth;
+    const align = logoRendered ? 'left' : 'center';
+
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
+      .text(data.company.name, textX, yPos, { width: textW, align, lineBreak: false });
+    doc.fontSize(6).fillColor('#0d9488')
+      .text('SERVICE CENTER', textX, yPos + 12, { width: textW, align, lineBreak: false });
 
     if (data.template?.showContactDetails !== false) {
-      doc.fontSize(6).font('Helvetica').fillColor('#666666')
-        .text(`${data.branch.address} | ${data.branch.phone}`, margin, yPos, { width: contentWidth, align: 'center' });
-      yPos += 10;
+      doc.fontSize(5).font('Helvetica').fillColor('#666666')
+        .text(`${data.branch.address} | ${data.branch.phone}`, textX, yPos + 20, { width: textW, align, lineBreak: false });
     }
+
+    yPos = logoRendered ? yPos + logoSize + 4 : yPos + 28;
 
     // Title Bar
     doc.rect(margin, yPos, contentWidth, 16).fill('#0d9488');
@@ -1502,11 +1634,15 @@ export class PDFGenerationService {
     if (data.service.deviceIMEI) deviceInfo.push(`IMEI: ${data.service.deviceIMEI}`);
     if (data.service.devicePassword) deviceInfo.push(`PWD: ${data.service.devicePassword}`);
     doc.text(deviceInfo.join(' | '), margin + 190, yPos);
-    yPos += 10;
+    yPos += 8;
 
+    // Customer address - responsive height calculation
     if (data.customer.address) {
-      doc.text(data.customer.address, margin, yPos, { width: 170 });
-      yPos += 10;
+      const addrWidth = 165;
+      doc.fontSize(5).font('Helvetica').fillColor('#555');
+      const addrHeight = doc.heightOfString(data.customer.address, { width: addrWidth });
+      doc.text(data.customer.address, margin, yPos, { width: addrWidth });
+      yPos += Math.max(addrHeight, 6) + 2;
     }
 
     // Faults
@@ -1518,7 +1654,7 @@ export class PDFGenerationService {
 
     if (data.faults && data.faults.length > 0) {
       doc.fontSize(6).font('Helvetica').fillColor('#000000')
-        .text(data.faults.map(f => `● ${f.name}`).join('  '), margin, yPos, { width: contentWidth });
+        .text(data.faults.map(f => `* ${f.name}`).join('  '), margin, yPos, { width: contentWidth });
       yPos += 10;
     }
 
@@ -1704,7 +1840,20 @@ export class PDFGenerationService {
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
 
-    let yPos = 10;
+    let yPos = 8;
+
+    // Logo (centered, small)
+    const logoSize = is2Inch ? 24 : 30;
+    const resolvedLogo = this.resolveLogoPath(data.company.logo);
+    if (data.template?.showCompanyLogo !== false && resolvedLogo) {
+      try {
+        const logoX = margin + (contentWidth - logoSize) / 2;
+        doc.image(resolvedLogo, logoX, yPos, { fit: [logoSize, logoSize] });
+        yPos += logoSize + 4;
+      } catch (e: any) {
+        console.error(`[Logo] Thermal failed: ${e.message}`);
+      }
+    }
 
     // Company Header
     doc.fontSize(is2Inch ? 8 : 10).font('Helvetica-Bold').fillColor('#000000')
@@ -2093,28 +2242,36 @@ export class PDFGenerationService {
   /**
    * Generate Invoice PDF
    */
-  async generateInvoicePDF(data: InvoiceData, format: string = 'A4'): Promise<string> {
+  async generateInvoicePDF(data: InvoiceData, format: string = 'A4', copyType: string = 'original'): Promise<string> {
     return new Promise((resolve, reject) => {
       try {
         const formatSuffix = format.toUpperCase();
-        const fileName = `invoice_${data.invoiceNumber}_${formatSuffix}_${Date.now()}.pdf`;
+        const copySuffix = copyType.toUpperCase();
+        const fileName = `invoice_${data.invoiceNumber}_${formatSuffix}_${copySuffix}_${Date.now()}.pdf`;
         const filePath = path.join(this.uploadDir, 'invoices', fileName);
+
+        // Set copy type in data
+        data.copyType = copyType as 'original' | 'duplicate' | 'customer';
 
         // Configure page size based on format
         let docOptions: any = {};
+        let isThermal = false;
         switch (format.toLowerCase()) {
           case 'a5':
-            docOptions = { size: 'A5', margin: 30 };
+            docOptions = { size: 'A5', margin: 25 };
+            break;
+          case 'thermal':
+          case 'thermal-3':
+            docOptions = { size: [216, 800], margin: 8 }; // 3 inch width (216 points)
+            isThermal = true;
             break;
           case 'thermal-2':
-            docOptions = { size: [144, 720], margin: 5 }; // 2 inch width (144 points)
-            break;
-          case 'thermal-3':
-            docOptions = { size: [216, 720], margin: 10 }; // 3 inch width (216 points)
+            docOptions = { size: [144, 800], margin: 5 }; // 2 inch width (144 points)
+            isThermal = true;
             break;
           case 'a4':
           default:
-            docOptions = { size: 'A4', margin: 50 };
+            docOptions = { size: 'A4', margin: 30 };
             break;
         }
 
@@ -2123,25 +2280,14 @@ export class PDFGenerationService {
 
         doc.pipe(stream);
 
-        // Header
-        this.addInvoiceHeader(doc, data);
-
-        // Customer & Service Info
-        this.addInvoiceCustomerInfo(doc, data);
-
-        // Items Table
-        this.addInvoiceItemsTable(doc, data);
-
-        // Payment Summary
-        this.addInvoicePaymentSummary(doc, data);
-
-        // Payment History
-        if (data.payments && data.payments.length > 0) {
-          this.addInvoicePaymentHistory(doc, data);
+        // Route to format-specific methods
+        if (isThermal) {
+          this.addInvoiceThermal(doc, data, format);
+        } else if (format.toLowerCase() === 'a5') {
+          this.addInvoiceA5Compact(doc, data);
+        } else {
+          this.addInvoiceA4Full(doc, data);
         }
-
-        // Footer
-        this.addInvoiceFooter(doc, data);
 
         doc.end();
 
@@ -2154,6 +2300,686 @@ export class PDFGenerationService {
         reject(error);
       }
     });
+  }
+
+  /**
+   * A4 Invoice - Full Professional Layout
+   */
+  private addInvoiceA4Full(doc: PDFKit.PDFDocument, data: InvoiceData): void {
+    const margin = 30;
+    const pageWidth = 595;
+    const pageHeight = 842;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // Colors
+    const primaryColor = '#0d9488';
+    const textDark = '#1f2937';
+    const textMuted = '#6b7280';
+    const borderColor = '#e5e7eb';
+    const bgLight = '#f9fafb';
+
+    let yPos = 25;
+
+    // ===== HEADER SECTION =====
+    const logoSize = 50;
+    const resolvedLogo = this.resolveLogoPath(data.company.logo);
+    let logoRendered = false;
+
+    if (resolvedLogo) {
+      try {
+        doc.image(resolvedLogo, margin, yPos, { fit: [logoSize, logoSize] });
+        logoRendered = true;
+      } catch (e: any) {
+        console.error(`[Invoice Logo] Failed: ${e.message}`);
+      }
+    }
+
+    // Company info next to logo
+    const companyX = logoRendered ? margin + logoSize + 12 : margin;
+    const companyWidth = logoRendered ? 280 : 350;
+
+    doc.fontSize(14).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.company.name + ' Service Center', companyX, yPos);
+
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted)
+      .text(data.branch.name, companyX, yPos + 16);
+
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted)
+      .text(data.branch.address || data.company.address, companyX, yPos + 26, { width: companyWidth });
+
+    const contactY = yPos + 38;
+    doc.fontSize(7).fillColor(textMuted)
+      .text(`📞 ${data.branch.phone || data.company.phone}`, companyX, contactY);
+    if (data.branch.email || data.company.email) {
+      doc.text(`  |  ✉ ${data.branch.email || data.company.email}`, companyX + 100, contactY);
+    }
+
+    // TAX INVOICE title on right
+    doc.fontSize(22).font('Helvetica-Bold').fillColor(textDark)
+      .text('TAX INVOICE', pageWidth - margin - 150, yPos, { width: 150, align: 'right' });
+
+    // Copy type badge
+    const copyLabel = (data.copyType || 'original').toUpperCase() + ' COPY';
+    const badgeWidth = 90;
+    const badgeX = pageWidth - margin - badgeWidth;
+    doc.rect(badgeX, yPos + 28, badgeWidth, 18).fill(primaryColor);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff')
+      .text(copyLabel, badgeX, yPos + 33, { width: badgeWidth, align: 'center' });
+
+    yPos = Math.max(yPos + logoSize + 15, yPos + 55);
+
+    // ===== BILL TO & INVOICE DETAILS =====
+    const leftColWidth = (contentWidth - 20) / 2;
+    const rightColX = margin + leftColWidth + 20;
+
+    // Bill To Box
+    doc.rect(margin, yPos, leftColWidth, 75).fill(bgLight).stroke(borderColor);
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted)
+      .text('BILL TO', margin + 10, yPos + 8);
+
+    doc.fontSize(12).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.customer.name, margin + 10, yPos + 20);
+
+    doc.fontSize(9).font('Helvetica').fillColor(textDark)
+      .text(`📱 ${data.customer.phone}`, margin + 10, yPos + 36);
+
+    if (data.customer.address) {
+      doc.fontSize(8).fillColor(textMuted)
+        .text(data.customer.address, margin + 10, yPos + 50, { width: leftColWidth - 20 });
+    }
+
+    // Invoice Details Box
+    doc.rect(rightColX, yPos, leftColWidth, 75).fill(bgLight).stroke(borderColor);
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted)
+      .text('INVOICE DETAILS', rightColX + 10, yPos + 8);
+
+    const detailsY = yPos + 22;
+    doc.fontSize(7).fillColor(textMuted).text('INVOICE NO.', rightColX + 10, detailsY);
+    doc.fontSize(7).fillColor(textMuted).text('DATE', rightColX + leftColWidth - 80, detailsY);
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.invoiceNumber, rightColX + 10, detailsY + 10);
+    doc.fontSize(9).font('Helvetica').fillColor(textDark)
+      .text(format(new Date(data.invoiceDate), 'dd/MM/yyyy'), rightColX + leftColWidth - 80, detailsY + 10);
+
+    doc.fontSize(7).fillColor(textMuted).text('SERVICE TICKET', rightColX + 10, detailsY + 28);
+    doc.fontSize(7).fillColor(textMuted).text('SERVICE DATE', rightColX + leftColWidth - 80, detailsY + 28);
+
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.service.ticketNumber, rightColX + 10, detailsY + 38);
+    doc.fontSize(9).font('Helvetica').fillColor(textDark)
+      .text(format(new Date(data.service.createdAt), 'dd/MM/yyyy'), rightColX + leftColWidth - 80, detailsY + 38);
+
+    yPos += 85;
+
+    // ===== DEVICE INFO BAR =====
+    doc.rect(margin, yPos, contentWidth, 22).fill(bgLight).stroke(borderColor);
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted).text('DEVICE:', margin + 10, yPos + 7);
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.service.deviceModel, margin + 55, yPos + 6);
+
+    doc.fontSize(7).fillColor(textMuted).text('ISSUE:', margin + 300, yPos + 7);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#dc2626')
+      .text(data.service.issue?.toUpperCase() || 'REPAIR', margin + 335, yPos + 6, { width: 180 });
+
+    yPos += 30;
+
+    // ===== ITEMS TABLE =====
+    // Table Header
+    doc.rect(margin, yPos, contentWidth, 20).fill(bgLight);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted);
+    doc.text('#', margin + 10, yPos + 6);
+    doc.text('DESCRIPTION', margin + 35, yPos + 6);
+    doc.text('QTY', margin + 350, yPos + 6, { width: 40, align: 'center' });
+    doc.text('RATE', margin + 400, yPos + 6, { width: 60, align: 'right' });
+    doc.text('AMOUNT', margin + 470, yPos + 6, { width: 60, align: 'right' });
+    yPos += 22;
+
+    // Table rows
+    let itemIndex = 1;
+    const serviceCost = data.service.actualCost ?? data.service.estimatedCost;
+    const labourCharge = data.service.labourCharge || 0;
+
+    // Service charge row (if there's labour or service cost)
+    if (serviceCost > 0 || labourCharge > 0) {
+      const serviceAmount = labourCharge > 0 ? labourCharge : serviceCost;
+      doc.fontSize(9).font('Helvetica').fillColor(textDark);
+      doc.text(String(itemIndex), margin + 10, yPos);
+      doc.text('Service Charge', margin + 35, yPos);
+      doc.text('1', margin + 350, yPos, { width: 40, align: 'center' });
+      doc.text(serviceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 400, yPos, { width: 60, align: 'right' });
+      doc.font('Helvetica-Bold').text(serviceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 470, yPos, { width: 60, align: 'right' });
+      yPos += 18;
+      itemIndex++;
+    }
+
+    // Parts rows
+    if (data.parts && data.parts.length > 0) {
+      for (const part of data.parts) {
+        // Check if we need a new page
+        if (yPos > pageHeight - 200) {
+          doc.addPage();
+          yPos = 50;
+          // Add continuation header
+          doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+            .text(`Invoice: ${data.invoiceNumber} (Continued)`, margin, yPos);
+          yPos += 30;
+        }
+
+        doc.fontSize(9).font('Helvetica').fillColor(textDark);
+        doc.text(String(itemIndex), margin + 10, yPos);
+        doc.text(part.partName.substring(0, 45), margin + 35, yPos);
+        doc.text(String(part.quantity), margin + 350, yPos, { width: 40, align: 'center' });
+        doc.text(part.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 400, yPos, { width: 60, align: 'right' });
+        doc.font('Helvetica-Bold').text(part.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 470, yPos, { width: 60, align: 'right' });
+        yPos += 18;
+        itemIndex++;
+      }
+    }
+
+    yPos += 10;
+    doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+    yPos += 15;
+
+    // ===== AMOUNT IN WORDS & TOTALS SECTION =====
+    const wordsWidth = contentWidth * 0.48;
+    const totalsX = margin + wordsWidth + 20;
+    const totalsWidth = contentWidth * 0.48;
+
+    // Amount in words
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted)
+      .text('TOTAL AMOUNT IN WORDS', margin, yPos);
+    yPos += 12;
+
+    const amountInWords = this.numberToWords(data.totalAmount);
+    doc.rect(margin, yPos, wordsWidth, 35).fill('#fffbeb').stroke('#fcd34d');
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+      .text(amountInWords, margin + 10, yPos + 10, { width: wordsWidth - 20 });
+
+    // Terms & Conditions
+    const termsY = yPos + 45;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted)
+      .text('TERMS & CONDITIONS', margin, termsY);
+
+    const terms = [
+      '• Payment is due upon receipt of invoice.',
+      '• Warranty: 30 days for parts and service provided.',
+      '• Physical damage is not covered under warranty.',
+      '• Goods once sold will not be taken back.'
+    ];
+
+    let termY = termsY + 12;
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted);
+    terms.forEach(term => {
+      doc.text(term, margin, termY, { width: wordsWidth });
+      termY += 10;
+    });
+
+    // Totals box
+    const totalsStartY = yPos - 12;
+    doc.rect(totalsX, totalsStartY, totalsWidth, 120).stroke(borderColor);
+
+    let tY = totalsStartY + 10;
+    const labelX = totalsX + 15;
+    const valueX = totalsX + totalsWidth - 80;
+
+    // Subtotal
+    doc.fontSize(9).font('Helvetica').fillColor(textMuted).text('Subtotal:', labelX, tY);
+    doc.fillColor(textDark).text(`₹${data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, tY, { width: 65, align: 'right' });
+    tY += 14;
+
+    // Discount
+    const discount = data.discount || 0;
+    doc.fillColor(textMuted).text('Discount:', labelX, tY);
+    doc.fillColor(discount > 0 ? '#059669' : textDark).text(`- ₹${discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, tY, { width: 65, align: 'right' });
+    tY += 14;
+
+    // GST
+    const cgstRate = data.cgstRate || 9;
+    const sgstRate = data.sgstRate || 9;
+    doc.fillColor(textMuted).text(`CGST (${cgstRate}%) / SGST (${sgstRate}%):`, labelX, tY);
+    doc.fillColor(textDark).text('Included', valueX, tY, { width: 65, align: 'right' });
+    tY += 16;
+
+    // Grand Total
+    doc.rect(totalsX + 10, tY - 2, totalsWidth - 20, 0.5).fill(borderColor);
+    tY += 6;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(textDark).text('Grand Total:', labelX, tY);
+    doc.fontSize(14).fillColor(textDark).text(`₹${data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX - 10, tY - 2, { width: 75, align: 'right' });
+    tY += 18;
+
+    // Paid Amount
+    doc.fontSize(9).font('Helvetica').fillColor(textMuted).text('Paid Amount:', labelX, tY);
+    doc.fillColor('#059669').text(`₹${data.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, tY, { width: 65, align: 'right' });
+    tY += 14;
+
+    // Balance Due
+    doc.rect(totalsX + 10, tY - 2, totalsWidth - 20, 20).fill('#fef2f2');
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#dc2626').text('BALANCE DUE:', labelX, tY + 2);
+    doc.fontSize(13).text(`₹${data.balanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX - 10, tY, { width: 75, align: 'right' });
+    tY += 22;
+
+    // Payment Status Badge
+    const statusColors: Record<string, { bg: string; text: string }> = {
+      'PENDING': { bg: '#fef3c7', text: '#92400e' },
+      'PARTIAL': { bg: '#dbeafe', text: '#1e40af' },
+      'PAID': { bg: '#d1fae5', text: '#065f46' },
+      'REFUNDED': { bg: '#fce7f3', text: '#9d174d' },
+    };
+    const status = data.paymentStatus?.toUpperCase() || 'PENDING';
+    const statusStyle = statusColors[status] || statusColors['PENDING'];
+
+    const statusBadgeWidth = 130;
+    const statusBadgeX = totalsX + (totalsWidth - statusBadgeWidth) / 2;
+    doc.rect(statusBadgeX, tY, statusBadgeWidth, 18).fill(statusStyle.bg);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(statusStyle.text)
+      .text(`STATUS: ${status}`, statusBadgeX, tY + 5, { width: statusBadgeWidth, align: 'center' });
+
+    // ===== SIGNATURE SECTION =====
+    yPos = Math.max(termY + 20, tY + 35);
+    doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+    yPos += 15;
+
+    const sigWidth = 130;
+    doc.rect(margin + 20, yPos, sigWidth, 35).stroke(borderColor);
+    doc.rect(pageWidth - margin - sigWidth - 20, yPos, sigWidth, 35).stroke(borderColor);
+
+    doc.fontSize(7).font('Helvetica').fillColor(textMuted);
+    doc.text('CUSTOMER SIGNATURE', margin + 20, yPos + 40, { width: sigWidth, align: 'center' });
+    doc.text('AUTHORIZED SIGNATURE', pageWidth - margin - sigWidth - 20, yPos + 40, { width: sigWidth, align: 'center' });
+
+    // Footer
+    yPos += 55;
+    doc.fontSize(9).font('Helvetica-Oblique').fillColor(textMuted)
+      .text('Thank you for your business!', margin, yPos, { width: contentWidth, align: 'center' });
+  }
+
+  /**
+   * A5 Invoice - Compact Layout
+   */
+  private addInvoiceA5Compact(doc: PDFKit.PDFDocument, data: InvoiceData): void {
+    const margin = 20;
+    const pageWidth = 420;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // Colors
+    const primaryColor = '#0d9488';
+    const textDark = '#1f2937';
+    const textMuted = '#6b7280';
+    const borderColor = '#e5e7eb';
+    const bgLight = '#f9fafb';
+
+    let yPos = 15;
+
+    // ===== HEADER =====
+    const logoSize = 35;
+    const resolvedLogo = this.resolveLogoPath(data.company.logo);
+    let logoRendered = false;
+
+    if (resolvedLogo) {
+      try {
+        doc.image(resolvedLogo, margin, yPos, { fit: [logoSize, logoSize] });
+        logoRendered = true;
+      } catch (e: any) {
+        console.error(`[Invoice A5 Logo] Failed: ${e.message}`);
+      }
+    }
+
+    const companyX = logoRendered ? margin + logoSize + 8 : margin;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.company.name, companyX, yPos);
+    doc.fontSize(6).font('Helvetica').fillColor(textMuted)
+      .text(data.branch.address || data.company.address, companyX, yPos + 12, { width: 150 });
+    doc.text(`Ph: ${data.branch.phone || data.company.phone}`, companyX, yPos + 22);
+
+    // TAX INVOICE on right
+    doc.fontSize(14).font('Helvetica-Bold').fillColor(textDark)
+      .text('TAX INVOICE', pageWidth - margin - 100, yPos, { width: 100, align: 'right' });
+
+    // Copy badge
+    const copyLabel = (data.copyType || 'original').toUpperCase();
+    doc.rect(pageWidth - margin - 70, yPos + 20, 70, 14).fill(primaryColor);
+    doc.fontSize(6).font('Helvetica-Bold').fillColor('#ffffff')
+      .text(copyLabel + ' COPY', pageWidth - margin - 70, yPos + 24, { width: 70, align: 'center' });
+
+    yPos = yPos + logoSize + 10;
+
+    // ===== INVOICE INFO =====
+    doc.rect(margin, yPos, contentWidth, 45).fill(bgLight).stroke(borderColor);
+
+    const col1 = margin + 8;
+    const col2 = margin + contentWidth / 2;
+
+    doc.fontSize(6).font('Helvetica').fillColor(textMuted).text('INVOICE:', col1, yPos + 5);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(textDark).text(data.invoiceNumber, col1, yPos + 13);
+
+    doc.fontSize(6).fillColor(textMuted).text('DATE:', col2, yPos + 5);
+    doc.fontSize(8).font('Helvetica').fillColor(textDark).text(format(new Date(data.invoiceDate), 'dd/MM/yyyy'), col2, yPos + 13);
+
+    doc.fontSize(6).fillColor(textMuted).text('BILL TO:', col1, yPos + 26);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(textDark).text(data.customer.name, col1 + 40, yPos + 25);
+    doc.fontSize(7).font('Helvetica').text(data.customer.phone, col1 + 40, yPos + 34);
+
+    yPos += 50;
+
+    // ===== DEVICE =====
+    doc.fontSize(6).font('Helvetica').fillColor(textMuted).text('DEVICE:', margin, yPos);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(textDark).text(data.service.deviceModel, margin + 45, yPos - 1);
+    yPos += 12;
+
+    // ===== ITEMS TABLE =====
+    doc.rect(margin, yPos, contentWidth, 14).fill(bgLight);
+    doc.fontSize(6).font('Helvetica-Bold').fillColor(textMuted);
+    doc.text('#', margin + 5, yPos + 4);
+    doc.text('DESCRIPTION', margin + 20, yPos + 4);
+    doc.text('QTY', margin + 220, yPos + 4, { width: 30, align: 'center' });
+    doc.text('RATE', margin + 260, yPos + 4, { width: 45, align: 'right' });
+    doc.text('AMOUNT', margin + 310, yPos + 4, { width: 50, align: 'right' });
+    yPos += 16;
+
+    let itemIndex = 1;
+    const serviceCost = data.service.actualCost ?? data.service.estimatedCost;
+
+    if (serviceCost > 0) {
+      doc.fontSize(7).font('Helvetica').fillColor(textDark);
+      doc.text(String(itemIndex), margin + 5, yPos);
+      doc.text('Service Charge', margin + 20, yPos);
+      doc.text('1', margin + 220, yPos, { width: 30, align: 'center' });
+      doc.text(serviceCost.toFixed(2), margin + 260, yPos, { width: 45, align: 'right' });
+      doc.font('Helvetica-Bold').text(serviceCost.toFixed(2), margin + 310, yPos, { width: 50, align: 'right' });
+      yPos += 12;
+      itemIndex++;
+    }
+
+    if (data.parts && data.parts.length > 0) {
+      for (const part of data.parts) {
+        doc.fontSize(7).font('Helvetica').fillColor(textDark);
+        doc.text(String(itemIndex), margin + 5, yPos);
+        doc.text(part.partName.substring(0, 35), margin + 20, yPos);
+        doc.text(String(part.quantity), margin + 220, yPos, { width: 30, align: 'center' });
+        doc.text(part.unitPrice.toFixed(2), margin + 260, yPos, { width: 45, align: 'right' });
+        doc.font('Helvetica-Bold').text(part.totalPrice.toFixed(2), margin + 310, yPos, { width: 50, align: 'right' });
+        yPos += 12;
+        itemIndex++;
+      }
+    }
+
+    yPos += 5;
+    doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+    yPos += 10;
+
+    // ===== TOTALS =====
+    const totalsX = margin + contentWidth - 140;
+    doc.fontSize(8).font('Helvetica').fillColor(textMuted).text('Subtotal:', totalsX, yPos);
+    doc.fillColor(textDark).text(`₹${data.totalAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
+    yPos += 12;
+
+    doc.fillColor(textMuted).text('Discount:', totalsX, yPos);
+    doc.fillColor(textDark).text(`- ₹${(data.discount || 0).toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
+    yPos += 12;
+
+    doc.rect(totalsX, yPos, 140, 0.5).fill(borderColor);
+    yPos += 5;
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark).text('TOTAL:', totalsX, yPos);
+    doc.text(`₹${data.totalAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
+    yPos += 14;
+
+    doc.fontSize(8).font('Helvetica').fillColor(textMuted).text('Paid:', totalsX, yPos);
+    doc.fillColor('#059669').text(`₹${data.paidAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
+    yPos += 12;
+
+    doc.font('Helvetica-Bold').fillColor('#dc2626').text('Balance:', totalsX, yPos);
+    doc.text(`₹${data.balanceAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
+    yPos += 20;
+
+    // ===== FOOTER =====
+    doc.fontSize(7).font('Helvetica-Oblique').fillColor(textMuted)
+      .text('Thank you for your business!', margin, yPos, { width: contentWidth, align: 'center' });
+  }
+
+  /**
+   * Thermal Invoice - Receipt Format
+   */
+  private addInvoiceThermal(doc: PDFKit.PDFDocument, data: InvoiceData, paperFormat: string): void {
+    const is2Inch = paperFormat.toLowerCase() === 'thermal-2';
+    const margin = is2Inch ? 5 : 8;
+    const pageWidth = is2Inch ? 144 : 216;
+    const contentWidth = pageWidth - (margin * 2);
+    const centerX = pageWidth / 2;
+
+    // Colors
+    const textDark = '#000000';
+    const textMuted = '#555555';
+
+    let yPos = 8;
+
+    // ===== HEADER =====
+    const logoSize = is2Inch ? 30 : 40;
+    const resolvedLogo = this.resolveLogoPath(data.company.logo);
+
+    if (resolvedLogo) {
+      try {
+        const logoX = centerX - (logoSize / 2);
+        doc.image(resolvedLogo, logoX, yPos, { fit: [logoSize, logoSize] });
+        yPos += logoSize + 5;
+      } catch (e: any) {
+        console.error(`[Invoice Thermal Logo] Failed: ${e.message}`);
+      }
+    }
+
+    // Company name centered
+    doc.fontSize(is2Inch ? 9 : 11).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.company.name, margin, yPos, { width: contentWidth, align: 'center' });
+    yPos += is2Inch ? 10 : 12;
+
+    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica').fillColor(textMuted)
+      .text('SERVICE CENTER', margin, yPos, { width: contentWidth, align: 'center' });
+    yPos += is2Inch ? 8 : 10;
+
+    doc.fontSize(is2Inch ? 5 : 6)
+      .text(data.branch.address || data.company.address, margin, yPos, { width: contentWidth, align: 'center' });
+    yPos += is2Inch ? 8 : 10;
+
+    doc.text(`Ph: ${data.branch.phone || data.company.phone}`, margin, yPos, { width: contentWidth, align: 'center' });
+    yPos += is2Inch ? 10 : 12;
+
+    // Divider
+    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).dash(2, { space: 2 }).stroke(textMuted);
+    yPos += 8;
+
+    // TAX INVOICE title
+    doc.fontSize(is2Inch ? 10 : 12).font('Helvetica-Bold').fillColor(textDark)
+      .text('TAX INVOICE', margin, yPos, { width: contentWidth, align: 'center' });
+    yPos += is2Inch ? 12 : 14;
+
+    // Invoice details
+    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica').fillColor(textDark);
+    doc.text(`No: ${data.invoiceNumber}`, margin, yPos);
+    doc.text(`Dt: ${format(new Date(data.invoiceDate), 'dd/MM/yy')}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    yPos += is2Inch ? 10 : 12;
+
+    // Copy badge
+    const copyLabel = (data.copyType || 'original').toUpperCase() + ' COPY';
+    const badgeWidth = is2Inch ? 50 : 70;
+    doc.rect(centerX - badgeWidth/2, yPos, badgeWidth, is2Inch ? 10 : 12).stroke(textDark);
+    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica-Bold')
+      .text(copyLabel, centerX - badgeWidth/2, yPos + 2, { width: badgeWidth, align: 'center' });
+    yPos += is2Inch ? 14 : 18;
+
+    // Divider
+    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).undash().stroke(textMuted);
+    yPos += 6;
+
+    // Bill To
+    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textMuted)
+      .text('BILL TO:', margin, yPos);
+    yPos += is2Inch ? 7 : 8;
+
+    doc.fontSize(is2Inch ? 7 : 8).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.customer.name, margin, yPos);
+    yPos += is2Inch ? 9 : 10;
+
+    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica')
+      .text(data.customer.phone, margin, yPos);
+    yPos += is2Inch ? 8 : 10;
+
+    if (data.customer.address) {
+      doc.fontSize(is2Inch ? 5 : 6).fillColor(textMuted)
+        .text(data.customer.address, margin, yPos, { width: contentWidth });
+      yPos += is2Inch ? 12 : 14;
+    }
+
+    // Divider
+    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).stroke(textMuted);
+    yPos += 6;
+
+    // Device info
+    doc.fontSize(is2Inch ? 5 : 6).fillColor(textMuted).text('DEVICE:', margin, yPos);
+    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica-Bold').fillColor(textDark)
+      .text(data.service.deviceModel, margin + (is2Inch ? 35 : 45), yPos);
+    yPos += is2Inch ? 9 : 10;
+
+    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textMuted).text('Ticket:', margin, yPos);
+    doc.fillColor(textDark).text(data.service.ticketNumber, margin + (is2Inch ? 30 : 40), yPos);
+    yPos += is2Inch ? 9 : 10;
+
+    if (data.service.issue) {
+      doc.fontSize(is2Inch ? 5 : 6).fillColor(textMuted).text('Issue:', margin, yPos);
+      doc.fillColor(textDark).text(data.service.issue.substring(0, is2Inch ? 15 : 25), margin + (is2Inch ? 25 : 35), yPos);
+      yPos += is2Inch ? 10 : 12;
+    }
+
+    // Divider
+    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).stroke(textMuted);
+    yPos += 6;
+
+    // Items
+    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica-Bold').fillColor(textMuted)
+      .text('ITEMS:', margin, yPos);
+    yPos += is2Inch ? 8 : 10;
+
+    const serviceCost = data.service.actualCost ?? data.service.estimatedCost;
+    if (serviceCost > 0) {
+      doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textDark);
+      doc.text('Service Charge', margin, yPos);
+      doc.text(serviceCost.toFixed(2), margin + contentWidth - 50, yPos, { width: 50, align: 'right' });
+      yPos += is2Inch ? 8 : 10;
+    }
+
+    if (data.parts && data.parts.length > 0) {
+      for (const part of data.parts) {
+        doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textDark);
+        doc.text(part.partName.substring(0, is2Inch ? 18 : 25), margin, yPos);
+        doc.text(part.totalPrice.toFixed(2), margin + contentWidth - 50, yPos, { width: 50, align: 'right' });
+        yPos += is2Inch ? 8 : 10;
+      }
+    }
+
+    yPos += 4;
+    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).dash(2, { space: 2 }).stroke(textMuted);
+    yPos += 8;
+
+    // Totals
+    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica').fillColor(textDark);
+    doc.text('Subtotal:', margin, yPos);
+    doc.text(`₹${data.totalAmount.toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    yPos += is2Inch ? 9 : 10;
+
+    doc.text('Discount:', margin, yPos);
+    doc.text(`-₹${(data.discount || 0).toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    yPos += is2Inch ? 9 : 10;
+
+    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).undash().stroke(textMuted);
+    yPos += 5;
+
+    doc.fontSize(is2Inch ? 8 : 9).font('Helvetica-Bold');
+    doc.text('TOTAL:', margin, yPos);
+    doc.text(`₹${data.totalAmount.toFixed(2)}`, margin + contentWidth - 70, yPos, { width: 70, align: 'right' });
+    yPos += is2Inch ? 10 : 12;
+
+    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica');
+    doc.text('Advance:', margin, yPos);
+    doc.text(`₹${data.paidAmount.toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    yPos += is2Inch ? 9 : 10;
+
+    doc.font('Helvetica-Bold').fillColor('#c00');
+    doc.text('BALANCE:', margin, yPos);
+    doc.text(`₹${data.balanceAmount.toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    yPos += is2Inch ? 12 : 14;
+
+    // Divider
+    doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).stroke('#000');
+    yPos += 8;
+
+    // Amount in words
+    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textMuted)
+      .text('Amount in words:', margin, yPos);
+    yPos += is2Inch ? 7 : 8;
+
+    const amountInWords = this.numberToWords(data.totalAmount);
+    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica-Bold').fillColor(textDark)
+      .text(amountInWords, margin, yPos, { width: contentWidth });
+    yPos += is2Inch ? 14 : 18;
+
+    // Terms
+    doc.fontSize(is2Inch ? 4 : 5).font('Helvetica').fillColor(textMuted)
+      .text('TERMS:', margin, yPos);
+    yPos += is2Inch ? 6 : 7;
+    doc.text('1. Payment upon receipt', margin, yPos, { width: contentWidth });
+    yPos += is2Inch ? 6 : 7;
+    doc.text('2. Warranty: 30 days', margin, yPos, { width: contentWidth });
+    yPos += is2Inch ? 10 : 12;
+
+    // Footer
+    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica-Bold').fillColor(textDark)
+      .text('Thank you!', margin, yPos, { width: contentWidth, align: 'center' });
+  }
+
+  /**
+   * Convert number to words (Indian format)
+   */
+  private numberToWords(num: number): string {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+                  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const convertLessThanThousand = (n: number): string => {
+      if (n === 0) return '';
+      if (n < 20) return ones[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+    };
+
+    if (num === 0) return 'Zero Rupees Only';
+
+    const intPart = Math.floor(num);
+    let words = '';
+
+    // Crores (10 million)
+    if (intPart >= 10000000) {
+      words += convertLessThanThousand(Math.floor(intPart / 10000000)) + ' Crore ';
+    }
+
+    // Lakhs (100 thousand)
+    const lakhs = Math.floor((intPart % 10000000) / 100000);
+    if (lakhs > 0) {
+      words += convertLessThanThousand(lakhs) + ' Lakh ';
+    }
+
+    // Thousands
+    const thousands = Math.floor((intPart % 100000) / 1000);
+    if (thousands > 0) {
+      words += convertLessThanThousand(thousands) + ' Thousand ';
+    }
+
+    // Hundreds
+    const hundreds = intPart % 1000;
+    if (hundreds > 0) {
+      words += convertLessThanThousand(hundreds);
+    }
+
+    return words.trim() + ' Rupees Only';
   }
 
   /**

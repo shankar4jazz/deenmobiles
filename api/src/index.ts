@@ -95,8 +95,19 @@ app.get('/health/detailed', async (req: Request, res: Response) => {
 });
 
 // Middleware
+// Configure helmet with CSP to allow iframe embedding from app origins
+const allowedFrameOrigins = config.env === 'development'
+  ? ["'self'", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
+  : ["'self'", ...config.cors.origin.split(',').map(o => o.trim()).filter(Boolean)];
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      frameAncestors: allowedFrameOrigins,
+    },
+  },
 }));
 
 // CORS configuration with enhanced security

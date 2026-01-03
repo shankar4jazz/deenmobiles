@@ -8,16 +8,21 @@ export class JobSheetController {
   /**
    * POST /api/v1/services/:id/jobsheet
    * Generate job sheet for a service
+   * @body templateId - Optional template ID
+   * @body format - Optional format: 'A4' | 'A5' | 'thermal' (default: 'A4')
+   * @body copyType - Optional copy type: 'customer' | 'office' (default: 'customer')
    */
   static generateJobSheet = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id: serviceId } = req.params;
-    const { templateId } = req.body;
+    const { templateId, format = 'A4', copyType = 'customer' } = req.body;
     const userId = req.user!.userId;
 
     const jobSheet = await JobSheetService.generateJobSheet({
       serviceId,
       userId,
       templateId,
+      format,
+      copyType,
     });
 
     return ApiResponse.created(res, jobSheet, 'Job sheet generated successfully');
@@ -52,12 +57,15 @@ export class JobSheetController {
   /**
    * POST /api/v1/jobsheets/:id/regenerate
    * Regenerate job sheet PDF
+   * @body format - Optional format: 'A4' | 'A5' | 'thermal' (default: 'A4')
+   * @body copyType - Optional copy type: 'customer' | 'office' (default: 'customer')
    */
   static regenerateJobSheet = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
+    const { format = 'A4', copyType = 'customer' } = req.body;
     const userId = req.user!.userId;
 
-    const jobSheet = await JobSheetService.regenerateJobSheet(id, userId);
+    const jobSheet = await JobSheetService.regenerateJobSheet(id, userId, format, copyType);
 
     return ApiResponse.success(res, jobSheet, 'Job sheet regenerated successfully');
   });
