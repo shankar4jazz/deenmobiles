@@ -160,8 +160,8 @@ export default function Login() {
                   type="button"
                   onClick={() => {
                     setFormData({
-                      identifier: 'superadmin',
-                      password: 'Admin@123',
+                      identifier: 'admin',
+                      password: 'password123',
                       rememberMe: true,
                     });
                   }}
@@ -174,7 +174,7 @@ export default function Login() {
                   onClick={() => {
                     setFormData({
                       identifier: 'admin',
-                      password: 'Admin@123',
+                      password: 'password123',
                       rememberMe: true,
                     });
                   }}
@@ -187,7 +187,7 @@ export default function Login() {
                   onClick={() => {
                     setFormData({
                       identifier: 'manager',
-                      password: 'Manager@123',
+                      password: 'password123',
                       rememberMe: true,
                     });
                   }}
@@ -199,8 +199,8 @@ export default function Login() {
                   type="button"
                   onClick={() => {
                     setFormData({
-                      identifier: 'receptionist',
-                      password: 'Receptionist@123',
+                      identifier: 'reception',
+                      password: 'password123',
                       rememberMe: true,
                     });
                   }}
@@ -212,8 +212,8 @@ export default function Login() {
                   type="button"
                   onClick={() => {
                     setFormData({
-                      identifier: 'technician',
-                      password: 'Technician@123',
+                      identifier: 'tech1',
+                      password: 'password123',
                       rememberMe: true,
                     });
                   }}
@@ -225,8 +225,8 @@ export default function Login() {
                   type="button"
                   onClick={() => {
                     setFormData({
-                      identifier: 'manager.villupuram@deenmobiles.com',
-                      password: 'Manager@123',
+                      identifier: 'vpmmanager',
+                      password: 'password123',
                       rememberMe: true,
                     });
                   }}

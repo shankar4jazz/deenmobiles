@@ -1,22 +1,33 @@
 import rateLimit from 'express-rate-limit';
+import { Request } from 'express';
 import { config } from '../config/env';
+
+/**
+ * Check if rate limiting should be bypassed
+ * Bypasses in development mode when RATE_LIMIT_BYPASS_DEV=true
+ */
+const shouldBypassRateLimit = (): boolean => {
+  return config.env === 'development' && config.rateLimit.bypassInDev;
+};
 
 /**
  * Rate limiter for login endpoint
  * Prevents brute force attacks
- * 5 requests per 15 minutes per IP
+ * - Only counts failed login attempts (successful logins don't consume quota)
+ * - Can be bypassed in development via RATE_LIMIT_BYPASS_DEV=true
  */
 export const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit each IP to 20 login requests per windowMs
+  max: 20, // Limit each IP to 20 failed login requests per windowMs
   message: {
     success: false,
     message: 'Too many login attempts from this IP. Please try again after 15 minutes.',
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  skipSuccessfulRequests: false, // Count all requests
-  skipFailedRequests: false, // Don't skip failed requests
+  skipSuccessfulRequests: true, // Only count failed requests (Option A)
+  skipFailedRequests: false,
+  skip: (_req: Request) => shouldBypassRateLimit(), // Bypass in dev mode (Option D)
 });
 
 /**

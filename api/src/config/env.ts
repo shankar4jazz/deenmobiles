@@ -46,6 +46,7 @@ export const config = {
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000', 10),
+    bypassInDev: process.env.RATE_LIMIT_BYPASS_DEV === 'true',
   },
 
   logging: {
