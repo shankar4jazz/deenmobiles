@@ -269,7 +269,7 @@ export default function ServiceList() {
           </div>
           <button
             onClick={() => navigate('/services/create')}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 hover:scale-105 transition-all duration-200"
           >
             <Plus className="w-5 h-5" />
             New Service
