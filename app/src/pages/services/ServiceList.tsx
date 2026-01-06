@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { serviceApi, ServiceStatus } from '@/services/serviceApi';
+import { serviceApi, ServiceStatus, DeliveryStatus } from '@/services/serviceApi';
 import { technicianApi } from '@/services/technicianApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
@@ -16,20 +16,26 @@ const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
   [ServiceStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
   [ServiceStatus.WAITING_PARTS]: 'bg-orange-100 text-orange-800',
-  [ServiceStatus.COMPLETED]: 'bg-green-100 text-green-800',
-  [ServiceStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
-  [ServiceStatus.CANCELLED]: 'bg-red-100 text-red-800',
-  [ServiceStatus.NOT_SERVICEABLE]: 'bg-gray-100 text-gray-800',
+  [ServiceStatus.READY]: 'bg-green-100 text-green-800',
+  [ServiceStatus.NOT_READY]: 'bg-gray-100 text-gray-800',
 };
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'Pending',
   [ServiceStatus.IN_PROGRESS]: 'In Progress',
   [ServiceStatus.WAITING_PARTS]: 'Waiting Parts',
-  [ServiceStatus.COMPLETED]: 'Completed',
-  [ServiceStatus.DELIVERED]: 'Delivered',
-  [ServiceStatus.CANCELLED]: 'Cancelled',
-  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
+  [ServiceStatus.READY]: 'Ready',
+  [ServiceStatus.NOT_READY]: 'Not Ready',
+};
+
+const DELIVERY_STATUS_COLORS: Record<DeliveryStatus, string> = {
+  [DeliveryStatus.PENDING]: 'bg-orange-100 text-orange-800',
+  [DeliveryStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
+};
+
+const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
+  [DeliveryStatus.PENDING]: 'Delivery Pending',
+  [DeliveryStatus.DELIVERED]: 'Delivered',
 };
 
 export default function ServiceList() {

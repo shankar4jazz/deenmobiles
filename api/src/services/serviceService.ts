@@ -1,7 +1,7 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { Logger } from '../utils/logger';
-import { ServiceStatus, StockMovementType, DocumentType } from '@prisma/client';
+import { ServiceStatus, DeliveryStatus, StockMovementType, DocumentType } from '@prisma/client';
 import { StockMovementService } from './stockMovementService';
 import JobSheetService from './jobSheetService';
 import { S3Service } from './s3Service';
@@ -252,9 +252,11 @@ export class ServiceService {
             createdAt: {
               gte: thirtyDaysAgo,
             },
-            status: {
-              notIn: [ServiceStatus.CANCELLED],
-            },
+            // Only count services that are not yet delivered
+            OR: [
+              { deliveryStatus: null },
+              { deliveryStatus: DeliveryStatus.PENDING },
+            ],
           },
           orderBy: {
             createdAt: 'desc',
@@ -2211,22 +2213,24 @@ export class ServiceService {
         }
 
         // Validate notServiceableReason is provided when status is NOT_SERVICEABLE
-        if (status === ServiceStatus.NOT_SERVICEABLE && !notServiceableReason) {
+        if (status === ServiceStatus.NOT_READY && !notServiceableReason) {
           throw new AppError(400, 'Reason is required when marking service as not serviceable');
         }
 
         // Prepare update data
         const updateData: any = { status };
 
-        // Set completion/delivery timestamps
-        if (status === ServiceStatus.COMPLETED && !service.completedAt) {
+        // Set completion timestamp when service is READY
+        if (status === ServiceStatus.READY && !service.completedAt) {
           updateData.completedAt = new Date();
         }
-        if (status === ServiceStatus.DELIVERED && !service.deliveredAt) {
-          updateData.deliveredAt = new Date();
+
+        // Set deliveryStatus to PENDING when service reaches READY or NOT_READY
+        if ((status === ServiceStatus.READY || status === ServiceStatus.NOT_READY) && !service.deliveryStatus) {
+          updateData.deliveryStatus = DeliveryStatus.PENDING;
         }
         // Set notServiceableReason and zero out pricing when status is NOT_SERVICEABLE
-        if (status === ServiceStatus.NOT_SERVICEABLE) {
+        if (status === ServiceStatus.NOT_READY) {
           updateData.notServiceableReason = notServiceableReason;
           // Zero out all pricing - customer is not charged for not serviceable items
           updateData.estimatedCost = 0;
@@ -2279,21 +2283,10 @@ export class ServiceService {
         newStatus: status,
       });
 
-      // Award points to technician on completion/delivery (async, don't block response)
-      if (status === ServiceStatus.COMPLETED && result.assignedToId) {
+      // Award points to technician on completion (async, don't block response)
+      if (status === ServiceStatus.READY && result.assignedToId) {
         PointsService.onServiceCompleted(serviceId).catch((err) => {
           Logger.error('Failed to award completion points', { error: err, serviceId });
-        });
-      } else if (status === ServiceStatus.DELIVERED && result.assignedToId) {
-        PointsService.onServiceDelivered(serviceId).catch((err) => {
-          Logger.error('Failed to award delivery points', { error: err, serviceId });
-        });
-      }
-
-      // Create warranty records when service is delivered (async, don't block response)
-      if (status === ServiceStatus.DELIVERED) {
-        WarrantyService.createServiceWarrantyRecords(serviceId).catch((err) => {
-          Logger.error('Failed to create warranty records', { error: err, serviceId });
         });
       }
 
@@ -2332,13 +2325,11 @@ export class ServiceService {
         }
 
         // Validate service is in appropriate status for device return
-        const allowedStatuses: ServiceStatus[] = [
-          ServiceStatus.DELIVERED,
-          ServiceStatus.NOT_SERVICEABLE,
-          ServiceStatus.CANCELLED,
-        ];
-        if (!allowedStatuses.includes(service.status)) {
-          throw new AppError(400, 'Device can only be marked as returned for delivered, not serviceable, or cancelled services');
+        // Device can be returned when: delivered or not ready
+        const canReturn = service.deliveryStatus === DeliveryStatus.DELIVERED ||
+                          service.status === ServiceStatus.NOT_READY;
+        if (!canReturn) {
+          throw new AppError(400, 'Device can only be marked as returned for delivered or not ready services');
         }
 
         // Update service with device return info
@@ -2656,7 +2647,9 @@ export class ServiceService {
       }
 
       // Don't allow deletion of completed/delivered services
-      if (service.status === ServiceStatus.COMPLETED || service.status === ServiceStatus.DELIVERED) {
+      if (service.status === ServiceStatus.READY ||
+          service.status === ServiceStatus.NOT_READY ||
+          service.deliveryStatus === DeliveryStatus.DELIVERED) {
         throw new AppError(400, 'Cannot delete completed or delivered services');
       }
 
@@ -2904,10 +2897,10 @@ export class ServiceService {
           },
         });
 
-        // Mark as delivered if requested and status is not already DELIVERED
-        if (data.markAsDelivered && service.status !== ServiceStatus.DELIVERED) {
+        // Mark as delivered if requested and not already delivered
+        if (data.markAsDelivered && service.deliveryStatus !== DeliveryStatus.DELIVERED) {
           const updateData: any = {
-            status: ServiceStatus.DELIVERED,
+            deliveryStatus: DeliveryStatus.DELIVERED,
             deliveredAt: new Date(),
           };
 
@@ -2926,26 +2919,16 @@ export class ServiceService {
             },
           });
 
-          // Create status history record
-          await tx.serviceStatusHistory.create({
-            data: {
-              serviceId: data.serviceId,
-              status: ServiceStatus.DELIVERED,
-              notes: 'Marked as delivered during payment collection',
-              changedBy: data.userId,
-            },
-          });
-
-          // Log status change activity
+          // Log delivery activity
           await tx.activityLog.create({
             data: {
               userId: data.userId,
-              action: 'STATUS_UPDATE',
+              action: 'DELIVERY_UPDATE',
               entity: 'service',
               entityId: data.serviceId,
               details: JSON.stringify({
-                oldStatus: service.status,
-                newStatus: ServiceStatus.DELIVERED,
+                oldDeliveryStatus: service.deliveryStatus,
+                newDeliveryStatus: DeliveryStatus.DELIVERED,
                 notes: 'Marked as delivered during payment collection',
               }),
             },
@@ -2960,14 +2943,14 @@ export class ServiceService {
         });
 
         // Award delivery points if marked as delivered (async, don't block)
-        if (data.markAsDelivered && service.status !== ServiceStatus.DELIVERED && service.assignedToId) {
+        if (data.markAsDelivered && service.deliveryStatus !== DeliveryStatus.DELIVERED && service.assignedToId) {
           PointsService.onServiceDelivered(data.serviceId).catch((err) => {
             Logger.error('Failed to award delivery points', { error: err, serviceId: data.serviceId });
           });
         }
 
         // Create warranty records if marked as delivered (async, don't block)
-        if (data.markAsDelivered && service.status !== ServiceStatus.DELIVERED) {
+        if (data.markAsDelivered && service.deliveryStatus !== DeliveryStatus.DELIVERED) {
           WarrantyService.createServiceWarrantyRecords(data.serviceId).catch((err) => {
             Logger.error('Failed to create warranty records', { error: err, serviceId: data.serviceId });
           });
@@ -3284,9 +3267,6 @@ export class ServiceService {
           createdAt: {
             gte: thirtyDaysAgo,
           },
-          status: {
-            notIn: [ServiceStatus.CANCELLED],
-          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -3379,14 +3359,15 @@ export class ServiceService {
     } | null;
   }> {
     try {
-      // Find any service for this device that is not delivered or cancelled
+      // Find any service for this device that is not delivered (active service)
       const activeService = await prisma.service.findFirst({
         where: {
           customerDeviceId,
           companyId,
-          status: {
-            notIn: [ServiceStatus.DELIVERED, ServiceStatus.CANCELLED],
-          },
+          OR: [
+            { deliveryStatus: null },
+            { deliveryStatus: DeliveryStatus.PENDING },
+          ],
         },
         orderBy: {
           createdAt: 'desc',
@@ -3593,7 +3574,7 @@ export class ServiceService {
       }
 
       // Check if service is delivered - block adding faults
-      if (service.status === ServiceStatus.DELIVERED) {
+      if (service.deliveryStatus === DeliveryStatus.DELIVERED) {
         throw new AppError(400, 'Cannot add faults to a delivered service');
       }
 

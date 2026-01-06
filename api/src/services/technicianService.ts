@@ -599,7 +599,7 @@ export class TechnicianService {
         prisma.service.count({
           where: {
             assignedToId: userId,
-            status: ServiceStatus.COMPLETED,
+            status: ServiceStatus.READY,
             completedAt: { gte: today },
           },
         }),
@@ -626,7 +626,7 @@ export class TechnicianService {
       const monthlyCompleted = await prisma.service.count({
         where: {
           assignedToId: userId,
-          status: ServiceStatus.COMPLETED,
+          status: ServiceStatus.READY,
           completedAt: { gte: startOfMonth },
         },
       });

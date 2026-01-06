@@ -1,4 +1,4 @@
-import { PrismaClient, ServiceStatus } from '@prisma/client';
+import { PrismaClient, ServiceStatus, DeliveryStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 const prisma = new PrismaClient();
@@ -256,7 +256,10 @@ export class ReportService {
       totalCompletionTimeMs: number;
     }>();
 
-    const completedStatuses: ServiceStatus[] = [ServiceStatus.COMPLETED, ServiceStatus.DELIVERED];
+    // Completed = READY status or delivered
+    const isCompleted = (service: any) =>
+      service.status === ServiceStatus.READY ||
+      service.deliveryStatus === DeliveryStatus.DELIVERED;
 
     for (const service of services) {
       if (!service.assignedTo) continue;
@@ -276,7 +279,7 @@ export class ReportService {
       const tech = techMap.get(techId)!;
       tech.services.push(service);
 
-      if (completedStatuses.includes(service.status)) {
+      if (isCompleted(service)) {
         tech.completedServices.push(service);
         const revenue = Number(service.actualCost || service.estimatedCost || 0);
         tech.totalRevenue += revenue;
@@ -285,7 +288,7 @@ export class ReportService {
           const completionTime = service.completedAt.getTime() - service.createdAt.getTime();
           tech.totalCompletionTimeMs += completionTime;
         }
-      } else if (service.status !== ServiceStatus.CANCELLED && service.status !== ServiceStatus.NOT_SERVICEABLE) {
+      } else if (service.status !== ServiceStatus.NOT_READY) {
         tech.pendingServices.push(service);
       }
     }

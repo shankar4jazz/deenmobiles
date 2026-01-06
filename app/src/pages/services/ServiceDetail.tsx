@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { serviceApi, ServiceStatus } from '@/services/serviceApi';
+import { serviceApi, ServiceStatus, DeliveryStatus } from '@/services/serviceApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { serviceKeys } from '@/lib/queryKeys';
 import { warrantyApi, WarrantyRecord, getWarrantyStatusColor, formatWarrantyDays } from '@/services/warrantyApi';
@@ -29,20 +29,16 @@ const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
   [ServiceStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
   [ServiceStatus.WAITING_PARTS]: 'bg-orange-100 text-orange-800',
-  [ServiceStatus.COMPLETED]: 'bg-green-100 text-green-800',
-  [ServiceStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
-  [ServiceStatus.CANCELLED]: 'bg-red-100 text-red-800',
-  [ServiceStatus.NOT_SERVICEABLE]: 'bg-gray-100 text-gray-800',
+  [ServiceStatus.READY]: 'bg-green-100 text-green-800',
+  [ServiceStatus.NOT_READY]: 'bg-gray-100 text-gray-800',
 };
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'Pending',
   [ServiceStatus.IN_PROGRESS]: 'In Progress',
   [ServiceStatus.WAITING_PARTS]: 'Waiting Parts',
-  [ServiceStatus.COMPLETED]: 'Completed',
-  [ServiceStatus.DELIVERED]: 'Delivered',
-  [ServiceStatus.CANCELLED]: 'Cancelled',
-  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
+  [ServiceStatus.READY]: 'Ready',
+  [ServiceStatus.NOT_READY]: 'Not Ready',
 };
 
 export default function ServiceDetail() {
@@ -89,7 +85,7 @@ export default function ServiceDetail() {
   const { data: serviceWarranties } = useQuery({
     queryKey: serviceKeys.warranties(id!),
     queryFn: () => warrantyApi.getServiceWarranties(id!),
-    enabled: !!id && service?.status === ServiceStatus.DELIVERED,
+    enabled: !!id && service?.deliveryStatus === DeliveryStatus.DELIVERED,
   });
 
   // Fetch all faults for add fault dropdown
@@ -174,7 +170,7 @@ export default function ServiceDetail() {
       id!,
       status,
       statusNotes,
-      status === ServiceStatus.NOT_SERVICEABLE ? notServiceableReason : undefined
+      status === ServiceStatus.NOT_READY ? notServiceableReason : undefined
     ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
@@ -428,7 +424,7 @@ export default function ServiceDetail() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
-          {service.status === ServiceStatus.DELIVERED && (
+          {service.deliveryStatus === DeliveryStatus.DELIVERED && (
             <InvoiceButton serviceId={service.id} variant="primary" />
           )}
           {service.isWarrantyRepair && (
@@ -449,7 +445,7 @@ export default function ServiceDetail() {
       </div>
 
       {/* Sticky Pricing Summary Bar */}
-      {service.status !== ServiceStatus.NOT_SERVICEABLE && (
+      {service.status !== ServiceStatus.NOT_READY && (
         <div className="sticky top-0 z-20 bg-white border-b shadow-sm -mx-4 px-4 py-3 mb-4">
           <div className="flex items-center justify-between max-w-7xl mx-auto text-sm">
             <div className="flex flex-wrap gap-4">
@@ -559,7 +555,7 @@ export default function ServiceDetail() {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Reported Faults</h3>
-              {service.status !== ServiceStatus.DELIVERED && (
+              {service.deliveryStatus !== DeliveryStatus.DELIVERED && (
                 <div className="relative" ref={addFaultDropdownRef}>
                   <button
                     onClick={() => setShowAddFault(!showAddFault)}
@@ -758,13 +754,13 @@ export default function ServiceDetail() {
             faults={service.faults || []}
             canEdit={
               (user?.role === 'TECHNICIAN' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') &&
-              ![ServiceStatus.COMPLETED, ServiceStatus.DELIVERED, ServiceStatus.CANCELLED, ServiceStatus.NOT_SERVICEABLE].includes(service.status)
+              ![ServiceStatus.READY, ServiceStatus.NOT_READY].includes(service.status)
             }
             isWarrantyRepair={service.isWarrantyRepair}
           />
 
           {/* Warranty Status - Show after delivery */}
-          {service.status === ServiceStatus.DELIVERED && serviceWarranties && serviceWarranties.length > 0 && (
+          {service.deliveryStatus === DeliveryStatus.DELIVERED && serviceWarranties && serviceWarranties.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-1">
@@ -1002,7 +998,7 @@ export default function ServiceDetail() {
                   </div>
                 )}
 
-                {selectedStatus === ServiceStatus.NOT_SERVICEABLE && (
+                {selectedStatus === ServiceStatus.NOT_READY && (
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Reason (required)</label>
                     <textarea
@@ -1030,7 +1026,7 @@ export default function ServiceDetail() {
                   </button>
                   <button
                     onClick={handleStatusUpdate}
-                    disabled={!selectedStatus || updateStatusMutation.isPending || (selectedStatus === ServiceStatus.NOT_SERVICEABLE && !notServiceableReason.trim())}
+                    disabled={!selectedStatus || updateStatusMutation.isPending || (selectedStatus === ServiceStatus.NOT_READY && !notServiceableReason.trim())}
                     className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CheckCircle className="w-4 h-4" />
@@ -1041,7 +1037,7 @@ export default function ServiceDetail() {
             )}
 
             {/* Not Serviceable Reason Display */}
-            {service.status === ServiceStatus.NOT_SERVICEABLE && service.notServiceableReason && (
+            {service.status === ServiceStatus.NOT_READY && service.notServiceableReason && (
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Reason Not Serviceable</h4>
                 <p className="text-sm text-gray-700">{service.notServiceableReason}</p>
@@ -1049,7 +1045,7 @@ export default function ServiceDetail() {
             )}
 
             {/* Device Return Section */}
-            {(service.status === ServiceStatus.DELIVERED || service.status === ServiceStatus.NOT_SERVICEABLE || service.status === ServiceStatus.CANCELLED) && (
+            {(service.deliveryStatus === DeliveryStatus.DELIVERED || service.status === ServiceStatus.NOT_READY) && (
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Device Return</h4>
                 {service.deviceReturnedAt ? (
@@ -1089,7 +1085,7 @@ export default function ServiceDetail() {
             currentAssignee={service.assignedTo}
             canAssign={
               (user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') &&
-              ![ServiceStatus.COMPLETED, ServiceStatus.DELIVERED, ServiceStatus.CANCELLED, ServiceStatus.NOT_SERVICEABLE].includes(service.status)
+              ![ServiceStatus.READY, ServiceStatus.NOT_READY].includes(service.status)
             }
           />
 
@@ -1099,7 +1095,7 @@ export default function ServiceDetail() {
               <DollarSign className="w-3 h-3" />
               Pricing
             </h3>
-            {service.status === ServiceStatus.NOT_SERVICEABLE ? (
+            {service.status === ServiceStatus.NOT_READY ? (
               <div className="text-center py-4">
                 <p className="text-gray-500 text-sm">No payment required</p>
                 <p className="text-gray-400 text-xs mt-1">Service not serviceable</p>
@@ -1236,7 +1232,7 @@ export default function ServiceDetail() {
             })()}
 
             {/* Action Buttons based on status */}
-            {service.status === ServiceStatus.NOT_SERVICEABLE ? (
+            {service.status === ServiceStatus.NOT_READY ? (
               /* For NOT_SERVICEABLE - only show Mark Device Returned (no payment) */
               !service.deviceReturnedAt && (
                 <button
@@ -1262,7 +1258,6 @@ export default function ServiceDetail() {
                 {/* Refund Button - only for managers/admins when there are payments */}
                 {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') &&
                  pricingSummary.totalPaid > 0 &&
-                 service.status !== ServiceStatus.CANCELLED &&
                  !service.refundedAt && (
                   <button
                     onClick={() => setShowRefundModal(true)}
@@ -1275,7 +1270,7 @@ export default function ServiceDetail() {
             )}
 
             {/* Payment History - hide for NOT_SERVICEABLE */}
-            {service.status !== ServiceStatus.NOT_SERVICEABLE &&
+            {service.status !== ServiceStatus.NOT_READY &&
              service.paymentEntries && service.paymentEntries.length > 0 && (
               <div className="mt-3 pt-3 border-t">
                 <h4 className="text-xs font-medium text-gray-500 mb-2">Payment History</h4>

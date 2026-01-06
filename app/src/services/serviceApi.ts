@@ -19,6 +19,7 @@ export interface Service {
   labourCharge?: number;
   advancePayment: number;
   status: ServiceStatus;
+  deliveryStatus?: DeliveryStatus;
   assignedToId?: string;
   companyId: string;
   branchId: string;
@@ -218,10 +219,13 @@ export enum ServiceStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
   WAITING_PARTS = 'WAITING_PARTS',
-  COMPLETED = 'COMPLETED',
+  READY = 'READY',
+  NOT_READY = 'NOT_READY',
+}
+
+export enum DeliveryStatus {
+  PENDING = 'PENDING',
   DELIVERED = 'DELIVERED',
-  CANCELLED = 'CANCELLED',
-  NOT_SERVICEABLE = 'NOT_SERVICEABLE',
 }
 
 export interface PaymentEntryData {

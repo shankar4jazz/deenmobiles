@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Edit2, Trash2, User } from 'lucide-react';
-import { Service, ServiceStatus } from '@/services/serviceApi';
+import { Service, ServiceStatus, DeliveryStatus } from '@/services/serviceApi';
 import { formatCurrency, formatDate } from '@/utils/tableUtils';
 import ActionMenu from '@/components/common/ActionMenu';
 
@@ -10,20 +10,26 @@ export const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
   [ServiceStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
   [ServiceStatus.WAITING_PARTS]: 'bg-orange-100 text-orange-800',
-  [ServiceStatus.COMPLETED]: 'bg-green-100 text-green-800',
-  [ServiceStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
-  [ServiceStatus.CANCELLED]: 'bg-red-100 text-red-800',
-  [ServiceStatus.NOT_SERVICEABLE]: 'bg-gray-100 text-gray-800',
+  [ServiceStatus.READY]: 'bg-green-100 text-green-800',
+  [ServiceStatus.NOT_READY]: 'bg-gray-100 text-gray-800',
 };
 
 export const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'Pending',
   [ServiceStatus.IN_PROGRESS]: 'In Progress',
   [ServiceStatus.WAITING_PARTS]: 'Waiting Parts',
-  [ServiceStatus.COMPLETED]: 'Completed',
-  [ServiceStatus.DELIVERED]: 'Delivered',
-  [ServiceStatus.CANCELLED]: 'Cancelled',
-  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
+  [ServiceStatus.READY]: 'Ready',
+  [ServiceStatus.NOT_READY]: 'Not Ready',
+};
+
+export const DELIVERY_STATUS_COLORS: Record<DeliveryStatus, string> = {
+  [DeliveryStatus.PENDING]: 'bg-orange-100 text-orange-800',
+  [DeliveryStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
+};
+
+export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
+  [DeliveryStatus.PENDING]: 'Delivery Pending',
+  [DeliveryStatus.DELIVERED]: 'Delivered',
 };
 
 // Technician interface
