@@ -71,8 +71,11 @@ export class ServiceController {
     // Unassigned filter
     if (req.query.unassigned === 'true') filters.unassigned = true;
 
-    // Undelivered filter (pending, in_progress, waiting_parts, completed)
+    // Undelivered filter (COMPLETED only - ready but not picked up)
     if (req.query.undelivered === 'true') filters.undelivered = true;
+
+    // Completed all filter (COMPLETED + DELIVERED)
+    if (req.query.completedAll === 'true') filters.completedAll = true;
 
     // Fault IDs filter (comma-separated)
     if (req.query.faultIds) {

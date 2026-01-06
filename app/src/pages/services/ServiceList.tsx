@@ -41,6 +41,7 @@ export default function ServiceList() {
   const initialStatus = searchParams.get('status') as ServiceStatus | '' || '';
   const initialUnassigned = searchParams.get('unassigned') === 'true';
   const initialUndelivered = searchParams.get('undelivered') === 'true';
+  const initialCompletedAll = searchParams.get('completedAll') === 'true';
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -51,6 +52,7 @@ export default function ServiceList() {
     endDate: '',
     unassigned: initialUnassigned,
     undelivered: initialUndelivered,
+    completedAll: initialCompletedAll,
     faultIds: [] as string[],
   });
 
@@ -99,6 +101,7 @@ export default function ServiceList() {
       status: filters.status || undefined,
       unassigned: filters.unassigned || undefined,
       undelivered: filters.undelivered || undefined,
+      completedAll: filters.completedAll || undefined,
       faultIds: filters.faultIds.length > 0 ? filters.faultIds : undefined,
       includeStats: true,
     }),
@@ -179,28 +182,31 @@ export default function ServiceList() {
   };
 
   // Handle card click for filtering
-  const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'UNDELIVERED' | 'ALL') => {
+  const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'UNDELIVERED' | 'COMPLETED_ALL' | 'ALL') => {
     const newParams = new URLSearchParams();
 
     if (status === 'ALL') {
       // Clear all filters
-      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: false, page: 1 });
     } else if (status === 'UNASSIGNED') {
       newParams.set('unassigned', 'true');
-      setFilters({ ...filters, status: '', unassigned: true, undelivered: false, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: true, undelivered: false, completedAll: false, page: 1 });
     } else if (status === 'UNDELIVERED') {
       newParams.set('undelivered', 'true');
-      setFilters({ ...filters, status: '', unassigned: false, undelivered: true, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: true, completedAll: false, page: 1 });
+    } else if (status === 'COMPLETED_ALL') {
+      newParams.set('completedAll', 'true');
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: true, page: 1 });
     } else {
       newParams.set('status', status);
-      setFilters({ ...filters, status, unassigned: false, undelivered: false, page: 1 });
+      setFilters({ ...filters, status, unassigned: false, undelivered: false, completedAll: false, page: 1 });
     }
 
     setSearchParams(newParams);
   };
 
   // Check if any filter is active
-  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered || filters.faultIds.length > 0 || filters.startDate || filters.endDate;
+  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered || filters.completedAll || filters.faultIds.length > 0 || filters.startDate || filters.endDate;
 
   // Handle date preset selection
   const handleDatePreset = (preset: 'today' | 'yesterday' | 'thisMonth' | 'custom' | '') => {
@@ -480,7 +486,7 @@ export default function ServiceList() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Total</p>
-                <p className="text-3xl font-bold text-white">{data.stats.total}</p>
+                <p className="text-3xl font-bold text-white">{data.stats.pending + data.stats.inProgress + data.stats.waitingParts + data.stats.completed}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
                 <LayoutList className="w-7 h-7 text-white" />
@@ -542,17 +548,17 @@ export default function ServiceList() {
             </div>
           </div>
 
-          {/* Ready (Completed) */}
+          {/* Completed (COMPLETED + DELIVERED) */}
           <div
-            onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
+            onClick={() => handleCardClick('COMPLETED_ALL')}
             className={`bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-              filters.status === ServiceStatus.COMPLETED ? 'ring-4 ring-green-300 ring-offset-2' : ''
+              filters.completedAll ? 'ring-4 ring-green-300 ring-offset-2' : ''
             }`}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Ready</p>
-                <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
+                <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Completed</p>
+                <p className="text-3xl font-bold text-white">{data.stats.completed + data.stats.delivered}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
                 <CheckCircle className="w-7 h-7 text-white" />
@@ -596,7 +602,7 @@ export default function ServiceList() {
             </div>
           </div>
 
-          {/* Undelivered */}
+          {/* Awaiting Pickup */}
           <div
             onClick={() => handleCardClick('UNDELIVERED')}
             className={`bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
@@ -605,7 +611,7 @@ export default function ServiceList() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-amber-100 uppercase tracking-wider font-semibold mb-1">Undelivered</p>
+                <p className="text-xs text-amber-100 uppercase tracking-wider font-semibold mb-1">Awaiting Pickup</p>
                 <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
@@ -620,7 +626,7 @@ export default function ServiceList() {
       {hasActiveFilter && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-gray-600">
-            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : filters.undelivered ? 'Undelivered' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
+            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : filters.undelivered ? 'Awaiting Pickup' : filters.completedAll ? 'Completed' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
           </span>
           <button
             onClick={() => handleCardClick('ALL')}

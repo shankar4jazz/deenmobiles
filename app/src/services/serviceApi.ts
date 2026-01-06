@@ -338,6 +338,7 @@ export interface ServiceFilters {
   includeStats?: boolean;
   unassigned?: boolean;
   undelivered?: boolean;
+  completedAll?: boolean;
   faultIds?: string[];
 }
 

@@ -79,6 +79,7 @@ interface ServiceFilters {
   limit?: number;
   unassigned?: boolean;
   undelivered?: boolean;
+  completedAll?: boolean;
   includeStats?: boolean;
   faultIds?: string[];
 }
@@ -453,6 +454,7 @@ export class ServiceService {
         limit = 20,
         unassigned,
         undelivered,
+        completedAll,
         faultIds,
       } = filters;
 
@@ -469,6 +471,7 @@ export class ServiceService {
       if (unassigned) where.assignedToId = null;
       if (status) where.status = status;
       if (undelivered) where.status = 'COMPLETED';
+      if (completedAll) where.status = { in: ['COMPLETED', 'DELIVERED'] };
       if (ticketNumber) where.ticketNumber = { contains: ticketNumber };
 
       // Search term across multiple fields
