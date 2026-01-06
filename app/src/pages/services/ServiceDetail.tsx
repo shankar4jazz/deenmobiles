@@ -428,8 +428,7 @@ export default function ServiceDetail() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
-          {service.status !== ServiceStatus.NOT_SERVICEABLE &&
-           service.status !== ServiceStatus.CANCELLED && (
+          {service.status === ServiceStatus.DELIVERED && (
             <InvoiceButton serviceId={service.id} variant="primary" />
           )}
           {service.isWarrantyRepair && (
