@@ -637,6 +637,23 @@ export class ServiceService {
         },
       });
 
+      // Get count of delivered services
+      const deliveredCount = await prisma.service.count({
+        where: {
+          ...where,
+          deliveryStatus: 'DELIVERED',
+        },
+      });
+
+      // Get count of undelivered services (ready but not delivered)
+      const undeliveredCount = await prisma.service.count({
+        where: {
+          ...where,
+          status: 'READY',
+          deliveryStatus: 'PENDING',
+        },
+      });
+
       // Transform to stat object
       const stats: any = {
         total: 0,
@@ -644,9 +661,9 @@ export class ServiceService {
         inProgress: 0,
         waitingParts: 0,
         ready: 0,
-        
-        
         notReady: 0,
+        delivered: deliveredCount,
+        undelivered: undeliveredCount,
         unassigned: unassignedCount,
         repeatedService: repeatedCount,
       };

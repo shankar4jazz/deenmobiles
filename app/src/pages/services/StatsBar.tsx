@@ -16,10 +16,10 @@ interface ServiceStats {
   pending: number;
   inProgress: number;
   waitingParts: number;
-  completed: number;
+  ready: number;
+  notReady: number;
   delivered: number;
-  cancelled: number;
-  notServiceable: number;
+  undelivered: number;
   unassigned: number;
   repeatedService: number;
 }
@@ -70,14 +70,14 @@ const statCards = [
     label: 'Ready',
     icon: CheckCircle,
     gradient: 'from-green-400 to-green-600',
-    getValue: (stats: ServiceStats) => stats.completed
+    getValue: (stats: ServiceStats) => stats.ready
   },
   {
     key: ServiceStatus.NOT_READY,
     label: 'Not Ready',
     icon: XCircle,
     gradient: 'from-red-400 to-red-600',
-    getValue: (stats: ServiceStats) => stats.notServiceable
+    getValue: (stats: ServiceStats) => stats.notReady
   },
   {
     key: 'REPEATED',
@@ -98,7 +98,7 @@ const statCards = [
     label: 'Undelivered',
     icon: Clock,
     gradient: 'from-amber-400 to-amber-600',
-    getValue: (stats: ServiceStats) => stats.completed
+    getValue: (stats: ServiceStats) => stats.undelivered
   },
 ];
 
