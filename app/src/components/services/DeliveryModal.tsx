@@ -446,29 +446,31 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                     {isLoadingMethods ? (
                       <div className="text-center py-4 text-gray-500 text-sm">Loading...</div>
                     ) : (
-                      <div className="space-y-2">
-                        {paymentMethodsData?.data
-                          .filter((method) => ['Cash', 'UPI', 'Card'].includes(method.name))
-                          .map((method) => (
-                          <div key={method.id} className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">{method.name}</span>
-                            <div className="relative w-28">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
-                                ₹
-                              </span>
-                              <input
-                                type="number"
-                                step="1"
-                                min="0"
-                                value={paymentEntries[method.id]?.amount || ''}
-                                onChange={(e) => updatePaymentEntry(method.id, e.target.value)}
-                                disabled={isAlreadyDelivered || pricingSummary.balanceDue <= 0}
-                                className="w-full pl-5 pr-2 py-1.5 border border-gray-300 rounded text-sm text-right focus:ring-1 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
-                                placeholder="0"
-                              />
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          {paymentMethodsData?.data
+                            .filter((method) => ['Cash', 'UPI', 'Card'].includes(method.name))
+                            .map((method) => (
+                            <div key={method.id} className="text-center">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">{method.name}</label>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                  ₹
+                                </span>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  min="0"
+                                  value={paymentEntries[method.id]?.amount || ''}
+                                  onChange={(e) => updatePaymentEntry(method.id, e.target.value)}
+                                  disabled={isAlreadyDelivered || pricingSummary.balanceDue <= 0}
+                                  className="w-full pl-5 pr-2 py-2 border border-gray-300 rounded-lg text-sm text-right focus:ring-1 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+                                  placeholder="0"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                         <div className="border-t pt-2 mt-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">Total Entered</span>
