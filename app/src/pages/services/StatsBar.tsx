@@ -66,14 +66,14 @@ const statCards = [
     getValue: (stats: ServiceStats) => stats.waitingParts
   },
   {
-    key: ServiceStatus.COMPLETED,
+    key: ServiceStatus.READY,
     label: 'Ready',
     icon: CheckCircle,
     color: 'text-green-500',
     getValue: (stats: ServiceStats) => stats.completed
   },
   {
-    key: ServiceStatus.NOT_SERVICEABLE,
+    key: ServiceStatus.NOT_READY,
     label: 'Not Ready',
     icon: XCircle,
     color: 'text-red-500',
@@ -87,7 +87,7 @@ const statCards = [
     getValue: (stats: ServiceStats) => stats.repeatedService
   },
   {
-    key: ServiceStatus.DELIVERED,
+    key: 'DELIVERED',
     label: 'Delivered',
     icon: Truck,
     color: 'text-teal-500',
