@@ -8,7 +8,8 @@ import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag } from 'lucide-react';
+import ServiceTable from './ServiceTable';
+import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag, LayoutGrid, Table2 } from 'lucide-react';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -64,6 +65,7 @@ export default function ServiceList() {
   const [assigningServiceId, setAssigningServiceId] = useState<string | null>(null);
   const [technicianSearch, setTechnicianSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('table');
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -288,13 +290,40 @@ export default function ServiceList() {
           <h1 className="text-2xl font-bold text-gray-900">Services</h1>
           <p className="text-sm text-gray-500 mt-1">Manage all service requests</p>
         </div>
-        <button
-          onClick={() => navigate('/services/create')}
-          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          New Service
-        </button>
+        <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center border border-gray-200 rounded-lg p-1 bg-gray-50">
+            <button
+              onClick={() => setViewMode('card')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'card'
+                  ? 'bg-white text-purple-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Card View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-white text-purple-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Table View"
+            >
+              <Table2 className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={() => navigate('/services/create')}
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            New Service
+          </button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -650,448 +679,457 @@ export default function ServiceList() {
         </div>
       )}
 
-      {/* Services Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <p className="text-gray-500 mt-2">Loading services...</p>
-          </div>
-        ) : !data || data.services.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-gray-500">No services found</p>
-          </div>
-        ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Service & Customer
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Details
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Assignment
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {data.services.map((service) => (
-                    <tr
-                      key={service.id}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/services/${service.id}`)}
-                    >
-                      {/* Column 1: Service & Customer */}
-                      <td className="px-4 py-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <span className="text-sm font-semibold text-gray-900">
-                              {service.ticketNumber}
-                            </span>
-                            {service.isRepeatedService && (
-                              <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
-                                <RefreshCw className="w-3 h-3" />
-                                Repeat
+      {/* Services Content */}
+      {viewMode === 'table' ? (
+        <ServiceTable
+          services={data?.services || []}
+          isLoading={isLoading}
+          pagination={data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 }}
+          onPageChange={handlePageChange}
+        />
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {isLoading ? (
+            <div className="p-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <p className="text-gray-500 mt-2">Loading services...</p>
+            </div>
+          ) : !data || data.services.length === 0 ? (
+            <div className="p-12 text-center">
+              <p className="text-gray-500">No services found</p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Service & Customer
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Details
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Assignment
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {data.services.map((service) => (
+                      <tr
+                        key={service.id}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/services/${service.id}`)}
+                      >
+                        {/* Column 1: Service & Customer */}
+                        <td className="px-4 py-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <span className="text-sm font-semibold text-gray-900">
+                                {service.ticketNumber}
                               </span>
+                              {service.isRepeatedService && (
+                                <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
+                                  <RefreshCw className="w-3 h-3" />
+                                  Repeat
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {service.customer?.name}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {service.customer?.phone}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Smartphone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                              <span className="text-xs text-gray-600">{service.deviceModel}</span>
+                            </div>
+                            {service.createdBy && (
+                              <div className="text-xs text-gray-500">
+                                Booked by: <span className="font-medium">{service.createdBy.name}</span>
+                              </div>
                             )}
                           </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {service.customer?.name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {service.customer?.phone}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Smartphone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                            <span className="text-xs text-gray-600">{service.deviceModel}</span>
-                          </div>
-                          {service.createdBy && (
-                            <div className="text-xs text-gray-500">
-                              Booked by: <span className="font-medium">{service.createdBy.name}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Column 2: Details */}
-                      <td className="px-4 py-4">
-                        <div className="space-y-2">
-                          {/* Faults */}
-                          {service.faults && service.faults.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {service.faults.slice(0, 3).map((f: any) => (
-                                <span
-                                  key={f.fault?.id || f.faultId}
-                                  className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
+                        {/* Column 2: Details */}
+                        <td className="px-4 py-4">
+                          <div className="space-y-2">
+                            {/* Faults */}
+                            {service.faults && service.faults.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {service.faults.slice(0, 3).map((f: any) => (
+                                  <span
+                                    key={f.fault?.id || f.faultId}
+                                    className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
+                                  >
+                                    {f.fault?.name || 'Unknown'}
+                                  </span>
+                                ))}
+                                {service.faults.length > 3 && (
+                                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                                    +{service.faults.length - 3} more
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400">No faults</span>
+                            )}
+                            {/* Estimated Price */}
+                            <div className="text-sm text-gray-900">
+                              <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
+                            </div>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
+                              {STATUS_LABELS[service.status]}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Column 3: Assignment */}
+                        <td className="px-4 py-4">
+                          <div className="space-y-2">
+                            {service.assignedTo ? (
+                              <div className="flex items-center gap-2">
+                                <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <span className="text-sm text-gray-900">{service.assignedTo.name}</span>
+                              </div>
+                            ) : (
+                              <div className="relative" ref={assigningServiceId === service.id ? dropdownRef : null}>
+                                <button
+                                  onClick={(e) => handleAssignClick(e, service.id)}
+                                  className="flex items-center gap-2 text-gray-400 hover:text-purple-600 transition-colors"
                                 >
-                                  {f.fault?.name || 'Unknown'}
-                                </span>
-                              ))}
-                              {service.faults.length > 3 && (
-                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                                  +{service.faults.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">No faults</span>
-                          )}
-                          {/* Estimated Price */}
-                          <div className="text-sm text-gray-900">
-                            <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
-                          </div>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
-                            {STATUS_LABELS[service.status]}
-                          </span>
-                        </div>
-                      </td>
+                                  <User className="w-4 h-4 flex-shrink-0" />
+                                  <span className="text-sm">Unassigned</span>
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
 
-                      {/* Column 3: Assignment */}
-                      <td className="px-4 py-4">
-                        <div className="space-y-2">
-                          {service.assignedTo ? (
-                            <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                              <span className="text-sm text-gray-900">{service.assignedTo.name}</span>
-                            </div>
-                          ) : (
-                            <div className="relative" ref={assigningServiceId === service.id ? dropdownRef : null}>
-                              <button
-                                onClick={(e) => handleAssignClick(e, service.id)}
-                                className="flex items-center gap-2 text-gray-400 hover:text-purple-600 transition-colors"
-                              >
-                                <User className="w-4 h-4 flex-shrink-0" />
-                                <span className="text-sm">Unassigned</span>
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
+                                {/* Technician Dropdown */}
+                                {assigningServiceId === service.id && (
+                                  <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                    {/* Search */}
+                                    <div className="p-2 border-b">
+                                      <div className="relative">
+                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                          type="text"
+                                          placeholder="Search technician..."
+                                          value={technicianSearch}
+                                          onChange={(e) => setTechnicianSearch(e.target.value)}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                                        />
+                                      </div>
+                                    </div>
 
-                              {/* Technician Dropdown */}
-                              {assigningServiceId === service.id && (
-                                <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                                  {/* Search */}
-                                  <div className="p-2 border-b">
-                                    <div className="relative">
-                                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                      <input
-                                        type="text"
-                                        placeholder="Search technician..."
-                                        value={technicianSearch}
-                                        onChange={(e) => setTechnicianSearch(e.target.value)}
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
-                                      />
+                                    {/* Technician List */}
+                                    <div className="max-h-48 overflow-y-auto">
+                                      {filteredTechnicians.length === 0 ? (
+                                        <div className="p-3 text-center text-sm text-gray-500">
+                                          No technicians found
+                                        </div>
+                                      ) : (
+                                        filteredTechnicians.map((tech: any) => (
+                                          <button
+                                            key={tech.id}
+                                            onClick={(e) => handleAssign(e, service.id, tech.id)}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            disabled={assignMutation.isPending}
+                                            className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between disabled:opacity-50"
+                                          >
+                                            <div>
+                                              <div className="text-sm font-medium text-gray-900">{tech.name}</div>
+                                              <div className="text-xs text-gray-500">{tech.email}</div>
+                                            </div>
+                                            <Check className="w-4 h-4 text-gray-400" />
+                                          </button>
+                                        ))
+                                      )}
+                                    </div>
+
+                                    {/* Close button */}
+                                    <div className="p-2 border-t">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setAssigningServiceId(null);
+                                        }}
+                                        className="w-full px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
+                                      >
+                                        Cancel
+                                      </button>
                                     </div>
                                   </div>
-
-                                  {/* Technician List */}
-                                  <div className="max-h-48 overflow-y-auto">
-                                    {filteredTechnicians.length === 0 ? (
-                                      <div className="p-3 text-center text-sm text-gray-500">
-                                        No technicians found
-                                      </div>
-                                    ) : (
-                                      filteredTechnicians.map((tech: any) => (
-                                        <button
-                                          key={tech.id}
-                                          onClick={(e) => handleAssign(e, service.id, tech.id)}
-                                          onMouseDown={(e) => e.stopPropagation()}
-                                          disabled={assignMutation.isPending}
-                                          className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between disabled:opacity-50"
-                                        >
-                                          <div>
-                                            <div className="text-sm font-medium text-gray-900">{tech.name}</div>
-                                            <div className="text-xs text-gray-500">{tech.email}</div>
-                                          </div>
-                                          <Check className="w-4 h-4 text-gray-400" />
-                                        </button>
-                                      ))
-                                    )}
-                                  </div>
-
-                                  {/* Close button */}
-                                  <div className="p-2 border-t">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setAssigningServiceId(null);
-                                      }}
-                                      className="w-full px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">
+                              {formatDate(service.createdAt)}
                             </div>
-                          )}
-                          <div className="text-xs text-gray-500">
-                            {formatDate(service.createdAt)}
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Column 4: Actions */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* View */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/services/${service.id}`);
-                            }}
-                            className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                            title="View details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                        {/* Column 4: Actions */}
+                        <td className="px-4 py-4">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* View */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/services/${service.id}`);
+                              }}
+                              className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="View details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
 
-                          {/* Edit */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingServiceId(service.id);
-                            }}
-                            className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                            title="Edit service"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                            {/* Edit */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingServiceId(service.id);
+                              }}
+                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Edit service"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
 
-                          {/* Delete */}
-                          <button
-                            onClick={(e) => handleDelete(e, service.id, service.ticketNumber)}
-                            disabled={deleteMutation.isPending}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                            title="Delete service"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                            {/* Delete */}
+                            <button
+                              onClick={(e) => handleDelete(e, service.id, service.ticketNumber)}
+                              disabled={deleteMutation.isPending}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Delete service"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden divide-y divide-gray-200">
-              {data.services.map((service) => (
-                <div
-                  key={service.id}
-                  className="p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div
-                      className="flex items-center gap-2 cursor-pointer"
-                      onClick={() => navigate(`/services/${service.id}`)}
-                    >
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-semibold text-gray-900">
-                        {service.ticketNumber}
-                      </span>
-                      {service.isRepeatedService && (
-                        <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
-                          <RefreshCw className="w-3 h-3" />
-                          Repeat
-                        </span>
-                      )}
-                    </div>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
-                      {STATUS_LABELS[service.status]}
-                    </span>
-                  </div>
-
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-gray-200">
+                {data.services.map((service) => (
                   <div
-                    className="space-y-2 cursor-pointer"
-                    onClick={() => navigate(`/services/${service.id}`)}
+                    key={service.id}
+                    className="p-4 hover:bg-gray-50 transition-colors"
                   >
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {service.customer?.name}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {service.customer?.phone}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{service.deviceModel}</span>
-                    </div>
-
-                    {/* Faults */}
-                    {service.faults && service.faults.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {service.faults.slice(0, 3).map((f: any) => (
-                          <span
-                            key={f.fault?.id || f.faultId}
-                            className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
-                          >
-                            {f.fault?.name || 'Unknown'}
-                          </span>
-                        ))}
-                        {service.faults.length > 3 && (
-                          <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                            +{service.faults.length - 3} more
+                    <div className="flex items-start justify-between mb-3">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer"
+                        onClick={() => navigate(`/services/${service.id}`)}
+                      >
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-semibold text-gray-900">
+                          {service.ticketNumber}
+                        </span>
+                        {service.isRepeatedService && (
+                          <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
+                            <RefreshCw className="w-3 h-3" />
+                            Repeat
                           </span>
                         )}
                       </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">No faults</span>
-                    )}
-
-                    {/* Estimated Price */}
-                    <div className="text-sm text-gray-900">
-                      <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
+                        {STATUS_LABELS[service.status]}
+                      </span>
                     </div>
-                    {service.createdBy && (
-                      <div className="text-xs text-gray-500">
-                        Booked by: <span className="font-medium">{service.createdBy.name}</span>
+
+                    <div
+                      className="space-y-2 cursor-pointer"
+                      onClick={() => navigate(`/services/${service.id}`)}
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {service.customer?.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {service.customer?.phone}
+                        </div>
                       </div>
-                    )}
-                  </div>
 
-                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
-                    <div className="flex items-center gap-2">
-                      {service.assignedTo ? (
-                        <>
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-600">{service.assignedTo.name}</span>
-                        </>
-                      ) : (
-                        <div className="relative" ref={assigningServiceId === service.id ? dropdownRef : null}>
-                          <button
-                            onClick={(e) => handleAssignClick(e, service.id)}
-                            className="flex items-center gap-1 text-gray-400 hover:text-purple-600 transition-colors"
-                          >
-                            <User className="w-4 h-4" />
-                            <span className="text-xs">Unassigned</span>
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-600">{service.deviceModel}</span>
+                      </div>
 
-                          {/* Mobile Technician Dropdown */}
-                          {assigningServiceId === service.id && (
-                            <div className="absolute left-0 bottom-full mb-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                              <div className="p-2 border-b">
-                                <div className="relative">
-                                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                  <input
-                                    type="text"
-                                    placeholder="Search technician..."
-                                    value={technicianSearch}
-                                    onChange={(e) => setTechnicianSearch(e.target.value)}
-                                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
-                                  />
-                                </div>
-                              </div>
-                              <div className="max-h-48 overflow-y-auto">
-                                {filteredTechnicians.length === 0 ? (
-                                  <div className="p-3 text-center text-sm text-gray-500">
-                                    No technicians found
-                                  </div>
-                                ) : (
-                                  filteredTechnicians.map((tech: any) => (
-                                    <button
-                                      key={tech.id}
-                                      onClick={(e) => handleAssign(e, service.id, tech.id)}
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                      disabled={assignMutation.isPending}
-                                      className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between disabled:opacity-50"
-                                    >
-                                      <div>
-                                        <div className="text-sm font-medium text-gray-900">{tech.name}</div>
-                                        <div className="text-xs text-gray-500">{tech.email}</div>
-                                      </div>
-                                      <Check className="w-4 h-4 text-gray-400" />
-                                    </button>
-                                  ))
-                                )}
-                              </div>
-                              <div className="p-2 border-t">
-                                <button
-                                  onClick={() => setAssigningServiceId(null)}
-                                  className="w-full px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
+                      {/* Faults */}
+                      {service.faults && service.faults.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {service.faults.slice(0, 3).map((f: any) => (
+                            <span
+                              key={f.fault?.id || f.faultId}
+                              className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
+                            >
+                              {f.fault?.name || 'Unknown'}
+                            </span>
+                          ))}
+                          {service.faults.length > 3 && (
+                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                              +{service.faults.length - 3} more
+                            </span>
                           )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">No faults</span>
+                      )}
+
+                      {/* Estimated Price */}
+                      <div className="text-sm text-gray-900">
+                        <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
+                      </div>
+                      {service.createdBy && (
+                        <div className="text-xs text-gray-500">
+                          Booked by: <span className="font-medium">{service.createdBy.name}</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Mobile Action Buttons */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => navigate(`/services/${service.id}`)}
-                        className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                        title="View"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditingServiceId(service.id)}
-                        className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, service.id, service.ticketNumber)}
-                        disabled={deleteMutation.isPending}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2">
+                        {service.assignedTo ? (
+                          <>
+                            <User className="w-4 h-4 text-gray-400" />
+                            <span className="text-xs text-gray-600">{service.assignedTo.name}</span>
+                          </>
+                        ) : (
+                          <div className="relative" ref={assigningServiceId === service.id ? dropdownRef : null}>
+                            <button
+                              onClick={(e) => handleAssignClick(e, service.id)}
+                              className="flex items-center gap-1 text-gray-400 hover:text-purple-600 transition-colors"
+                            >
+                              <User className="w-4 h-4" />
+                              <span className="text-xs">Unassigned</span>
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+
+                            {/* Mobile Technician Dropdown */}
+                            {assigningServiceId === service.id && (
+                              <div className="absolute left-0 bottom-full mb-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                <div className="p-2 border-b">
+                                  <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search technician..."
+                                      value={technicianSearch}
+                                      onChange={(e) => setTechnicianSearch(e.target.value)}
+                                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="max-h-48 overflow-y-auto">
+                                  {filteredTechnicians.length === 0 ? (
+                                    <div className="p-3 text-center text-sm text-gray-500">
+                                      No technicians found
+                                    </div>
+                                  ) : (
+                                    filteredTechnicians.map((tech: any) => (
+                                      <button
+                                        key={tech.id}
+                                        onClick={(e) => handleAssign(e, service.id, tech.id)}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        disabled={assignMutation.isPending}
+                                        className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between disabled:opacity-50"
+                                      >
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-900">{tech.name}</div>
+                                          <div className="text-xs text-gray-500">{tech.email}</div>
+                                        </div>
+                                        <Check className="w-4 h-4 text-gray-400" />
+                                      </button>
+                                    ))
+                                  )}
+                                </div>
+                                <div className="p-2 border-t">
+                                  <button
+                                    onClick={() => setAssigningServiceId(null)}
+                                    className="w-full px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Mobile Action Buttons */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => navigate(`/services/${service.id}`)}
+                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setEditingServiceId(service.id)}
+                          className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(e, service.id, service.ticketNumber)}
+                          disabled={deleteMutation.isPending}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {data.pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Showing {((data.pagination.page - 1) * data.pagination.limit) + 1} to{' '}
-                  {Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of{' '}
-                  {data.pagination.total} services
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handlePageChange(data.pagination.page - 1)}
-                    disabled={data.pagination.page === 1}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(data.pagination.page + 1)}
-                    disabled={data.pagination.page === data.pagination.totalPages}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                  </button>
-                </div>
+                ))}
               </div>
-            )}
-          </>
-        )}
-      </div>
+
+              {/* Pagination */}
+              {data.pagination.totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-500">
+                    Showing {((data.pagination.page - 1) * data.pagination.limit) + 1} to{' '}
+                    {Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of{' '}
+                    {data.pagination.total} services
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePageChange(data.pagination.page - 1)}
+                      disabled={data.pagination.page === 1}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(data.pagination.page + 1)}
+                      disabled={data.pagination.page === data.pagination.totalPages}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Edit Service Modal */}
       {editingServiceId && (
