@@ -3617,7 +3617,7 @@ export class ServiceService {
       }
 
       // Determine the price to add
-      const faultPrice = price !== undefined ? price : fault.defaultPrice;
+      const faultPrice = price !== undefined ? price : Number(fault.defaultPrice);
 
       // Validate price
       if (faultPrice < 0) {
@@ -3635,7 +3635,7 @@ export class ServiceService {
         });
 
         // Update estimated cost
-        const newEstimatedCost = (service.estimatedCost || 0) + faultPrice;
+        const newEstimatedCost = Number(service.estimatedCost || 0) + faultPrice;
         await tx.service.update({
           where: { id: serviceId },
           data: {
