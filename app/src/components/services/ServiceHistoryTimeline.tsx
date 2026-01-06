@@ -12,30 +12,24 @@ const STATUS_ICONS: Record<ServiceStatus, any> = {
   [ServiceStatus.PENDING]: Circle,
   [ServiceStatus.IN_PROGRESS]: Clock,
   [ServiceStatus.WAITING_PARTS]: Package,
-  [ServiceStatus.COMPLETED]: CheckCircle,
-  [ServiceStatus.DELIVERED]: CheckCircle,
-  [ServiceStatus.CANCELLED]: AlertCircle,
-  [ServiceStatus.NOT_SERVICEABLE]: Ban,
+  [ServiceStatus.READY]: CheckCircle,
+  [ServiceStatus.NOT_READY]: Ban,
 };
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'text-yellow-600 bg-yellow-100',
   [ServiceStatus.IN_PROGRESS]: 'text-blue-600 bg-blue-100',
   [ServiceStatus.WAITING_PARTS]: 'text-orange-600 bg-orange-100',
-  [ServiceStatus.COMPLETED]: 'text-green-600 bg-green-100',
-  [ServiceStatus.DELIVERED]: 'text-purple-600 bg-purple-100',
-  [ServiceStatus.CANCELLED]: 'text-red-600 bg-red-100',
-  [ServiceStatus.NOT_SERVICEABLE]: 'text-gray-600 bg-gray-100',
+  [ServiceStatus.READY]: 'text-green-600 bg-green-100',
+  [ServiceStatus.NOT_READY]: 'text-gray-600 bg-gray-100',
 };
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'Pending',
   [ServiceStatus.IN_PROGRESS]: 'In Progress',
   [ServiceStatus.WAITING_PARTS]: 'Waiting for Parts',
-  [ServiceStatus.COMPLETED]: 'Completed',
-  [ServiceStatus.DELIVERED]: 'Delivered',
-  [ServiceStatus.CANCELLED]: 'Cancelled',
-  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
+  [ServiceStatus.READY]: 'Ready',
+  [ServiceStatus.NOT_READY]: 'Not Ready',
 };
 
 export default function ServiceHistoryTimeline({ serviceId, history: propHistory }: ServiceHistoryTimelineProps) {
@@ -110,8 +104,10 @@ export default function ServiceHistoryTimeline({ serviceId, history: propHistory
         {/* Timeline Items */}
         <div className="space-y-6">
           {history.map((item, index) => {
-            const IconComponent = STATUS_ICONS[item.status];
-            const colorClasses = STATUS_COLORS[item.status];
+            // Handle legacy status values from database
+            const IconComponent = STATUS_ICONS[item.status] || Circle;
+            const colorClasses = STATUS_COLORS[item.status] || 'text-gray-600 bg-gray-100';
+            const statusLabel = STATUS_LABELS[item.status] || item.status;
             const { date, time } = formatDate(item.createdAt);
             const isLatest = index === 0;
 
@@ -133,7 +129,7 @@ export default function ServiceHistoryTimeline({ serviceId, history: propHistory
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                        {STATUS_LABELS[item.status]}
+                        {statusLabel}
                         {isLatest && (
                           <span className="px-2 py-0.5 bg-purple-600 text-white text-xs font-semibold rounded-full">
                             CURRENT
