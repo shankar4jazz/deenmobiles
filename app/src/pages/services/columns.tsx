@@ -191,12 +191,16 @@ export function createServiceColumns(options: {
       id: 'ticketNumber',
       accessorKey: 'ticketNumber',
       header: 'Job Sheet No',
-      cell: ({ row }) => (
-        <div className="font-medium text-purple-600">{row.original.ticketNumber}</div>
-      ),
+      cell: ({ row }) => {
+        const ticketNumber = row.original.ticketNumber || '';
+        const countNumber = ticketNumber.split('-').pop() || ticketNumber;
+        return (
+          <div className="font-medium text-purple-600">{countNumber}</div>
+        );
+      },
       enableSorting: true,
       enableHiding: false,
-      size: 120,
+      size: 80,
     },
 
     // Customer Name
