@@ -391,14 +391,6 @@ export default function ServiceList() {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="text-sm text-gray-600 mr-2">Date:</span>
           <button
-            onClick={() => handleDatePreset('')}
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-              datePreset === '' && !filters.startDate ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All Time
-          </button>
-          <button
             onClick={() => handleDatePreset('today')}
             className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
               datePreset === 'today' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -421,6 +413,14 @@ export default function ServiceList() {
             }`}
           >
             This Month
+          </button>
+          <button
+            onClick={() => handleDatePreset('')}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+              datePreset === '' && !filters.startDate ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All Time
           </button>
           <button
             onClick={() => { setDatePreset('custom'); setShowFilters(true); }}
