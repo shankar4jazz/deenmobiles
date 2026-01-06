@@ -1,7 +1,7 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { Eye, Edit2, Trash2, MoreHorizontal, User } from 'lucide-react';
+import { Eye, Edit2, Trash2, User } from 'lucide-react';
 import { Service, ServiceStatus } from '@/services/serviceApi';
-import { formatCurrency, formatDate, createSelectionColumn } from '@/utils/tableUtils';
+import { formatCurrency, formatDate } from '@/utils/tableUtils';
 import { useState, useRef, useEffect } from 'react';
 
 // Status colors and labels
@@ -167,9 +167,6 @@ export function createServiceColumns(options: {
   } = options;
 
   return [
-    // Selection column
-    createSelectionColumn<Service>(),
-
     // Date
     {
       id: 'date',

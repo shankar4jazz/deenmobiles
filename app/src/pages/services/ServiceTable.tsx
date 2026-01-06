@@ -118,7 +118,7 @@ export default function ServiceTable({
         isLoading={isLoading}
         pagination={pagination}
         onPageChange={onPageChange}
-        enableRowSelection={true}
+        enableRowSelection={false}
         enableSorting={true}
         enableColumnVisibility={true}
         enableColumnResizing={true}
