@@ -2,7 +2,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Edit2, Trash2, User } from 'lucide-react';
 import { Service, ServiceStatus } from '@/services/serviceApi';
 import { formatCurrency, formatDate } from '@/utils/tableUtils';
-import { useState, useRef, useEffect } from 'react';
+import ActionMenu from '@/components/common/ActionMenu';
 
 // Status colors and labels
 export const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -342,39 +342,36 @@ export function createServiceColumns(options: {
     // Actions
     {
       id: 'actions',
-      header: 'Actions',
+      header: '',
       cell: ({ row }) => (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => onView(row.original)}
-            className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition-colors"
-            title="View"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => onEdit(row.original)}
-            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-            title="Edit"
-          >
-            <Edit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this service?')) {
-                onDelete(row.original);
-              }
-            }}
-            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <ActionMenu
+          items={[
+            {
+              label: 'View',
+              icon: <Eye className="h-4 w-4 text-purple-600" />,
+              onClick: () => onView(row.original),
+            },
+            {
+              label: 'Edit',
+              icon: <Edit2 className="h-4 w-4 text-blue-600" />,
+              onClick: () => onEdit(row.original),
+            },
+            {
+              label: 'Delete',
+              icon: <Trash2 className="h-4 w-4" />,
+              onClick: () => {
+                if (confirm('Are you sure you want to delete this service?')) {
+                  onDelete(row.original);
+                }
+              },
+              className: 'text-red-600 hover:bg-red-50',
+            },
+          ]}
+        />
       ),
       enableSorting: false,
       enableHiding: false,
-      size: 100,
+      size: 50,
     },
   ];
 }

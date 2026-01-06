@@ -2,6 +2,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Download, Copy, Trash2 } from 'lucide-react';
 import { Invoice } from '../../services/invoiceApi';
 import { formatCurrency, formatDate, getStatusBadgeStyles, createSelectionColumn } from '../../utils/tableUtils';
+import ActionMenu from '../../components/common/ActionMenu';
 
 export const createInvoiceColumns = (
   onView: (invoice: Invoice) => void,
@@ -126,48 +127,41 @@ export const createInvoiceColumns = (
   // Actions
   {
     id: 'actions',
-    header: 'Actions',
+    header: '',
     cell: ({ row }) => {
       const isLatest = latestInvoiceId === row.original.id;
       return (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => onView(row.original)}
-            className="p-2 text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
-            title="View Details"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          {row.original.pdfUrl && (
-            <button
-              onClick={() => onDownload(row.original)}
-              className="p-2 text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
-              title="Download PDF"
-            >
-              <Download className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            onClick={() => onClone(row.original)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-            title="Clone Invoice"
-          >
-            <Copy className="h-4 w-4" />
-          </button>
-          {isLatest && onDelete && (
-            <button
-              onClick={() => onDelete(row.original)}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-              title="Delete Invoice (Latest Only)"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <ActionMenu
+          items={[
+            {
+              label: 'View',
+              icon: <Eye className="h-4 w-4 text-purple-600" />,
+              onClick: () => onView(row.original),
+            },
+            {
+              label: 'Download',
+              icon: <Download className="h-4 w-4 text-gray-600" />,
+              onClick: () => onDownload(row.original),
+              show: !!row.original.pdfUrl,
+            },
+            {
+              label: 'Clone',
+              icon: <Copy className="h-4 w-4 text-blue-600" />,
+              onClick: () => onClone(row.original),
+            },
+            {
+              label: 'Delete',
+              icon: <Trash2 className="h-4 w-4" />,
+              onClick: () => onDelete?.(row.original),
+              show: isLatest && !!onDelete,
+              className: 'text-red-600 hover:bg-red-50',
+            },
+          ]}
+        />
       );
     },
     enableSorting: false,
     enableHiding: false,
-    size: 160,
+    size: 50,
   },
 ];

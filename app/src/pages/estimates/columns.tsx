@@ -2,6 +2,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Download, FileCheck, Calendar, Copy } from 'lucide-react';
 import { Estimate } from '../../services/estimateApi';
 import { formatCurrency, formatDate, createSelectionColumn } from '../../utils/tableUtils';
+import ActionMenu from '../../components/common/ActionMenu';
 
 const ESTIMATE_STATUS_COLORS = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -149,45 +150,37 @@ export const createEstimateColumns = (
   // Actions
   {
     id: 'actions',
-    header: 'Actions',
+    header: '',
     cell: ({ row }) => (
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={() => onView(row.original)}
-          className="p-2 text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
-          title="View Details"
-        >
-          <Eye className="h-4 w-4" />
-        </button>
-        {row.original.pdfUrl && (
-          <button
-            onClick={() => onDownload(row.original)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-            title="Download PDF"
-          >
-            <Download className="h-4 w-4" />
-          </button>
-        )}
-        {row.original.status === 'APPROVED' && (
-          <button
-            onClick={() => onConvert(row.original)}
-            className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
-            title="Convert to Invoice"
-          >
-            <FileCheck className="h-4 w-4" />
-          </button>
-        )}
-        <button
-          onClick={() => onClone(row.original)}
-          className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-          title="Clone Estimate"
-        >
-          <Copy className="h-4 w-4" />
-        </button>
-      </div>
+      <ActionMenu
+        items={[
+          {
+            label: 'View',
+            icon: <Eye className="h-4 w-4 text-purple-600" />,
+            onClick: () => onView(row.original),
+          },
+          {
+            label: 'Download',
+            icon: <Download className="h-4 w-4 text-blue-600" />,
+            onClick: () => onDownload(row.original),
+            show: !!row.original.pdfUrl,
+          },
+          {
+            label: 'Convert to Invoice',
+            icon: <FileCheck className="h-4 w-4 text-green-600" />,
+            onClick: () => onConvert(row.original),
+            show: row.original.status === 'APPROVED',
+          },
+          {
+            label: 'Clone',
+            icon: <Copy className="h-4 w-4 text-blue-600" />,
+            onClick: () => onClone(row.original),
+          },
+        ]}
+      />
     ),
     enableSorting: false,
     enableHiding: false,
-    size: 120,
+    size: 50,
   },
 ];
