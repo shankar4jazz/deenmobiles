@@ -619,8 +619,9 @@ export default function ServiceDetail() {
             )}
             {/* Intake notes - only if exists */}
             {service.intakeNotes && (
-              <div className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-600">
-                {service.intakeNotes}
+              <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                <span className="font-medium text-gray-700">Intake Notes:</span>
+                <span className="text-gray-600 ml-1">{service.intakeNotes}</span>
               </div>
             )}
           </div>
