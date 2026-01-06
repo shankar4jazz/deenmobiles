@@ -350,97 +350,104 @@ export default function CreateService() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b sticky top-0 z-10 bg-white">
+      <div className="border-b sticky top-0 z-10 bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center h-12">
+          <div className="flex items-center h-14">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate(-1)}
-                className="text-gray-600 hover:text-gray-900"
+                className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <h1 className="text-base font-semibold text-gray-900">New Service</h1>
+              <h1 className="text-lg font-semibold text-gray-900">New Service</h1>
             </div>
           </div>
         </div>
       </div>
 
       {/* Form Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
-          {/* Row 1: Customer, Device, Service Category */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
-            <FormRow label="Customer" required error={errors.customerId?.message}>
-              <SearchableCustomerSelectWithAdd
-                value={customerId}
-                onChange={handleCustomerChange}
-                onAddNew={handleAddCustomer}
-                error={errors.customerId?.message}
-                placeholder="Search customer..."
-                selectedCustomerOverride={selectedCustomer}
-              />
-            </FormRow>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-            <FormRow label="Device" required error={errors.customerDeviceId?.message}>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <SearchableDeviceSelect
-                      value={watch('customerDeviceId')}
-                      onChange={handleDeviceChange}
-                      customerId={customerId}
-                      onAddNew={() => setShowAddDeviceModal(true)}
-                      disabled={!customerId}
-                      error={errors.customerDeviceId?.message}
-                      placeholder={
-                        !customerId 
-                          ? 'Select customer first' 
-                          : 'Select device...'
-                      }
-                      // Pass the selected device directly if we have it to ensure it's in the list
-                      devices={selectedDevice ? [selectedDevice, ...(devicesData?.devices || []).filter(d => d.id !== selectedDevice.id)] : undefined}
-                    />
-                  </div>
-                  {isDeviceAutoSelected && selectedDevice && (
-                    <button
-                      type="button"
-                      onClick={handleResetDevice}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
-                      title="Device was auto-selected. Click to choose a different device"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      <span className="hidden sm:inline">Change</span>
-                    </button>
-                  )}
-                </div>
-                {isDeviceAutoSelected && selectedDevice && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
-                    <span>✓</span>
-                    <span>Latest device auto-selected</span>
-                  </p>
-                )}
-              </div>
-            </FormRow>
-
-            <FormRow label="Fault(s)" required error={errors.faultIds?.message}>
-              <Controller
-                control={control}
-                name="faultIds"
-                render={({ field }) => (
-                  <FaultTagInput
-                    value={field.value}
-                    onChange={handleFaultsChange}
-                    error={errors.faultIds?.message}
-                    placeholder="Select faults..."
-                    isWarrantyRepair={isWarrantyRepair}
-                    matchingFaultIds={previousServiceInfo?.matchingFaultIds || []}
+          {/* Section 1: Customer & Device */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">Customer & Device</h3>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormRow label="Customer" required error={errors.customerId?.message}>
+                  <SearchableCustomerSelectWithAdd
+                    value={customerId}
+                    onChange={handleCustomerChange}
+                    onAddNew={handleAddCustomer}
+                    error={errors.customerId?.message}
+                    placeholder="Search customer..."
+                    selectedCustomerOverride={selectedCustomer}
                   />
-                )}
-              />
-            </FormRow>
+                </FormRow>
+
+                <FormRow label="Device" required error={errors.customerDeviceId?.message}>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <SearchableDeviceSelect
+                          value={watch('customerDeviceId')}
+                          onChange={handleDeviceChange}
+                          customerId={customerId}
+                          onAddNew={() => setShowAddDeviceModal(true)}
+                          disabled={!customerId}
+                          error={errors.customerDeviceId?.message}
+                          placeholder={
+                            !customerId
+                              ? 'Select customer first'
+                              : 'Select device...'
+                          }
+                          devices={selectedDevice ? [selectedDevice, ...(devicesData?.devices || []).filter(d => d.id !== selectedDevice.id)] : undefined}
+                        />
+                      </div>
+                      {isDeviceAutoSelected && selectedDevice && (
+                        <button
+                          type="button"
+                          onClick={handleResetDevice}
+                          className="flex items-center gap-1.5 px-3 py-2 text-sm bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                          title="Device was auto-selected. Click to choose a different device"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          <span className="hidden sm:inline">Change</span>
+                        </button>
+                      )}
+                    </div>
+                    {isDeviceAutoSelected && selectedDevice && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1">
+                        <span>✓</span>
+                        <span>Latest device auto-selected</span>
+                      </p>
+                    )}
+                  </div>
+                </FormRow>
+
+                <FormRow label="Fault(s)" required error={errors.faultIds?.message}>
+                  <Controller
+                    control={control}
+                    name="faultIds"
+                    render={({ field }) => (
+                      <FaultTagInput
+                        value={field.value}
+                        onChange={handleFaultsChange}
+                        error={errors.faultIds?.message}
+                        placeholder="Select faults..."
+                        isWarrantyRepair={isWarrantyRepair}
+                        matchingFaultIds={previousServiceInfo?.matchingFaultIds || []}
+                      />
+                    )}
+                  />
+                </FormRow>
+              </div>
+            </div>
           </div>
 
           {/* Active Warranty Alert */}
@@ -661,255 +668,174 @@ export default function CreateService() {
             </div>
           )}
 
-          {/* Row 2: Device Condition, Damage Condition */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2">
-            <FormRow label="Device Condition">
-              <Controller
-                control={control}
-                name="deviceConditionId"
-                render={({ field }) => (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => field.onChange('on')}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                        field.value === 'on'
-                          ? 'bg-purple-600 text-white border-purple-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      On
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => field.onChange('off')}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                        field.value === 'off'
-                          ? 'bg-purple-600 text-white border-purple-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      Off
-                    </button>
-                  </div>
-                )}
-              />
-            </FormRow>
-
-            <FormRow label="Damage Condition" required={!noDamage} error={errors.damageConditionIds?.message}>
-              <div className="space-y-2">
-                <Controller
-                  control={control}
-                  name="noDamage"
-                  render={({ field }) => (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        field.onChange(!field.value);
-                        if (!field.value) {
-                          setValue('damageConditionIds', []);
-                          setSelectedDamageConditions([]);
-                        }
-                      }}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
-                        field.value
-                          ? 'bg-green-600 text-white border-green-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      No Damage
-                    </button>
-                  )}
-                />
-                {!noDamage && (
+          {/* Section 2: Device Condition */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">Device Condition</h3>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormRow label="Power Status">
                   <Controller
                     control={control}
-                    name="damageConditionIds"
+                    name="deviceConditionId"
                     render={({ field }) => (
-                      <DamageConditionTagInput
-                        value={field.value || []}
-                        onChange={(ids, conditions) => {
-                          field.onChange(ids);
-                          setSelectedDamageConditions(conditions);
-                        }}
-                        error={errors.damageConditionIds?.message}
-                        placeholder="Type to search or add damage conditions..."
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => field.onChange('on')}
+                          className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                            field.value === 'on'
+                              ? 'bg-purple-600 text-white border-purple-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          On
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => field.onChange('off')}
+                          className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                            field.value === 'off'
+                              ? 'bg-purple-600 text-white border-purple-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Off
+                        </button>
+                      </div>
+                    )}
+                  />
+                </FormRow>
+
+                <div className="md:col-span-2">
+                  <FormRow label="Damage Condition" required={!noDamage} error={errors.damageConditionIds?.message}>
+                    <div className="space-y-2">
+                      <Controller
+                        control={control}
+                        name="noDamage"
+                        render={({ field }) => (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              field.onChange(!field.value);
+                              if (!field.value) {
+                                setValue('damageConditionIds', []);
+                                setSelectedDamageConditions([]);
+                              }
+                            }}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+                              field.value
+                                ? 'bg-green-600 text-white border-green-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            No Damage
+                          </button>
+                        )}
+                      />
+                      {!noDamage && (
+                        <Controller
+                          control={control}
+                          name="damageConditionIds"
+                          render={({ field }) => (
+                            <DamageConditionTagInput
+                              value={field.value || []}
+                              onChange={(ids, conditions) => {
+                                field.onChange(ids);
+                                setSelectedDamageConditions(conditions);
+                              }}
+                              error={errors.damageConditionIds?.message}
+                              placeholder="Type to search or add damage conditions..."
+                            />
+                          )}
+                        />
+                      )}
+                    </div>
+                  </FormRow>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Security & Accessories */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">Security & Accessories</h3>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormRow label="Password/PIN">
+                  <Controller
+                    control={control}
+                    name="devicePassword"
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        placeholder="Device unlock code..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       />
                     )}
                   />
-                )}
-              </div>
-            </FormRow>
-          </div>
+                </FormRow>
 
-          {/* Row 3: Device Password, Pattern Lock, Accessories */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
-            <FormRow label="Password/PIN">
-              <Controller
-                control={control}
-                name="devicePassword"
-                render={({ field }) => (
-                  <input
-                    {...field}
-                    type="text"
-                    placeholder="Device unlock code..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
-                )}
-              />
-            </FormRow>
-
-            <FormRow label="Pattern Lock">
-              <Controller
-                control={control}
-                name="devicePattern"
-                render={({ field }) => (
-                  <PatternLockInput
-                    value={field.value || ''}
-                    onChange={field.onChange}
-                    label=""
-                    showPattern
-                  />
-                )}
-              />
-            </FormRow>
-
-            <FormRow label="Accessories Included">
-              <Controller
-                control={control}
-                name="accessoryIds"
-                render={({ field }) => (
-                  <AccessoryTagInput
-                    value={field.value || []}
-                    onChange={(ids, accessories) => {
-                      field.onChange(ids);
-                      setSelectedAccessories(accessories);
-                    }}
-                    placeholder="Select accessories..."
-                  />
-                )}
-              />
-            </FormRow>
-          </div>
-
-          {/* Row 4: Intake Notes */}
-          <div className="grid grid-cols-1 gap-x-3 gap-y-2">
-            <FormRow label="Intake Notes">
-              <Controller
-                control={control}
-                name="intakeNotes"
-                render={({ field }) => (
-                  <textarea
-                    {...field}
-                    rows={2}
-                    placeholder="Notes about device condition at intake (scratches, dents, etc.)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
-                  />
-                )}
-              />
-            </FormRow>
-          </div>
-
-          {/* Row 5: Estimated Cost, Data Warranty, Notification */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
-            <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
-              <Controller
-                control={control}
-                name="estimatedCost"
-                render={({ field }) => (
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={field.value || ''}
-                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                      placeholder="0"
-                      className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                        errors.estimatedCost ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    />
-                  </div>
-                )}
-              />
-            </FormRow>
-
-            <FormRow label="Data Warranty">
-              <Controller
-                control={control}
-                name="dataWarrantyAccepted"
-                render={({ field }) => (
-                  <label className="flex items-center gap-3 h-[38px] cursor-pointer">
-                    <div
-                      onClick={() => field.onChange(!field.value)}
-                      className={`relative w-11 h-6 rounded-full transition-colors ${
-                        field.value ? 'bg-purple-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          field.value ? 'translate-x-5' : 'translate-x-0'
-                        }`}
+                <FormRow label="Pattern Lock">
+                  <Controller
+                    control={control}
+                    name="devicePattern"
+                    render={({ field }) => (
+                      <PatternLockInput
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        label=""
+                        showPattern
                       />
-                    </div>
-                    <span className="text-sm text-gray-600">Customer accepts data loss risk</span>
-                  </label>
-                )}
-              />
-            </FormRow>
+                    )}
+                  />
+                </FormRow>
 
-            <FormRow label="Customer Notification">
-              <div className="flex items-center gap-6">
-                <Controller
-                  control={control}
-                  name="sendSmsNotification"
-                  render={({ field }) => (
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <div
-                        onClick={() => field.onChange(!field.value)}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                          field.value ? 'bg-purple-600' : 'bg-gray-200'
-                        }`}
-                      >
-                        <div
-                          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                            field.value ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-600">SMS</span>
-                    </label>
-                  )}
-                />
-                <Controller
-                  control={control}
-                  name="sendWhatsappNotification"
-                  render={({ field }) => (
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <div
-                        onClick={() => field.onChange(!field.value)}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                          field.value ? 'bg-green-600' : 'bg-gray-200'
-                        }`}
-                      >
-                        <div
-                          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                            field.value ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-600">WhatsApp</span>
-                    </label>
-                  )}
-                />
+                <FormRow label="Accessories Included">
+                  <Controller
+                    control={control}
+                    name="accessoryIds"
+                    render={({ field }) => (
+                      <AccessoryTagInput
+                        value={field.value || []}
+                        onChange={(ids, accessories) => {
+                          field.onChange(ids);
+                          setSelectedAccessories(accessories);
+                        }}
+                        placeholder="Select accessories..."
+                      />
+                    )}
+                  />
+                </FormRow>
               </div>
-            </FormRow>
+            </div>
           </div>
 
-          {/* Row 6: Device Photos & Cost Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
-            <div className="md:col-span-2">
+          {/* Section 4: Additional Information */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">Additional Information</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <FormRow label="Intake Notes">
+                <Controller
+                  control={control}
+                  name="intakeNotes"
+                  render={({ field }) => (
+                    <textarea
+                      {...field}
+                      rows={2}
+                      placeholder="Notes about device condition at intake (scratches, dents, etc.)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                    />
+                  )}
+                />
+              </FormRow>
+
               <FormRow label="Device Photos">
                 <MultiImageUpload
                   images={selectedImages}
@@ -919,14 +845,116 @@ export default function CreateService() {
                 />
               </FormRow>
             </div>
+          </div>
 
-            {/* Cost Summary */}
-            <div className="flex flex-col justify-end">
+          {/* Section 5: Billing & Notifications */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800">Billing & Notifications</h3>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
+                  <Controller
+                    control={control}
+                    name="estimatedCost"
+                    render={({ field }) => (
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={field.value || ''}
+                          onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          placeholder="0"
+                          className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+                            errors.estimatedCost ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        />
+                      </div>
+                    )}
+                  />
+                </FormRow>
+
+                <FormRow label="Data Warranty">
+                  <Controller
+                    control={control}
+                    name="dataWarrantyAccepted"
+                    render={({ field }) => (
+                      <label className="flex items-center gap-3 h-[38px] cursor-pointer">
+                        <div
+                          onClick={() => field.onChange(!field.value)}
+                          className={`relative w-11 h-6 rounded-full transition-colors ${
+                            field.value ? 'bg-purple-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <div
+                            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                              field.value ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </div>
+                        <span className="text-sm text-gray-600">Customer accepts data loss risk</span>
+                      </label>
+                    )}
+                  />
+                </FormRow>
+
+                <FormRow label="Customer Notification">
+                  <div className="flex items-center gap-6">
+                    <Controller
+                      control={control}
+                      name="sendSmsNotification"
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <div
+                            onClick={() => field.onChange(!field.value)}
+                            className={`relative w-10 h-5 rounded-full transition-colors ${
+                              field.value ? 'bg-purple-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <div
+                              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                                field.value ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </div>
+                          <span className="text-sm text-gray-600">SMS</span>
+                        </label>
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="sendWhatsappNotification"
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <div
+                            onClick={() => field.onChange(!field.value)}
+                            className={`relative w-10 h-5 rounded-full transition-colors ${
+                              field.value ? 'bg-green-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <div
+                              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                                field.value ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </div>
+                          <span className="text-sm text-gray-600">WhatsApp</span>
+                        </label>
+                      )}
+                    />
+                  </div>
+                </FormRow>
+              </div>
+
+              {/* Cost Summary */}
               {(estimatedCost || 0) > 0 && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Estimated Cost:</span>
-                    <span className="font-semibold text-gray-900">₹{estimatedCost || 0}</span>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="flex items-center justify-end gap-4">
+                    <span className="text-sm text-gray-600">Estimated Cost:</span>
+                    <span className="text-xl font-bold text-purple-600">₹{estimatedCost || 0}</span>
                   </div>
                 </div>
               )}
@@ -934,21 +962,23 @@ export default function CreateService() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createServiceMutation.isPending}
-              className="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-purple-400"
-            >
-              {createServiceMutation.isPending ? 'Creating...' : 'Create Service'}
-            </button>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={createServiceMutation.isPending}
+                className="px-6 py-2.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-purple-400 transition-colors shadow-sm"
+              >
+                {createServiceMutation.isPending ? 'Creating...' : 'Create Service'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
