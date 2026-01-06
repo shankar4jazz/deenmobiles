@@ -57,10 +57,10 @@ export default function TableToolbar({
 
   return (
     <div className="px-4 py-3 bg-white border-b border-gray-200">
-      <div className="flex items-start gap-3">
+      <div className="flex items-start justify-between gap-3">
         {children && <div className="flex-1 flex flex-col gap-0">{children}</div>}
         {columnVisibilityDropdown && (
-          <div className="flex-shrink-0">{columnVisibilityDropdown}</div>
+          <div className="flex-shrink-0 ml-auto">{columnVisibilityDropdown}</div>
         )}
       </div>
     </div>
