@@ -15,7 +15,6 @@ interface BookingPersonSummary {
   userName: string;
   serviceCount: number;
   totalRevenue: number;
-  avgPerService: number;
 }
 
 interface TechnicianSummary {
@@ -173,7 +172,6 @@ export class ReportService {
         userName: data.userName,
         serviceCount: data.services.length,
         totalRevenue: data.totalRevenue,
-        avgPerService: data.services.length > 0 ? data.totalRevenue / data.services.length : 0,
       });
     }
 

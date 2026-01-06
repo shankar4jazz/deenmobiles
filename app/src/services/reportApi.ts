@@ -6,7 +6,6 @@ export interface BookingPersonSummary {
   userName: string;
   serviceCount: number;
   totalRevenue: number;
-  avgPerService: number;
 }
 
 export interface TechnicianSummary {
