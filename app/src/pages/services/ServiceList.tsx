@@ -4,13 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { serviceApi, ServiceStatus, DeliveryStatus } from '@/services/serviceApi';
 import { technicianApi } from '@/services/technicianApi';
 import { masterDataApi } from '@/services/masterDataApi';
-import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
+import { technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
 import ServiceTable from './ServiceTable';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag, LayoutGrid, Table2, MoreVertical } from 'lucide-react';
-import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
+import StatsBar from './StatsBar';
+import TableFilters from './TableFilters';
+import { Plus, Eye, Calendar, User, Smartphone, Search, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, LayoutGrid, Table2, MoreVertical } from 'lucide-react';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
@@ -26,16 +27,6 @@ const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.WAITING_PARTS]: 'Waiting Parts',
   [ServiceStatus.READY]: 'Ready',
   [ServiceStatus.NOT_READY]: 'Not Ready',
-};
-
-const DELIVERY_STATUS_COLORS: Record<DeliveryStatus, string> = {
-  [DeliveryStatus.PENDING]: 'bg-orange-100 text-orange-800',
-  [DeliveryStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
-};
-
-const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
-  [DeliveryStatus.PENDING]: 'Delivery Pending',
-  [DeliveryStatus.DELIVERED]: 'Delivered',
 };
 
 export default function ServiceList() {
@@ -65,10 +56,6 @@ export default function ServiceList() {
     faultIds: [] as string[],
   });
 
-  const [showFilters, setShowFilters] = useState(false);
-  const [datePreset, setDatePreset] = useState<'today' | 'yesterday' | 'thisMonth' | 'custom' | ''>('');
-  const [showFaultDropdown, setShowFaultDropdown] = useState(false);
-  const faultDropdownRef = useRef<HTMLDivElement>(null);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [assigningServiceId, setAssigningServiceId] = useState<string | null>(null);
   const [technicianSearch, setTechnicianSearch] = useState('');
@@ -84,22 +71,19 @@ export default function ServiceList() {
         setAssigningServiceId(null);
         setTechnicianSearch('');
       }
-      if (faultDropdownRef.current && !faultDropdownRef.current.contains(event.target as Node)) {
-        setShowFaultDropdown(false);
-      }
       if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
         setActionMenuId(null);
       }
     };
 
-    if (assigningServiceId || showFaultDropdown || actionMenuId) {
+    if (assigningServiceId || actionMenuId) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [assigningServiceId, showFaultDropdown, actionMenuId]);
+  }, [assigningServiceId, actionMenuId]);
 
   // Fetch faults for filter dropdown
   const { data: faultsData } = useQuery({
@@ -109,7 +93,7 @@ export default function ServiceList() {
   });
 
   // Fetch services
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['services', filters],
     queryFn: () => serviceApi.getAllServices({
       ...filters,
@@ -131,7 +115,7 @@ export default function ServiceList() {
         branchId: user?.branchId!,
       }),
     enabled: !!assigningServiceId && !!user?.branchId,
-    staleTime: 2 * 60 * 1000, // 2 minutes - technician data is relatively stable
+    staleTime: 2 * 60 * 1000,
   });
 
   // Delete mutation
@@ -185,24 +169,11 @@ export default function ServiceList() {
     assignMutation.mutate({ serviceId, technicianId });
   };
 
-  const handleSearch = (value: string) => {
-    setFilters({ ...filters, search: value, page: 1 });
-  };
-
-  const handleStatusFilter = (status: ServiceStatus | '') => {
-    setFilters({ ...filters, status, unassigned: false, page: 1 });
-    // Update URL params
-    const newParams = new URLSearchParams();
-    if (status) newParams.set('status', status);
-    setSearchParams(newParams);
-  };
-
   // Handle card click for filtering
   const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'UNDELIVERED' | 'COMPLETED_ALL' | 'REPEATED' | 'ALL') => {
     const newParams = new URLSearchParams();
 
     if (status === 'ALL') {
-      // Clear all filters
       setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: false, repeatedService: false, page: 1 });
     } else if (status === 'UNASSIGNED') {
       newParams.set('unassigned', 'true');
@@ -225,49 +196,11 @@ export default function ServiceList() {
   };
 
   // Check if any filter is active
-  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered || filters.completedAll || filters.repeatedService || filters.faultIds.length > 0 || filters.startDate || filters.endDate;
+  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered || filters.completedAll || filters.repeatedService || filters.faultIds.length > 0 || filters.startDate || filters.endDate || filters.search;
 
-  // Handle date preset selection
-  const handleDatePreset = (preset: 'today' | 'yesterday' | 'thisMonth' | 'custom' | '') => {
-    setDatePreset(preset);
-    const today = new Date();
-
-    if (preset === 'today') {
-      setFilters({
-        ...filters,
-        startDate: format(startOfDay(today), 'yyyy-MM-dd'),
-        endDate: format(endOfDay(today), 'yyyy-MM-dd'),
-        page: 1,
-      });
-    } else if (preset === 'yesterday') {
-      const yesterday = subDays(today, 1);
-      setFilters({
-        ...filters,
-        startDate: format(startOfDay(yesterday), 'yyyy-MM-dd'),
-        endDate: format(endOfDay(yesterday), 'yyyy-MM-dd'),
-        page: 1,
-      });
-    } else if (preset === 'thisMonth') {
-      setFilters({
-        ...filters,
-        startDate: format(startOfMonth(today), 'yyyy-MM-dd'),
-        endDate: format(endOfMonth(today), 'yyyy-MM-dd'),
-        page: 1,
-      });
-    } else if (preset === '' || preset === 'custom') {
-      // Clear date filters or show custom inputs
-      if (preset === '') {
-        setFilters({ ...filters, startDate: '', endDate: '', page: 1 });
-      }
-    }
-  };
-
-  // Handle fault selection toggle
-  const handleFaultToggle = (faultId: string) => {
-    const newFaultIds = filters.faultIds.includes(faultId)
-      ? filters.faultIds.filter(id => id !== faultId)
-      : [...filters.faultIds, faultId];
-    setFilters({ ...filters, faultIds: newFaultIds, page: 1 });
+  // Handle filters change from TableFilters
+  const handleFiltersChange = (newFilters: Partial<typeof filters>) => {
+    setFilters({ ...filters, ...newFilters, page: 1 });
   };
 
   // Clear all filters
@@ -280,10 +213,11 @@ export default function ServiceList() {
       endDate: '',
       unassigned: false,
       undelivered: false,
+      completedAll: false,
+      repeatedService: false,
       faultIds: [],
       page: 1,
     });
-    setDatePreset('');
     setSearchParams(new URLSearchParams());
   };
 
@@ -302,7 +236,7 @@ export default function ServiceList() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Services</h1>
           <p className="text-sm text-gray-500 mt-1">Manage all service requests</p>
@@ -343,375 +277,19 @@ export default function ServiceList() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by ticket number, customer name, phone, device..."
-                value={filters.search}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <select
-            value={filters.status}
-            onChange={(e) => handleStatusFilter(e.target.value as ServiceStatus | '')}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          >
-            <option value="">All Status</option>
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-
-          {/* Fault Filter Dropdown */}
-          <div className="relative" ref={faultDropdownRef}>
-            <button
-              onClick={() => setShowFaultDropdown(!showFaultDropdown)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors ${
-                filters.faultIds.length > 0 ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
-              }`}
-            >
-              <Tag className="w-5 h-5" />
-              Faults
-              {filters.faultIds.length > 0 && (
-                <span className="bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
-                  {filters.faultIds.length}
-                </span>
-              )}
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            {showFaultDropdown && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                <div className="p-2">
-                  {faultsData?.data?.map((fault) => (
-                    <label
-                      key={fault.id}
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 rounded cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filters.faultIds.includes(fault.id)}
-                        onChange={() => handleFaultToggle(fault.id)}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                      />
-                      <span className="text-sm text-gray-700">{fault.name}</span>
-                    </label>
-                  ))}
-                  {(!faultsData?.data || faultsData.data.length === 0) && (
-                    <p className="text-sm text-gray-500 px-3 py-2">No faults available</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Advanced Filters Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors ${
-              showFilters ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
-            }`}
-          >
-            <Filter className="w-5 h-5" />
-            More
-          </button>
-
-          {/* Clear Filters */}
-          {hasActiveFilter && (
-            <button
-              onClick={clearAllFilters}
-              className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-            >
-              <X className="w-5 h-5" />
-              Clear
-            </button>
-          )}
-        </div>
-
-        {/* Date Presets */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-gray-600 mr-2">Date:</span>
-          <button
-            onClick={() => handleDatePreset('today')}
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-              datePreset === 'today' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => handleDatePreset('yesterday')}
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-              datePreset === 'yesterday' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Yesterday
-          </button>
-          <button
-            onClick={() => handleDatePreset('thisMonth')}
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-              datePreset === 'thisMonth' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            This Month
-          </button>
-          <button
-            onClick={() => handleDatePreset('')}
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-              datePreset === '' && !filters.startDate ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All Time
-          </button>
-          <button
-            onClick={() => { setDatePreset('custom'); setShowFilters(true); }}
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-              datePreset === 'custom' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Custom
-          </button>
-        </div>
-
-        {/* Advanced Filters - Custom Date Range */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => {
-                  setFilters({ ...filters, startDate: e.target.value, page: 1 });
-                  setDatePreset('custom');
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => {
-                  setFilters({ ...filters, endDate: e.target.value, page: 1 });
-                  setDatePreset('custom');
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Analytics Cards */}
+      {/* Stats Bar */}
       {data?.stats && (
-        <>
-          {/* Section 1: Service Status */}
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Service Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-              {/* Total */}
-              <div
-                onClick={() => handleCardClick('ALL')}
-                className={`bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  !filters.status && !filters.unassigned && !filters.undelivered && !filters.completedAll && !filters.repeatedService ? 'ring-4 ring-purple-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Total</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.total}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <LayoutList className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Unassigned */}
-              <div
-                onClick={() => handleCardClick('UNASSIGNED')}
-                className={`bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.unassigned ? 'ring-4 ring-gray-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-100 uppercase tracking-wider font-semibold mb-1">Unassigned</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.unassigned}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <UserX className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* In Progress */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.IN_PROGRESS)}
-                className={`bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.IN_PROGRESS ? 'ring-4 ring-blue-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-blue-100 uppercase tracking-wider font-semibold mb-1">In Progress</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.inProgress}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Activity className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Waiting Parts */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
-                className={`bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.WAITING_PARTS ? 'ring-4 ring-orange-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-orange-100 uppercase tracking-wider font-semibold mb-1">Waiting Parts</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.waitingParts}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Package className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Ready (Completed) */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
-                className={`bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.COMPLETED ? 'ring-4 ring-green-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Ready</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <CheckCircle className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Not Ready (Not Serviceable) */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.NOT_SERVICEABLE)}
-                className={`bg-gradient-to-br from-red-400 to-red-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.NOT_SERVICEABLE ? 'ring-4 ring-red-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-red-100 uppercase tracking-wider font-semibold mb-1">Not Ready</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.notServiceable}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <XCircle className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Repeated Service */}
-              <div
-                onClick={() => handleCardClick('REPEATED')}
-                className={`bg-gradient-to-br from-pink-400 to-rose-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.repeatedService ? 'ring-4 ring-pink-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-pink-100 uppercase tracking-wider font-semibold mb-1">Repeated</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.repeatedService}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <RefreshCw className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Delivery Status */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Delivery Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 max-w-md">
-              {/* Delivered */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
-                className={`bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.DELIVERED ? 'ring-4 ring-teal-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-teal-100 uppercase tracking-wider font-semibold mb-1">Delivered</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.delivered}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Truck className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Undelivered */}
-              <div
-                onClick={() => handleCardClick('UNDELIVERED')}
-                className={`bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.undelivered ? 'ring-4 ring-amber-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-amber-100 uppercase tracking-wider font-semibold mb-1">Undelivered</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Clock className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Active Filter Indicator */}
-      {hasActiveFilter && (
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-sm text-gray-600">
-            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : filters.undelivered ? 'Undelivered' : filters.completedAll ? 'Completed' : filters.repeatedService ? 'Repeated' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
-          </span>
-          <button
-            onClick={() => handleCardClick('ALL')}
-            className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
-          >
-            <X className="w-4 h-4" />
-            Clear Filter
-          </button>
-        </div>
+        <StatsBar
+          stats={data.stats}
+          activeFilter={{
+            status: filters.status,
+            unassigned: filters.unassigned,
+            undelivered: filters.undelivered,
+            completedAll: filters.completedAll,
+            repeatedService: filters.repeatedService,
+          }}
+          onFilterClick={handleCardClick}
+        />
       )}
 
       {/* Services Content */}
@@ -721,9 +299,41 @@ export default function ServiceList() {
           isLoading={isLoading}
           pagination={data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 }}
           onPageChange={handlePageChange}
+          toolbarContent={
+            <TableFilters
+              filters={{
+                search: filters.search,
+                status: filters.status,
+                startDate: filters.startDate,
+                endDate: filters.endDate,
+                faultIds: filters.faultIds,
+              }}
+              onFiltersChange={handleFiltersChange}
+              faults={faultsData?.data || []}
+              hasActiveFilter={!!hasActiveFilter}
+              onClear={clearAllFilters}
+            />
+          }
         />
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {/* Card View Filters */}
+          <div className="p-4 border-b border-gray-200">
+            <TableFilters
+              filters={{
+                search: filters.search,
+                status: filters.status,
+                startDate: filters.startDate,
+                endDate: filters.endDate,
+                faultIds: filters.faultIds,
+              }}
+              onFiltersChange={handleFiltersChange}
+              faults={faultsData?.data || []}
+              hasActiveFilter={!!hasActiveFilter}
+              onClear={clearAllFilters}
+            />
+          </div>
+
           {isLoading ? (
             <div className="p-12 text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
@@ -799,7 +409,6 @@ export default function ServiceList() {
                         {/* Column 2: Details */}
                         <td className="px-4 py-4">
                           <div className="space-y-2">
-                            {/* Faults */}
                             {service.faults && service.faults.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {service.faults.slice(0, 3).map((f: any) => (
@@ -819,7 +428,6 @@ export default function ServiceList() {
                             ) : (
                               <span className="text-xs text-gray-400">No faults</span>
                             )}
-                            {/* Estimated Price */}
                             <div className="text-sm text-gray-900">
                               <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
                             </div>
@@ -848,10 +456,8 @@ export default function ServiceList() {
                                   <ChevronDown className="w-3 h-3" />
                                 </button>
 
-                                {/* Technician Dropdown */}
                                 {assigningServiceId === service.id && (
                                   <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                                    {/* Search */}
                                     <div className="p-2 border-b">
                                       <div className="relative">
                                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -866,7 +472,6 @@ export default function ServiceList() {
                                       </div>
                                     </div>
 
-                                    {/* Technician List */}
                                     <div className="max-h-48 overflow-y-auto">
                                       {filteredTechnicians.length === 0 ? (
                                         <div className="p-3 text-center text-sm text-gray-500">
@@ -891,7 +496,6 @@ export default function ServiceList() {
                                       )}
                                     </div>
 
-                                    {/* Close button */}
                                     <div className="p-2 border-t">
                                       <button
                                         onClick={(e) => {
@@ -1019,7 +623,6 @@ export default function ServiceList() {
                         )}
                       </div>
 
-                      {/* Faults */}
                       {service.faults && service.faults.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {service.faults.slice(0, 3).map((f: any) => (
@@ -1040,7 +643,6 @@ export default function ServiceList() {
                         <span className="text-xs text-gray-400">No faults</span>
                       )}
 
-                      {/* Estimated Price */}
                       <div className="text-sm text-gray-900">
                         <span className="text-xs text-gray-500">Est.</span> <span className="font-medium">₹{service.estimatedCost || 0}</span>
                       </div>
@@ -1069,7 +671,6 @@ export default function ServiceList() {
                               <ChevronDown className="w-3 h-3" />
                             </button>
 
-                            {/* Mobile Technician Dropdown */}
                             {assigningServiceId === service.id && (
                               <div className="absolute left-0 bottom-full mb-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                                 <div className="p-2 border-b">

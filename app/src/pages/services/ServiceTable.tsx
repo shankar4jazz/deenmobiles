@@ -21,6 +21,7 @@ interface ServiceTableProps {
     totalPages: number;
   };
   onPageChange: (page: number) => void;
+  toolbarContent?: React.ReactNode;
 }
 
 export default function ServiceTable({
@@ -28,6 +29,7 @@ export default function ServiceTable({
   isLoading,
   pagination,
   onPageChange,
+  toolbarContent,
 }: ServiceTableProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -124,6 +126,7 @@ export default function ServiceTable({
         enableColumnResizing={true}
         columnVisibilityKey="services-table-columns"
         onRowClick={handleView}
+        toolbarContent={toolbarContent}
         emptyState={{
           icon: <Wrench className="h-12 w-12 text-gray-400" />,
           title: 'No services found',
