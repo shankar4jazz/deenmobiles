@@ -763,12 +763,6 @@ export default function ServiceList() {
                               <span className="text-sm font-semibold text-gray-900">
                                 {service.ticketNumber}
                               </span>
-                              {service.isRepeatedService && (
-                                <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
-                                  <RefreshCw className="w-3 h-3" />
-                                  Repeat
-                                </span>
-                              )}
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900">
@@ -781,6 +775,12 @@ export default function ServiceList() {
                             <div className="flex items-center gap-2">
                               <Smartphone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                               <span className="text-xs text-gray-600">{service.deviceModel}</span>
+                              {service.isRepeatedService && (
+                                <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
+                                  <RefreshCw className="w-3 h-3" />
+                                  Repeat
+                                </span>
+                              )}
                             </div>
                             {service.createdBy && (
                               <div className="text-xs text-gray-500">
@@ -983,12 +983,6 @@ export default function ServiceList() {
                         <span className="text-sm font-semibold text-gray-900">
                           {service.ticketNumber}
                         </span>
-                        {service.isRepeatedService && (
-                          <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
-                            <RefreshCw className="w-3 h-3" />
-                            Repeat
-                          </span>
-                        )}
                       </div>
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[service.status]}`}>
                         {STATUS_LABELS[service.status]}
@@ -1011,6 +1005,12 @@ export default function ServiceList() {
                       <div className="flex items-center gap-2">
                         <Smartphone className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600">{service.deviceModel}</span>
+                        {service.isRepeatedService && (
+                          <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded flex items-center gap-0.5">
+                            <RefreshCw className="w-3 h-3" />
+                            Repeat
+                          </span>
+                        )}
                       </div>
 
                       {/* Faults */}
