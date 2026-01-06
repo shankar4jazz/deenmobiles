@@ -16,7 +16,7 @@ import {
   ExternalLink,
   Receipt,
 } from 'lucide-react';
-import { serviceApi, Service, DeliveryStatus, BulkPaymentEntryData } from '@/services/serviceApi';
+import { serviceApi, Service, ServiceStatus, DeliveryStatus, BulkPaymentEntryData } from '@/services/serviceApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { invoiceApi } from '@/services/invoiceApi';
 import { toast } from 'sonner';
@@ -187,11 +187,42 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
 
       return serviceApi.addBulkPaymentEntries(service.id, data);
     },
-    onSuccess: () => {
+    onSuccess: (updatedService) => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       queryClient.invalidateQueries({ queryKey: ['service', service?.id] });
       toast.success(markAsDelivered ? 'Payment collected & delivered' : 'Payment collected');
-      handleClose();
+
+      // Update local service state to reflect delivery - keep modal open for invoice
+      if (markAsDelivered && service) {
+        setService({
+          ...service,
+          deliveryStatus: DeliveryStatus.DELIVERED,
+          paymentEntries: [
+            ...(service.paymentEntries || []),
+            ...Object.values(paymentEntries)
+              .filter((entry) => parseFloat(entry.amount) > 0)
+              .map((entry) => ({
+                id: '',
+                amount: parseFloat(entry.amount),
+                paymentMethodId: entry.paymentMethodId,
+                paymentMethod: { id: entry.paymentMethodId, name: entry.paymentMethodName },
+                createdAt: new Date().toISOString(),
+              })),
+          ],
+        });
+        // Reset payment entries after successful payment
+        if (paymentMethodsData?.data) {
+          const reset: Record<string, PaymentMethodEntry> = {};
+          paymentMethodsData.data.forEach((method) => {
+            reset[method.id] = {
+              paymentMethodId: method.id,
+              paymentMethodName: method.name,
+              amount: '',
+            };
+          });
+          setPaymentEntries(reset);
+        }
+      }
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to collect payment');
@@ -259,6 +290,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
   if (!isOpen) return null;
 
   const isAlreadyDelivered = service?.deliveryStatus === DeliveryStatus.DELIVERED;
+  const canMarkAsDelivered = service?.status === ServiceStatus.READY || service?.status === ServiceStatus.NOT_READY;
   const canCollectPayment = service && !isAlreadyDelivered && (pricingSummary?.balanceDue || 0) > 0;
 
   return (
@@ -346,16 +378,15 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                       Created: {new Date(service.createdAt).toLocaleDateString('en-IN')}
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      handleClose();
-                      navigate(`/services/${service.id}`);
-                    }}
+                  <a
+                    href={`/services/${service.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
                   >
                     <ExternalLink className="h-4 w-4" />
                     View Full Details
-                  </button>
+                  </a>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -511,7 +542,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
               )}
 
               {/* Mark as Delivered */}
-              {!isAlreadyDelivered && (
+              {!isAlreadyDelivered && canMarkAsDelivered && (
                 <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
                   <input
                     type="checkbox"
@@ -522,6 +553,16 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                   <Truck className="h-5 w-5 text-green-600" />
                   <span className="font-medium text-gray-700">Mark as Delivered</span>
                 </label>
+              )}
+
+              {/* Cannot deliver - wrong status */}
+              {!isAlreadyDelivered && !canMarkAsDelivered && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  <span className="text-amber-700 font-medium">
+                    Only Ready or Not Ready services can be marked as delivered
+                  </span>
+                </div>
               )}
 
               {isAlreadyDelivered && (
@@ -569,7 +610,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
               >
                 Close
               </button>
-              {!isAlreadyDelivered && (
+              {!isAlreadyDelivered && canMarkAsDelivered && (
                 <button
                   onClick={handleCollectPayment}
                   disabled={paymentMutation.isPending}
