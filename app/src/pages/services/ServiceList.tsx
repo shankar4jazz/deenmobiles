@@ -7,7 +7,7 @@ import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList } from 'lucide-react';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
@@ -281,38 +281,38 @@ export default function ServiceList() {
       {/* Analytics Cards */}
       {data?.stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-          {/* Pending */}
+          {/* Total */}
           <div
-            onClick={() => handleCardClick(ServiceStatus.PENDING)}
-            className={`bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-              filters.status === ServiceStatus.PENDING ? 'ring-4 ring-yellow-300 ring-offset-2' : ''
+            onClick={() => handleCardClick('ALL')}
+            className={`bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              !filters.status && !filters.unassigned ? 'ring-4 ring-purple-300 ring-offset-2' : ''
             }`}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-yellow-100 uppercase tracking-wider font-semibold mb-1">Pending</p>
-                <p className="text-3xl font-bold text-white">{data.stats.pending}</p>
+                <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Total</p>
+                <p className="text-3xl font-bold text-white">{data.stats.total}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                <Clock className="w-7 h-7 text-white" />
+                <LayoutList className="w-7 h-7 text-white" />
               </div>
             </div>
           </div>
 
-          {/* Waiting Parts */}
+          {/* Unassigned */}
           <div
-            onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
-            className={`bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-              filters.status === ServiceStatus.WAITING_PARTS ? 'ring-4 ring-orange-300 ring-offset-2' : ''
+            onClick={() => handleCardClick('UNASSIGNED')}
+            className={`bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.unassigned ? 'ring-4 ring-gray-300 ring-offset-2' : ''
             }`}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-orange-100 uppercase tracking-wider font-semibold mb-1">Waiting Parts</p>
-                <p className="text-3xl font-bold text-white">{data.stats.waitingParts}</p>
+                <p className="text-xs text-gray-100 uppercase tracking-wider font-semibold mb-1">Unassigned</p>
+                <p className="text-3xl font-bold text-white">{data.stats.unassigned}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                <Package className="w-7 h-7 text-white" />
+                <UserX className="w-7 h-7 text-white" />
               </div>
             </div>
           </div>
@@ -335,7 +335,25 @@ export default function ServiceList() {
             </div>
           </div>
 
-          {/* Completed */}
+          {/* Waiting Parts */}
+          <div
+            onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
+            className={`bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.WAITING_PARTS ? 'ring-4 ring-orange-300 ring-offset-2' : ''
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-orange-100 uppercase tracking-wider font-semibold mb-1">Waiting Parts</p>
+                <p className="text-3xl font-bold text-white">{data.stats.waitingParts}</p>
+              </div>
+              <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                <Package className="w-7 h-7 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Ready (Completed) */}
           <div
             onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
             className={`bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
@@ -344,7 +362,7 @@ export default function ServiceList() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Completed</p>
+                <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Ready</p>
                 <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
@@ -353,38 +371,20 @@ export default function ServiceList() {
             </div>
           </div>
 
-          {/* Delivered */}
+          {/* Not Ready (Not Serviceable) */}
           <div
-            onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
-            className={`bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-              filters.status === ServiceStatus.DELIVERED ? 'ring-4 ring-purple-300 ring-offset-2' : ''
+            onClick={() => handleCardClick(ServiceStatus.NOT_SERVICEABLE)}
+            className={`bg-gradient-to-br from-red-400 to-red-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.NOT_SERVICEABLE ? 'ring-4 ring-red-300 ring-offset-2' : ''
             }`}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Delivered</p>
-                <p className="text-3xl font-bold text-white">{data.stats.delivered}</p>
+                <p className="text-xs text-red-100 uppercase tracking-wider font-semibold mb-1">Not Ready</p>
+                <p className="text-3xl font-bold text-white">{data.stats.notServiceable}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                <Truck className="w-7 h-7 text-white" />
-              </div>
-            </div>
-          </div>
-
-          {/* Unassigned */}
-          <div
-            onClick={() => handleCardClick('UNASSIGNED')}
-            className={`bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-              filters.unassigned ? 'ring-4 ring-gray-300 ring-offset-2' : ''
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-100 uppercase tracking-wider font-semibold mb-1">Unassigned</p>
-                <p className="text-3xl font-bold text-white">{data.stats.unassigned}</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                <UserX className="w-7 h-7 text-white" />
+                <XCircle className="w-7 h-7 text-white" />
               </div>
             </div>
           </div>
