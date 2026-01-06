@@ -447,7 +447,9 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                       <div className="text-center py-4 text-gray-500 text-sm">Loading...</div>
                     ) : (
                       <div className="space-y-2">
-                        {paymentMethodsData?.data.map((method) => (
+                        {paymentMethodsData?.data
+                          .filter((method) => ['Cash', 'UPI', 'Card'].includes(method.name))
+                          .map((method) => (
                           <div key={method.id} className="flex items-center justify-between">
                             <span className="text-sm text-gray-600">{method.name}</span>
                             <div className="relative w-28">
