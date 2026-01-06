@@ -8,7 +8,7 @@ import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, Tag } from 'lucide-react';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -473,165 +473,142 @@ export default function ServiceList() {
         )}
       </div>
 
-      {/* Analytics Cards */}
+      {/* Analytics Cards - Single Row */}
       {data?.stats && (
-        <>
-          {/* Section 1: Service Status */}
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Service Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {/* Total */}
-              <div
-                onClick={() => handleCardClick('ALL')}
-                className={`bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  !filters.status && !filters.unassigned && !filters.undelivered && !filters.completedAll ? 'ring-4 ring-purple-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Total</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.pending + data.stats.inProgress + data.stats.waitingParts + data.stats.completed}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <LayoutList className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
+        <div className="mb-6 overflow-x-auto">
+          <div className="flex gap-3 min-w-max pb-2">
+            {/* Total */}
+            <div
+              onClick={() => handleCardClick('ALL')}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                !filters.status && !filters.unassigned && !filters.undelivered && !filters.completedAll
+                  ? 'border-purple-500 shadow-lg shadow-purple-100'
+                  : 'border-gray-100 hover:border-purple-200'
+              }`}
+            >
+              <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute right-2 top-8 w-3 h-3 rounded-full bg-purple-400 opacity-40" />
+              <p className="text-xs text-gray-500 font-medium mb-1">Total</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.pending + data.stats.inProgress + data.stats.waitingParts + data.stats.completed}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" />
+            </div>
 
-              {/* Unassigned */}
-              <div
-                onClick={() => handleCardClick('UNASSIGNED')}
-                className={`bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.unassigned ? 'ring-4 ring-gray-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-100 uppercase tracking-wider font-semibold mb-1">Unassigned</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.unassigned}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <UserX className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
+            {/* Unassigned */}
+            <div
+              onClick={() => handleCardClick('UNASSIGNED')}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                filters.unassigned
+                  ? 'border-slate-500 shadow-lg shadow-slate-100'
+                  : 'border-gray-100 hover:border-slate-200'
+              }`}
+            >
+              <div className="absolute -right-2 -top-2 w-12 h-12 rounded-lg rotate-45 bg-gradient-to-br from-slate-400 to-slate-600 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute right-4 top-10 w-2 h-2 rounded-full bg-slate-400 opacity-40" />
+              <p className="text-xs text-gray-500 font-medium mb-1">Unassigned</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.unassigned}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-slate-400 to-slate-600 rounded-full" />
+            </div>
 
-              {/* In Progress */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.IN_PROGRESS)}
-                className={`bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.IN_PROGRESS ? 'ring-4 ring-blue-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-blue-100 uppercase tracking-wider font-semibold mb-1">In Progress</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.inProgress}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Activity className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
+            {/* In Progress */}
+            <div
+              onClick={() => handleCardClick(ServiceStatus.IN_PROGRESS)}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                filters.status === ServiceStatus.IN_PROGRESS
+                  ? 'border-blue-500 shadow-lg shadow-blue-100'
+                  : 'border-gray-100 hover:border-blue-200'
+              }`}
+            >
+              <div className="absolute -right-3 -top-3 w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute right-6 top-6 w-4 h-4 rounded-full border-2 border-blue-400 opacity-40" />
+              <p className="text-xs text-gray-500 font-medium mb-1">In Progress</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.inProgress}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full" />
+            </div>
 
-              {/* Waiting Parts */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
-                className={`bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.WAITING_PARTS ? 'ring-4 ring-orange-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-orange-100 uppercase tracking-wider font-semibold mb-1">Waiting Parts</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.waitingParts}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Package className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
+            {/* Waiting Parts */}
+            <div
+              onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                filters.status === ServiceStatus.WAITING_PARTS
+                  ? 'border-orange-500 shadow-lg shadow-orange-100'
+                  : 'border-gray-100 hover:border-orange-200'
+              }`}
+            >
+              <div className="absolute -right-2 -top-4 w-10 h-16 rounded-full bg-gradient-to-b from-orange-400 to-amber-500 opacity-20 group-hover:opacity-30 transition-opacity transform rotate-12" />
+              <div className="absolute right-3 top-8 w-2 h-6 rounded-full bg-orange-400 opacity-30" />
+              <p className="text-xs text-gray-500 font-medium mb-1">Waiting Parts</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.waitingParts}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full" />
+            </div>
 
-              {/* Ready (Completed) */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
-                className={`bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.COMPLETED ? 'ring-4 ring-green-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Ready</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <CheckCircle className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
+            {/* Ready */}
+            <div
+              onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                filters.status === ServiceStatus.COMPLETED
+                  ? 'border-emerald-500 shadow-lg shadow-emerald-100'
+                  : 'border-gray-100 hover:border-emerald-200'
+              }`}
+            >
+              <div className="absolute -right-3 -top-3 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute right-5 top-5 w-4 h-4 rounded-full bg-emerald-400 opacity-50" />
+              <p className="text-xs text-gray-500 font-medium mb-1">Ready</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.completed}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full" />
+            </div>
 
-              {/* Not Ready (Not Serviceable) */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.NOT_SERVICEABLE)}
-                className={`bg-gradient-to-br from-red-400 to-red-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.NOT_SERVICEABLE ? 'ring-4 ring-red-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-red-100 uppercase tracking-wider font-semibold mb-1">Not Ready</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.notServiceable}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <XCircle className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
+            {/* Not Ready */}
+            <div
+              onClick={() => handleCardClick(ServiceStatus.NOT_SERVICEABLE)}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                filters.status === ServiceStatus.NOT_SERVICEABLE
+                  ? 'border-rose-500 shadow-lg shadow-rose-100'
+                  : 'border-gray-100 hover:border-rose-200'
+              }`}
+            >
+              <div className="absolute -right-2 -top-2 w-12 h-12 rotate-45 bg-gradient-to-br from-rose-400 to-red-500 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute right-4 top-8 w-3 h-3 rotate-45 bg-rose-400 opacity-40" />
+              <p className="text-xs text-gray-500 font-medium mb-1">Not Ready</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.notServiceable}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-rose-400 to-red-500 rounded-full" />
+            </div>
+
+            {/* Divider */}
+            <div className="w-px bg-gray-200 mx-1 self-stretch" />
+
+            {/* Delivered */}
+            <div
+              onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                filters.status === ServiceStatus.DELIVERED
+                  ? 'border-teal-500 shadow-lg shadow-teal-100'
+                  : 'border-gray-100 hover:border-teal-200'
+              }`}
+            >
+              <div className="absolute -right-4 -top-2 w-16 h-12 rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute right-2 top-6 w-3 h-3 rounded-full bg-teal-400 opacity-50" />
+              <p className="text-xs text-gray-500 font-medium mb-1">Delivered</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.delivered}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-teal-400 to-cyan-500 rounded-full" />
+            </div>
+
+            {/* Undelivered */}
+            <div
+              onClick={() => handleCardClick('UNDELIVERED')}
+              className={`relative overflow-hidden bg-white border-2 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+                filters.undelivered
+                  ? 'border-amber-500 shadow-lg shadow-amber-100'
+                  : 'border-gray-100 hover:border-amber-200'
+              }`}
+            >
+              <div className="absolute -right-3 -top-3 w-14 h-14 rounded-full border-4 border-amber-400 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute right-4 top-4 w-4 h-4 rounded-full bg-amber-400 opacity-40" />
+              <p className="text-xs text-gray-500 font-medium mb-1">Undelivered</p>
+              <p className="text-2xl font-bold text-gray-800">{data.stats.completed}</p>
+              <div className="mt-2 h-1 w-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full" />
             </div>
           </div>
-
-          {/* Section 2: Delivery Status */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Delivery Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 max-w-md">
-              {/* Delivered */}
-              <div
-                onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
-                className={`bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.status === ServiceStatus.DELIVERED ? 'ring-4 ring-teal-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-teal-100 uppercase tracking-wider font-semibold mb-1">Delivered</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.delivered}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Truck className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Undelivered */}
-              <div
-                onClick={() => handleCardClick('UNDELIVERED')}
-                className={`bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  filters.undelivered ? 'ring-4 ring-amber-300 ring-offset-2' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-amber-100 uppercase tracking-wider font-semibold mb-1">Undelivered</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                    <Clock className="w-7 h-7 text-white" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
+        </div>
       )}
 
       {/* Active Filter Indicator */}
