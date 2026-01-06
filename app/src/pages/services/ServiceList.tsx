@@ -525,7 +525,7 @@ export default function ServiceList() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Total</p>
-                    <p className="text-3xl font-bold text-white">{data.stats.pending + data.stats.inProgress + data.stats.waitingParts + data.stats.completed}</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.total}</p>
                   </div>
                   <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
                     <LayoutList className="w-7 h-7 text-white" />
