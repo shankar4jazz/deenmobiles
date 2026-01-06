@@ -1,7 +1,7 @@
 import { useState, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, ChevronDown, Search, Calculator, Truck } from 'lucide-react';
+import { LogOut, User, ChevronDown, Search, Calculator, Truck, Plus } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import DeliveryModal from '@/components/services/DeliveryModal';
 
@@ -29,7 +29,16 @@ export default function BranchTopBar() {
       <div className="bg-white border-b border-gray-200">
         <div className="flex items-center justify-between px-6 py-3">
         {/* Left Side Actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {/* New Service Button */}
+          <button
+            onClick={() => navigate('/services/new')}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">New Service</span>
+          </button>
+
           {/* Delivery Button */}
           <button
             onClick={() => setShowDeliveryModal(true)}
