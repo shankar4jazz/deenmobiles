@@ -597,4 +597,29 @@ export class ServiceController {
 
     return ApiResponse.success(res, result, 'Refund processed successfully');
   });
+
+  /**
+   * POST /api/v1/services/:id/faults
+   * Add a fault to an existing service
+   */
+  static addFaultToService = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { faultId, price } = req.body;
+    const companyId = req.user!.companyId;
+    const userId = req.user!.userId;
+
+    if (!faultId) {
+      throw new AppError(400, 'Fault ID is required');
+    }
+
+    const result = await ServiceService.addFaultToService(
+      id,
+      faultId,
+      price,
+      userId,
+      companyId
+    );
+
+    return ApiResponse.success(res, result, 'Fault added successfully');
+  });
 }

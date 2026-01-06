@@ -3538,4 +3538,136 @@ export class ServiceService {
       throw error instanceof AppError ? error : new AppError(500, 'Failed to process refund');
     }
   }
+
+  /**
+   * Add a fault to an existing service with price
+   * Updates the estimated cost when fault is added
+   */
+  static async addFaultToService(
+    serviceId: string,
+    faultId: string,
+    price: number | undefined,
+    userId: string,
+    companyId: string
+  ) {
+    try {
+      // Get the service
+      const service = await prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          companyId,
+        },
+        include: {
+          faults: {
+            select: {
+              faultId: true,
+            },
+          },
+        },
+      });
+
+      if (!service) {
+        throw new AppError(404, 'Service not found');
+      }
+
+      // Check if service is delivered - block adding faults
+      if (service.status === ServiceStatus.DELIVERED) {
+        throw new AppError(400, 'Cannot add faults to a delivered service');
+      }
+
+      // Check if fault already exists on service
+      const existingFault = service.faults.find((f) => f.faultId === faultId);
+      if (existingFault) {
+        throw new AppError(400, 'This fault is already added to the service');
+      }
+
+      // Verify fault exists and is active
+      const fault = await prisma.fault.findFirst({
+        where: {
+          id: faultId,
+          companyId,
+          isActive: true,
+        },
+      });
+
+      if (!fault) {
+        throw new AppError(404, 'Fault not found or inactive');
+      }
+
+      // Determine the price to add
+      const faultPrice = price !== undefined ? price : fault.defaultPrice;
+
+      // Validate price
+      if (faultPrice < 0) {
+        throw new AppError(400, 'Price cannot be negative');
+      }
+
+      // Add fault and update estimated cost in a transaction
+      const updatedService = await prisma.$transaction(async (tx) => {
+        // Create FaultOnService record
+        await tx.faultOnService.create({
+          data: {
+            serviceId,
+            faultId,
+          },
+        });
+
+        // Update estimated cost
+        const newEstimatedCost = (service.estimatedCost || 0) + faultPrice;
+        await tx.service.update({
+          where: { id: serviceId },
+          data: {
+            estimatedCost: newEstimatedCost,
+          },
+        });
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            userId,
+            action: 'UPDATE',
+            entity: 'service',
+            entityId: serviceId,
+            details: JSON.stringify({
+              action: 'added_fault',
+              faultId,
+              faultName: fault.name,
+              price: faultPrice,
+              newEstimatedCost,
+            }),
+          },
+        });
+
+        return tx.service.findFirst({
+          where: { id: serviceId },
+          include: {
+            faults: {
+              include: {
+                fault: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    defaultPrice: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+      });
+
+      Logger.info('Fault added to service successfully', {
+        serviceId,
+        faultId,
+        faultName: fault.name,
+        price: faultPrice,
+      });
+
+      return updatedService;
+    } catch (error) {
+      Logger.error('Error adding fault to service', { error, serviceId, faultId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to add fault to service');
+    }
+  }
 }

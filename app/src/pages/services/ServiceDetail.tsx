@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
+import { masterDataApi } from '@/services/masterDataApi';
 import { serviceKeys } from '@/lib/queryKeys';
 import { warrantyApi, WarrantyRecord, getWarrantyStatusColor, formatWarrantyDays } from '@/services/warrantyApi';
 import { useAuthStore } from '@/store/authStore';
@@ -65,6 +66,12 @@ export default function ServiceDetail() {
   const [discountValue, setDiscountValue] = useState('');
   const [showRefundModal, setShowRefundModal] = useState(false);
 
+  // Add fault state
+  const [showAddFault, setShowAddFault] = useState(false);
+  const [selectedFaultId, setSelectedFaultId] = useState('');
+  const [faultPrice, setFaultPrice] = useState('');
+  const addFaultDropdownRef = useRef<HTMLDivElement>(null);
+
   // Photo viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<{ id: string; imageUrl: string; caption?: string }[]>([]);
@@ -84,6 +91,56 @@ export default function ServiceDetail() {
     queryFn: () => warrantyApi.getServiceWarranties(id!),
     enabled: !!id && service?.status === ServiceStatus.DELIVERED,
   });
+
+  // Fetch all faults for add fault dropdown
+  const { data: faultsData } = useQuery({
+    queryKey: ['faults-list'],
+    queryFn: () => masterDataApi.faults.getAll({ limit: 100 }),
+    enabled: showAddFault,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Filter out faults already on this service
+  const availableFaults = useMemo(() => {
+    if (!faultsData?.data || !service?.faults) return [];
+    const existingFaultIds = service.faults.map((f: any) => f.fault?.id || f.faultId);
+    return faultsData.data.filter((fault: any) => !existingFaultIds.includes(fault.id));
+  }, [faultsData?.data, service?.faults]);
+
+  // Add fault mutation
+  const addFaultMutation = useMutation({
+    mutationFn: ({ faultId, price }: { faultId: string; price?: number }) =>
+      serviceApi.addFaultToService(id!, faultId, price),
+    onSuccess: () => {
+      toast.success('Fault added successfully');
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(id!) });
+      setShowAddFault(false);
+      setSelectedFaultId('');
+      setFaultPrice('');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to add fault');
+    },
+  });
+
+  // Handle fault selection
+  const handleFaultSelect = (faultId: string) => {
+    setSelectedFaultId(faultId);
+    const fault = faultsData?.data?.find((f: any) => f.id === faultId);
+    if (fault) {
+      setFaultPrice(fault.defaultPrice?.toString() || '0');
+    }
+  };
+
+  // Handle add fault submit
+  const handleAddFaultSubmit = () => {
+    if (!selectedFaultId) {
+      toast.error('Please select a fault');
+      return;
+    }
+    const price = faultPrice ? parseFloat(faultPrice) : undefined;
+    addFaultMutation.mutate({ faultId: selectedFaultId, price });
+  };
 
   // Calculate pricing summary for payment modal
   const pricingSummary = useMemo(() => {
@@ -501,7 +558,76 @@ export default function ServiceDetail() {
 
           {/* Reported Faults */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Reported Faults</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Reported Faults</h3>
+              {service.status !== ServiceStatus.DELIVERED && (
+                <div className="relative" ref={addFaultDropdownRef}>
+                  <button
+                    onClick={() => setShowAddFault(!showAddFault)}
+                    className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Fault
+                  </button>
+
+                  {/* Add Fault Dropdown */}
+                  {showAddFault && (
+                    <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Fault</label>
+                          <select
+                            value={selectedFaultId}
+                            onChange={(e) => handleFaultSelect(e.target.value)}
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                          >
+                            <option value="">Select fault...</option>
+                            {availableFaults.map((fault: any) => (
+                              <option key={fault.id} value={fault.id}>
+                                {fault.name} - ₹{fault.defaultPrice || 0}
+                              </option>
+                            ))}
+                          </select>
+                          {availableFaults.length === 0 && (
+                            <p className="text-xs text-gray-500 mt-1">All faults already added</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Price (₹)</label>
+                          <input
+                            type="number"
+                            value={faultPrice}
+                            onChange={(e) => setFaultPrice(e.target.value)}
+                            placeholder="0"
+                            min="0"
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setShowAddFault(false);
+                              setSelectedFaultId('');
+                              setFaultPrice('');
+                            }}
+                            className="flex-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleAddFaultSubmit}
+                            disabled={!selectedFaultId || addFaultMutation.isPending}
+                            className="flex-1 px-3 py-1.5 text-sm text-white bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
+                          >
+                            {addFaultMutation.isPending ? 'Adding...' : 'Add Fault'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {service.faults && service.faults.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {service.faults.map((f: any) => {

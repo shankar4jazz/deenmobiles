@@ -746,4 +746,19 @@ export const serviceApi = {
     const response = await api.post(`/services/${serviceId}/refund`, data);
     return response.data.data;
   },
+
+  /**
+   * Add a fault to an existing service
+   */
+  addFaultToService: async (
+    serviceId: string,
+    faultId: string,
+    price?: number
+  ): Promise<Service> => {
+    const response = await api.post(`/services/${serviceId}/faults`, {
+      faultId,
+      price,
+    });
+    return response.data.data;
+  },
 };

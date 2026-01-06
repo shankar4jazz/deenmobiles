@@ -618,6 +618,23 @@ router.post(
   ServiceController.processRefund
 );
 
+/**
+ * @route   POST /api/v1/services/:id/faults
+ * @desc    Add a fault to an existing service
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.post(
+  '/:id/faults',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.addFaultToService
+);
+
 export default router;
 
 // Route update
