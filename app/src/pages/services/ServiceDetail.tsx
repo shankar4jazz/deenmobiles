@@ -345,7 +345,16 @@ export default function ServiceDetail() {
   const allDeviceImages = service.deviceImages || [];
 
   return (
-    <div className="p-4 max-w-7xl mx-auto">
+    <div className="p-4 max-w-7xl mx-auto relative">
+      {/* Watermark for Repeated Service */}
+      {service.isRepeatedService && (
+        <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden">
+          <span className="text-7xl font-bold text-red-500/10 -rotate-[30deg] whitespace-nowrap select-none tracking-wider">
+            REPEATED SERVICE
+          </span>
+        </div>
+      )}
+
       {/* Header - Compact */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">

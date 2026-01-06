@@ -614,13 +614,36 @@ export class PDFGenerationService {
   }
 
   /**
+   * Helper: Add "REPEATED SERVICE" watermark for repeated services
+   */
+  private addRepeatedServiceWatermark(doc: PDFKit.PDFDocument, pageWidth: number, pageHeight: number): void {
+    doc.save();
+    doc.rotate(-45, { origin: [pageWidth / 2, pageHeight / 2] });
+    doc.fontSize(50)
+       .fillColor('#ef4444')
+       .opacity(0.12)
+       .text('REPEATED SERVICE', 0, pageHeight / 2 - 25, {
+         width: pageWidth * 1.5,
+         align: 'center'
+       });
+    doc.restore();
+    doc.opacity(1); // Reset opacity for subsequent content
+  }
+
+  /**
    * A4 Customer Copy - Single Page Compact Layout
    */
   private addJobSheetA4CustomerFull(doc: PDFKit.PDFDocument, data: JobSheetData): void {
     const margin = 30;
     const pageWidth = 595;
+    const pageHeight = 842;
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
+
+    // Add watermark for repeated services
+    if (data.service.isRepeatedService) {
+      this.addRepeatedServiceWatermark(doc, pageWidth, pageHeight);
+    }
 
     // Colors
     const primaryColor = '#0d9488';
@@ -997,8 +1020,14 @@ export class PDFGenerationService {
   private addJobSheetA4OfficeFull(doc: PDFKit.PDFDocument, data: JobSheetData): void {
     const margin = 30;
     const pageWidth = 595;
+    const pageHeight = 842;
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
+
+    // Add watermark for repeated services
+    if (data.service.isRepeatedService) {
+      this.addRepeatedServiceWatermark(doc, pageWidth, pageHeight);
+    }
 
     let yPos = 30;
 
@@ -1641,8 +1670,14 @@ export class PDFGenerationService {
   private addJobSheetA5Customer(doc: PDFKit.PDFDocument, data: JobSheetData): void {
     const margin = 20;
     const pageWidth = 420;
+    const pageHeight = 595;
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
+
+    // Add watermark for repeated services
+    if (data.service.isRepeatedService) {
+      this.addRepeatedServiceWatermark(doc, pageWidth, pageHeight);
+    }
 
     let yPos = 15;
 
@@ -1817,8 +1852,14 @@ export class PDFGenerationService {
   private addJobSheetA5Office(doc: PDFKit.PDFDocument, data: JobSheetData): void {
     const margin = 20;
     const pageWidth = 420;
+    const pageHeight = 595;
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
+
+    // Add watermark for repeated services
+    if (data.service.isRepeatedService) {
+      this.addRepeatedServiceWatermark(doc, pageWidth, pageHeight);
+    }
 
     let yPos = 20;
 
@@ -1924,8 +1965,24 @@ export class PDFGenerationService {
     const is2Inch = pageFormat.toLowerCase() === 'thermal-2';
     const margin = is2Inch ? 5 : 8;
     const pageWidth = is2Inch ? 144 : 216;
+    const pageHeight = 400; // Estimated for thermal receipt watermark
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
+
+    // Add watermark for repeated services (smaller for thermal)
+    if (data.service.isRepeatedService) {
+      doc.save();
+      doc.rotate(-45, { origin: [pageWidth / 2, pageHeight / 2] });
+      doc.fontSize(is2Inch ? 14 : 18)
+         .fillColor('#ef4444')
+         .opacity(0.15)
+         .text('REPEATED', 0, pageHeight / 2 - 10, {
+           width: pageWidth * 1.5,
+           align: 'center'
+         });
+      doc.restore();
+      doc.opacity(1);
+    }
 
     let yPos = 8;
 
@@ -2094,8 +2151,24 @@ export class PDFGenerationService {
     const is2Inch = pageFormat.toLowerCase() === 'thermal-2';
     const margin = is2Inch ? 5 : 8;
     const pageWidth = is2Inch ? 144 : 216;
+    const pageHeight = 400; // Estimated for thermal receipt watermark
     const contentWidth = pageWidth - (margin * 2);
     const totals = this.calculateTotals(data);
+
+    // Add watermark for repeated services (smaller for thermal)
+    if (data.service.isRepeatedService) {
+      doc.save();
+      doc.rotate(-45, { origin: [pageWidth / 2, pageHeight / 2] });
+      doc.fontSize(is2Inch ? 14 : 18)
+         .fillColor('#ef4444')
+         .opacity(0.15)
+         .text('REPEATED', 0, pageHeight / 2 - 10, {
+           width: pageWidth * 1.5,
+           align: 'center'
+         });
+      doc.restore();
+      doc.opacity(1);
+    }
 
     let yPos = 10;
 
