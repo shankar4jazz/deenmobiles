@@ -188,6 +188,12 @@ export default function CreateService() {
           if (info.hasFaultMatch && info.matchingFaultIds.length > 0) {
             setIsWarrantyRepair(true);
             setWarrantyReason('SAME_FAULT');
+            // Set estimated cost to 0 for matching faults (warranty repair)
+            const matchingSet = new Set(info.matchingFaultIds);
+            const nonMatchingTotal = selectedFaults
+              .filter(f => !matchingSet.has(f.id))
+              .reduce((sum, f) => sum + (f.defaultPrice || 0), 0);
+            setValue('estimatedCost', nonMatchingTotal);
           } else {
             setIsWarrantyRepair(false);
             setWarrantyReason('');
