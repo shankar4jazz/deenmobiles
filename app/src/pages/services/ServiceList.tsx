@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
 import ServiceTable from './ServiceTable';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag, LayoutGrid, Table2 } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag, LayoutGrid, Table2, MoreVertical } from 'lucide-react';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -68,6 +68,8 @@ export default function ServiceList() {
   const [technicianSearch, setTechnicianSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<'card' | 'table'>('table');
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -79,16 +81,19 @@ export default function ServiceList() {
       if (faultDropdownRef.current && !faultDropdownRef.current.contains(event.target as Node)) {
         setShowFaultDropdown(false);
       }
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setActionMenuId(null);
+      }
     };
 
-    if (assigningServiceId || showFaultDropdown) {
+    if (assigningServiceId || showFaultDropdown || actionMenuId) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [assigningServiceId, showFaultDropdown]);
+  }, [assigningServiceId, showFaultDropdown, actionMenuId]);
 
   // Fetch faults for filter dropdown
   const { data: faultsData } = useQuery({
@@ -903,41 +908,57 @@ export default function ServiceList() {
                         </td>
 
                         {/* Column 4: Actions */}
-                        <td className="px-4 py-4">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* View */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/services/${service.id}`);
-                              }}
-                              className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                              title="View details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-
-                            {/* Edit */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingServiceId(service.id);
-                              }}
-                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                              title="Edit service"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-
-                            {/* Delete */}
-                            <button
-                              onClick={(e) => handleDelete(e, service.id, service.ticketNumber)}
-                              disabled={deleteMutation.isPending}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Delete service"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                        <td className="px-2 py-4">
+                          <div className="flex items-center justify-end" ref={actionMenuId === service.id ? actionMenuRef : null}>
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionMenuId(actionMenuId === service.id ? null : service.id);
+                                }}
+                                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                                title="Actions"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                              {actionMenuId === service.id && (
+                                <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/services/${service.id}`);
+                                      setActionMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <Eye className="w-4 h-4 text-purple-600" />
+                                    View
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingServiceId(service.id);
+                                      setActionMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <Edit2 className="w-4 h-4 text-orange-600" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      handleDelete(e, service.id, service.ticketNumber);
+                                      setActionMenuId(null);
+                                    }}
+                                    disabled={deleteMutation.isPending}
+                                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1095,29 +1116,52 @@ export default function ServiceList() {
                       </div>
 
                       {/* Mobile Action Buttons */}
-                      <div className="flex items-center gap-1">
+                      <div className="relative" ref={actionMenuId === `mobile-${service.id}` ? actionMenuRef : null}>
                         <button
-                          onClick={() => navigate(`/services/${service.id}`)}
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="View"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActionMenuId(actionMenuId === `mobile-${service.id}` ? null : `mobile-${service.id}`);
+                          }}
+                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Actions"
                         >
-                          <Eye className="w-4 h-4" />
+                          <MoreVertical className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => setEditingServiceId(service.id)}
-                          className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDelete(e, service.id, service.ticketNumber)}
-                          disabled={deleteMutation.isPending}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {actionMenuId === `mobile-${service.id}` && (
+                          <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                            <button
+                              onClick={() => {
+                                navigate(`/services/${service.id}`);
+                                setActionMenuId(null);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Eye className="w-4 h-4 text-purple-600" />
+                              View
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingServiceId(service.id);
+                                setActionMenuId(null);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Edit2 className="w-4 h-4 text-orange-600" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                handleDelete(e, service.id, service.ticketNumber);
+                                setActionMenuId(null);
+                              }}
+                              disabled={deleteMutation.isPending}
+                              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
