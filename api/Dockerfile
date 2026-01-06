@@ -2,7 +2,7 @@
 FROM node:20-slim AS builder
 
 # Install OpenSSL and other dependencies for Prisma
-RUN apt-get update -y && apt-get install -y openssl libssl-dev
+RUN apt-get update -y && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
+# Install ALL dependencies (including devDependencies for build)
 RUN npm ci
 
 # Generate Prisma client
@@ -21,6 +21,9 @@ COPY . .
 
 # Build TypeScript
 RUN npm run build
+
+# Remove devDependencies to keep only production deps
+RUN npm prune --omit=dev
 
 # Production stage
 FROM node:20-slim AS production
@@ -34,17 +37,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install production dependencies only
-RUN npm ci --only=production
-
-# Generate Prisma client for production
-RUN npx prisma generate
+# Copy production node_modules from builder (avoids running npm ci again - fixes OOM)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Create uploads directory
-RUN mkdir -p public/uploads
+# Copy fonts directory for rupee symbol support in PDFs
+COPY public/fonts ./public/fonts
+
+# Create uploads directory for runtime
+RUN mkdir -p public/uploads/logos public/uploads/invoices public/uploads/jobsheets
 
 # Expose port
 EXPOSE 5000

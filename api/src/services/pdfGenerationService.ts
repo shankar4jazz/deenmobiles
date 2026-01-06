@@ -219,6 +219,8 @@ export class PDFGenerationService {
   private uploadDir: string;
   private baseUrl: string;
   private isServerless: boolean;
+  private fontsDir: string;
+  private fontsAvailable: boolean = false;
 
   constructor() {
     // Use /tmp on serverless environments (Vercel)
@@ -226,8 +228,67 @@ export class PDFGenerationService {
     this.uploadDir = this.isServerless
       ? '/tmp/uploads'
       : path.join(process.cwd(), 'public', 'uploads');
+    this.fontsDir = path.join(process.cwd(), 'public', 'fonts');
     this.baseUrl = process.env.BASE_URL || 'http://localhost:5000';
     this.ensureDirectoriesExist();
+    this.checkFontsAvailability();
+  }
+
+  /**
+   * Check if custom fonts are available for rupee symbol support
+   */
+  private checkFontsAvailability(): void {
+    const regularFont = path.join(this.fontsDir, 'NotoSans-Regular.ttf');
+    const boldFont = path.join(this.fontsDir, 'NotoSans-Bold.ttf');
+
+    if (fs.existsSync(regularFont) && fs.existsSync(boldFont)) {
+      this.fontsAvailable = true;
+      console.log('[PDF] Custom fonts (NotoSans) available for rupee symbol support');
+    } else {
+      this.fontsAvailable = false;
+      console.warn('[PDF] Custom fonts not found. Rupee symbol may not render correctly.');
+      console.warn(`[PDF] Expected fonts at: ${this.fontsDir}`);
+    }
+  }
+
+  /**
+   * Register custom fonts on a PDF document for rupee symbol support
+   */
+  private registerFonts(doc: typeof PDFDocument): void {
+    if (!this.fontsAvailable) return;
+
+    try {
+      const regularFont = path.join(this.fontsDir, 'NotoSans-Regular.ttf');
+      const boldFont = path.join(this.fontsDir, 'NotoSans-Bold.ttf');
+
+      doc.registerFont('NotoSans', regularFont);
+      doc.registerFont('NotoSans-Bold', boldFont);
+      console.log('[PDF] Custom fonts registered successfully');
+    } catch (error: any) {
+      console.error('[PDF] Failed to register custom fonts:', error.message);
+    }
+  }
+
+  /**
+   * Format currency with rupee symbol
+   * Uses NotoSans font for proper rupee symbol rendering
+   */
+  private formatCurrency(amount: number, useFractions: boolean = true): string {
+    const formatted = useFractions
+      ? amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : amount.toLocaleString('en-IN');
+    return `₹${formatted}`;
+  }
+
+  /**
+   * Get the appropriate font for currency display
+   * Returns NotoSans if available, otherwise Helvetica
+   */
+  private getCurrencyFont(bold: boolean = false): string {
+    if (this.fontsAvailable) {
+      return bold ? 'NotoSans-Bold' : 'NotoSans';
+    }
+    return bold ? 'Helvetica-Bold' : 'Helvetica';
   }
 
   /**
@@ -310,6 +371,7 @@ export class PDFGenerationService {
 
     console.log(`[Logo] Resolving logo path. Input: ${logo || '(none)'}`);
     console.log(`[Logo] Default logo path: ${defaultLogoPath}`);
+    console.log(`[Logo] Upload dir: ${this.uploadDir}`);
 
     // If no logo specified, try default logo
     if (!logo) {
@@ -321,14 +383,31 @@ export class PDFGenerationService {
       return null;
     }
 
-    // If it's a URL (http/https), return as-is - PDFKit can load from URLs
+    // If it's a URL (http/https), try to use local file instead
+    // PDFKit URL loading can be unreliable, prefer local files
     if (logo.startsWith('http://') || logo.startsWith('https://')) {
-      console.log(`[Logo] Using URL: ${logo}`);
-      return logo;
+      console.log(`[Logo] URL detected: ${logo}`);
+      // Extract filename from URL and try to find local file
+      try {
+        const urlObj = new URL(logo);
+        const urlFilename = path.basename(urlObj.pathname);
+        const localPath = path.join(this.uploadDir, 'logos', urlFilename);
+        if (fs.existsSync(localPath)) {
+          console.log(`[Logo] Found local file for URL: ${localPath}`);
+          return localPath;
+        }
+      } catch (e) {
+        // Invalid URL, continue with other methods
+      }
+      // Fallback to default logo for URLs (more reliable than fetching)
+      if (fs.existsSync(defaultLogoPath)) {
+        console.log(`[Logo] Using default logo instead of URL`);
+        return defaultLogoPath;
+      }
+      return null;
     }
 
     // Check if it's a true Windows absolute path (e.g., C:\path or D:\path)
-    // NOT just a path starting with / or \ (which is a web-relative path)
     const isWindowsAbsolute = /^[A-Za-z]:[\\/]/.test(logo);
     if (isWindowsAbsolute) {
       const exists = fs.existsSync(logo);
@@ -343,16 +422,19 @@ export class PDFGenerationService {
     const possiblePaths = [
       // Direct path in uploadDir/logos (most common case)
       path.join(this.uploadDir, 'logos', logoFilename),
-      // Relative to public directory (e.g., /uploads/logos/logo.png -> public/uploads/logos/logo.png)
+      // Handle /uploads/logos/filename.png format (web URL path from database)
       path.join(process.cwd(), 'public', cleanLogo),
-      // Full path with uploads/logos structure
+      // Handle uploads/logos/filename.png format
       path.join(process.cwd(), 'public', 'uploads', 'logos', logoFilename),
+      // Try the exact clean path under public
+      path.join(process.cwd(), 'public', 'uploads', cleanLogo.replace(/^uploads[\/\\]?/, '')),
       // Default logo path as last resort
       defaultLogoPath,
     ];
 
     console.log(`[Logo] Checking paths for "${logo}":`);
     for (const logoPath of possiblePaths) {
+      console.log(`[Logo]   Trying: ${logoPath}`);
       try {
         if (fs.existsSync(logoPath)) {
           const stats = fs.statSync(logoPath);
@@ -366,7 +448,12 @@ export class PDFGenerationService {
       }
     }
 
-    // Logo file not found
+    // Logo file not found - try default as absolute last resort
+    if (fs.existsSync(defaultLogoPath)) {
+      console.log(`[Logo] Falling back to default logo: ${defaultLogoPath}`);
+      return defaultLogoPath;
+    }
+
     console.warn(`[Logo] Logo file not found: ${logo}`);
     return null;
   }
@@ -1258,7 +1345,7 @@ export class PDFGenerationService {
 
     // Tagged Parts (condensed table)
     if (data.taggedParts && data.taggedParts.length > 0) {
-      doc.fontSize(7).font('Helvetica-Bold').fillColor('#333333').text('🏷️ TAGGED PARTS', margin, yPos);
+      doc.fontSize(7).font('Helvetica-Bold').fillColor('#333333').text('TAGGED PARTS', margin, yPos);
       yPos += 10;
 
       data.taggedParts.forEach((part, idx) => {
@@ -1660,7 +1747,7 @@ export class PDFGenerationService {
 
     // Tagged Parts
     if (data.taggedParts && data.taggedParts.length > 0) {
-      doc.fontSize(6).font('Helvetica-Bold').fillColor('#333333').text('🏷️ TAGGED PARTS', margin, yPos);
+      doc.fontSize(6).font('Helvetica-Bold').fillColor('#333333').text('TAGGED PARTS', margin, yPos);
       yPos += 8;
 
       data.taggedParts.forEach((part, idx) => {
@@ -2278,6 +2365,9 @@ export class PDFGenerationService {
         const doc = new PDFDocument(docOptions);
         const stream = fs.createWriteStream(filePath);
 
+        // Register custom fonts for rupee symbol support
+        this.registerFonts(doc);
+
         doc.pipe(stream);
 
         // Route to format-specific methods
@@ -2338,24 +2428,24 @@ export class PDFGenerationService {
     const companyX = logoRendered ? margin + logoSize + 12 : margin;
     const companyWidth = logoRendered ? 280 : 350;
 
-    doc.fontSize(14).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(14).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.company.name + ' Service Center', companyX, yPos);
 
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted)
-      .text(data.branch.name, companyX, yPos + 16);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text(data.branch.name, companyX, yPos + 17);
 
-    doc.fontSize(7).font('Helvetica').fillColor(textMuted)
-      .text(data.branch.address || data.company.address, companyX, yPos + 26, { width: companyWidth });
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text(data.branch.address || data.company.address, companyX, yPos + 28, { width: companyWidth });
 
     const contactY = yPos + 38;
-    doc.fontSize(7).fillColor(textMuted)
-      .text(`📞 ${data.branch.phone || data.company.phone}`, companyX, contactY);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text(`Tel: ${data.branch.phone || data.company.phone}`, companyX, contactY);
     if (data.branch.email || data.company.email) {
-      doc.text(`  |  ✉ ${data.branch.email || data.company.email}`, companyX + 100, contactY);
+      doc.text(`  |  ${data.branch.email || data.company.email}`, companyX + 110, contactY);
     }
 
     // TAX INVOICE title on right
-    doc.fontSize(22).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(12).font(this.getCurrencyFont()).fillColor(textDark)
       .text('TAX INVOICE', pageWidth - margin - 150, yPos, { width: 150, align: 'right' });
 
     // Copy type badge
@@ -2363,7 +2453,7 @@ export class PDFGenerationService {
     const badgeWidth = 90;
     const badgeX = pageWidth - margin - badgeWidth;
     doc.rect(badgeX, yPos + 28, badgeWidth, 18).fill(primaryColor);
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff')
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor('#ffffff')
       .text(copyLabel, badgeX, yPos + 33, { width: badgeWidth, align: 'center' });
 
     yPos = Math.max(yPos + logoSize + 15, yPos + 55);
@@ -2374,52 +2464,52 @@ export class PDFGenerationService {
 
     // Bill To Box
     doc.rect(margin, yPos, leftColWidth, 75).fill(bgLight).stroke(borderColor);
-    doc.fontSize(7).font('Helvetica').fillColor(textMuted)
+    doc.fontSize(7).font(this.getCurrencyFont(true)).fillColor(textMuted)
       .text('BILL TO', margin + 10, yPos + 8);
 
-    doc.fontSize(12).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(12).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.customer.name, margin + 10, yPos + 20);
 
-    doc.fontSize(9).font('Helvetica').fillColor(textDark)
-      .text(`📱 ${data.customer.phone}`, margin + 10, yPos + 36);
+    doc.fontSize(9).font(this.getCurrencyFont()).fillColor(textDark)
+      .text(`Ph: ${data.customer.phone}`, margin + 10, yPos + 36);
 
     if (data.customer.address) {
-      doc.fontSize(8).fillColor(textMuted)
+      doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted)
         .text(data.customer.address, margin + 10, yPos + 50, { width: leftColWidth - 20 });
     }
 
     // Invoice Details Box
     doc.rect(rightColX, yPos, leftColWidth, 75).fill(bgLight).stroke(borderColor);
-    doc.fontSize(7).font('Helvetica').fillColor(textMuted)
+    doc.fontSize(7).font(this.getCurrencyFont(true)).fillColor(textMuted)
       .text('INVOICE DETAILS', rightColX + 10, yPos + 8);
 
     const detailsY = yPos + 22;
-    doc.fontSize(7).fillColor(textMuted).text('INVOICE NO.', rightColX + 10, detailsY);
-    doc.fontSize(7).fillColor(textMuted).text('DATE', rightColX + leftColWidth - 80, detailsY);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted).text('INVOICE NO.', rightColX + 10, detailsY);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted).text('DATE', rightColX + leftColWidth - 80, detailsY);
 
-    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(10).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.invoiceNumber, rightColX + 10, detailsY + 10);
-    doc.fontSize(9).font('Helvetica').fillColor(textDark)
+    doc.fontSize(10).font(this.getCurrencyFont()).fillColor(textDark)
       .text(format(new Date(data.invoiceDate), 'dd/MM/yyyy'), rightColX + leftColWidth - 80, detailsY + 10);
 
-    doc.fontSize(7).fillColor(textMuted).text('SERVICE TICKET', rightColX + 10, detailsY + 28);
-    doc.fontSize(7).fillColor(textMuted).text('SERVICE DATE', rightColX + leftColWidth - 80, detailsY + 28);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted).text('SERVICE TICKET', rightColX + 10, detailsY + 28);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted).text('SERVICE DATE', rightColX + leftColWidth - 80, detailsY + 28);
 
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(10).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.service.ticketNumber, rightColX + 10, detailsY + 38);
-    doc.fontSize(9).font('Helvetica').fillColor(textDark)
+    doc.fontSize(10).font(this.getCurrencyFont()).fillColor(textDark)
       .text(format(new Date(data.service.createdAt), 'dd/MM/yyyy'), rightColX + leftColWidth - 80, detailsY + 38);
 
     yPos += 85;
 
     // ===== DEVICE INFO BAR =====
     doc.rect(margin, yPos, contentWidth, 22).fill(bgLight).stroke(borderColor);
-    doc.fontSize(7).font('Helvetica').fillColor(textMuted).text('DEVICE:', margin + 10, yPos + 7);
-    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted).text('DEVICE:', margin + 10, yPos + 7);
+    doc.fontSize(10).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.service.deviceModel, margin + 55, yPos + 6);
 
-    doc.fontSize(7).fillColor(textMuted).text('ISSUE:', margin + 300, yPos + 7);
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#dc2626')
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted).text('ISSUE:', margin + 300, yPos + 7);
+    doc.fontSize(10).font(this.getCurrencyFont(true)).fillColor('#dc2626')
       .text(data.service.issue?.toUpperCase() || 'REPAIR', margin + 335, yPos + 6, { width: 180 });
 
     yPos += 30;
@@ -2427,7 +2517,7 @@ export class PDFGenerationService {
     // ===== ITEMS TABLE =====
     // Table Header
     doc.rect(margin, yPos, contentWidth, 20).fill(bgLight);
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted);
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor(textMuted);
     doc.text('#', margin + 10, yPos + 6);
     doc.text('DESCRIPTION', margin + 35, yPos + 6);
     doc.text('QTY', margin + 350, yPos + 6, { width: 40, align: 'center' });
@@ -2443,12 +2533,12 @@ export class PDFGenerationService {
     // Service charge row (if there's labour or service cost)
     if (serviceCost > 0 || labourCharge > 0) {
       const serviceAmount = labourCharge > 0 ? labourCharge : serviceCost;
-      doc.fontSize(9).font('Helvetica').fillColor(textDark);
+      doc.fontSize(9).font(this.getCurrencyFont()).fillColor(textDark);
       doc.text(String(itemIndex), margin + 10, yPos);
       doc.text('Service Charge', margin + 35, yPos);
       doc.text('1', margin + 350, yPos, { width: 40, align: 'center' });
       doc.text(serviceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 400, yPos, { width: 60, align: 'right' });
-      doc.font('Helvetica-Bold').text(serviceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 470, yPos, { width: 60, align: 'right' });
+      doc.font(this.getCurrencyFont(true)).text(serviceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 470, yPos, { width: 60, align: 'right' });
       yPos += 18;
       itemIndex++;
     }
@@ -2461,17 +2551,17 @@ export class PDFGenerationService {
           doc.addPage();
           yPos = 50;
           // Add continuation header
-          doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+          doc.fontSize(9).font(this.getCurrencyFont(true)).fillColor(textDark)
             .text(`Invoice: ${data.invoiceNumber} (Continued)`, margin, yPos);
           yPos += 30;
         }
 
-        doc.fontSize(9).font('Helvetica').fillColor(textDark);
+        doc.fontSize(9).font(this.getCurrencyFont()).fillColor(textDark);
         doc.text(String(itemIndex), margin + 10, yPos);
         doc.text(part.partName.substring(0, 45), margin + 35, yPos);
         doc.text(String(part.quantity), margin + 350, yPos, { width: 40, align: 'center' });
         doc.text(part.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 400, yPos, { width: 60, align: 'right' });
-        doc.font('Helvetica-Bold').text(part.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 470, yPos, { width: 60, align: 'right' });
+        doc.font(this.getCurrencyFont(true)).text(part.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 470, yPos, { width: 60, align: 'right' });
         yPos += 18;
         itemIndex++;
       }
@@ -2487,18 +2577,18 @@ export class PDFGenerationService {
     const totalsWidth = contentWidth * 0.48;
 
     // Amount in words
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted)
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor(textMuted)
       .text('TOTAL AMOUNT IN WORDS', margin, yPos);
     yPos += 12;
 
     const amountInWords = this.numberToWords(data.totalAmount);
     doc.rect(margin, yPos, wordsWidth, 35).fill('#fffbeb').stroke('#fcd34d');
-    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(10).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(amountInWords, margin + 10, yPos + 10, { width: wordsWidth - 20 });
 
     // Terms & Conditions
     const termsY = yPos + 45;
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(textMuted)
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor(textMuted)
       .text('TERMS & CONDITIONS', margin, termsY);
 
     const terms = [
@@ -2509,7 +2599,7 @@ export class PDFGenerationService {
     ];
 
     let termY = termsY + 12;
-    doc.fontSize(7).font('Helvetica').fillColor(textMuted);
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted);
     terms.forEach(term => {
       doc.text(term, margin, termY, { width: wordsWidth });
       termY += 10;
@@ -2524,39 +2614,39 @@ export class PDFGenerationService {
     const valueX = totalsX + totalsWidth - 80;
 
     // Subtotal
-    doc.fontSize(9).font('Helvetica').fillColor(textMuted).text('Subtotal:', labelX, tY);
-    doc.fillColor(textDark).text(`₹${data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, tY, { width: 65, align: 'right' });
+    doc.fontSize(9).font(this.getCurrencyFont()).fillColor(textMuted).text('Subtotal:', labelX, tY);
+    doc.font(this.getCurrencyFont()).fillColor(textDark).text(this.formatCurrency(data.totalAmount), valueX, tY, { width: 65, align: 'right' });
     tY += 14;
 
     // Discount
     const discount = data.discount || 0;
-    doc.fillColor(textMuted).text('Discount:', labelX, tY);
-    doc.fillColor(discount > 0 ? '#059669' : textDark).text(`- ₹${discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, tY, { width: 65, align: 'right' });
+    doc.font(this.getCurrencyFont()).fillColor(textMuted).text('Discount:', labelX, tY);
+    doc.font(this.getCurrencyFont()).fillColor(discount > 0 ? '#059669' : textDark).text(`- ${this.formatCurrency(discount)}`, valueX, tY, { width: 65, align: 'right' });
     tY += 14;
 
     // GST
     const cgstRate = data.cgstRate || 9;
     const sgstRate = data.sgstRate || 9;
-    doc.fillColor(textMuted).text(`CGST (${cgstRate}%) / SGST (${sgstRate}%):`, labelX, tY);
+    doc.font(this.getCurrencyFont()).fillColor(textMuted).text(`CGST (${cgstRate}%) / SGST (${sgstRate}%):`, labelX, tY);
     doc.fillColor(textDark).text('Included', valueX, tY, { width: 65, align: 'right' });
     tY += 16;
 
     // Grand Total
     doc.rect(totalsX + 10, tY - 2, totalsWidth - 20, 0.5).fill(borderColor);
     tY += 6;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor(textDark).text('Grand Total:', labelX, tY);
-    doc.fontSize(14).fillColor(textDark).text(`₹${data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX - 10, tY - 2, { width: 75, align: 'right' });
+    doc.fontSize(11).font(this.getCurrencyFont(true)).fillColor(textDark).text('Grand Total:', labelX, tY);
+    doc.fontSize(14).font(this.getCurrencyFont(true)).fillColor(textDark).text(this.formatCurrency(data.totalAmount), valueX - 10, tY - 2, { width: 75, align: 'right' });
     tY += 18;
 
     // Paid Amount
-    doc.fontSize(9).font('Helvetica').fillColor(textMuted).text('Paid Amount:', labelX, tY);
-    doc.fillColor('#059669').text(`₹${data.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, tY, { width: 65, align: 'right' });
+    doc.fontSize(9).font(this.getCurrencyFont()).fillColor(textMuted).text('Paid Amount:', labelX, tY);
+    doc.font(this.getCurrencyFont()).fillColor('#059669').text(this.formatCurrency(data.paidAmount), valueX, tY, { width: 65, align: 'right' });
     tY += 14;
 
     // Balance Due
     doc.rect(totalsX + 10, tY - 2, totalsWidth - 20, 20).fill('#fef2f2');
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#dc2626').text('BALANCE DUE:', labelX, tY + 2);
-    doc.fontSize(13).text(`₹${data.balanceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX - 10, tY, { width: 75, align: 'right' });
+    doc.fontSize(9).font(this.getCurrencyFont(true)).fillColor('#dc2626').text('BALANCE DUE:', labelX, tY + 2);
+    doc.fontSize(13).font(this.getCurrencyFont(true)).text(this.formatCurrency(data.balanceAmount), valueX - 10, tY, { width: 75, align: 'right' });
     tY += 22;
 
     // Payment Status Badge
@@ -2572,7 +2662,7 @@ export class PDFGenerationService {
     const statusBadgeWidth = 130;
     const statusBadgeX = totalsX + (totalsWidth - statusBadgeWidth) / 2;
     doc.rect(statusBadgeX, tY, statusBadgeWidth, 18).fill(statusStyle.bg);
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(statusStyle.text)
+    doc.fontSize(9).font(this.getCurrencyFont(true)).fillColor(statusStyle.text)
       .text(`STATUS: ${status}`, statusBadgeX, tY + 5, { width: statusBadgeWidth, align: 'center' });
 
     // ===== SIGNATURE SECTION =====
@@ -2584,35 +2674,36 @@ export class PDFGenerationService {
     doc.rect(margin + 20, yPos, sigWidth, 35).stroke(borderColor);
     doc.rect(pageWidth - margin - sigWidth - 20, yPos, sigWidth, 35).stroke(borderColor);
 
-    doc.fontSize(7).font('Helvetica').fillColor(textMuted);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textMuted);
     doc.text('CUSTOMER SIGNATURE', margin + 20, yPos + 40, { width: sigWidth, align: 'center' });
     doc.text('AUTHORIZED SIGNATURE', pageWidth - margin - sigWidth - 20, yPos + 40, { width: sigWidth, align: 'center' });
 
     // Footer
     yPos += 55;
-    doc.fontSize(9).font('Helvetica-Oblique').fillColor(textMuted)
+    doc.fontSize(9).font(this.getCurrencyFont()).fillColor(textMuted)
       .text('Thank you for your business!', margin, yPos, { width: contentWidth, align: 'center' });
   }
 
   /**
-   * A5 Invoice - Compact Layout
+   * A5 Invoice - Professional Compact Layout (matching A4 features)
    */
   private addInvoiceA5Compact(doc: PDFKit.PDFDocument, data: InvoiceData): void {
-    const margin = 20;
+    const margin = 15;
     const pageWidth = 420;
+    const pageHeight = 595;
     const contentWidth = pageWidth - (margin * 2);
 
-    // Colors
+    // Colors - Professional theme
     const primaryColor = '#0d9488';
     const textDark = '#1f2937';
     const textMuted = '#6b7280';
     const borderColor = '#e5e7eb';
     const bgLight = '#f9fafb';
 
-    let yPos = 15;
+    let yPos = 12;
 
-    // ===== HEADER =====
-    const logoSize = 35;
+    // ===== HEADER WITH LOGO =====
+    const logoSize = 40;
     const resolvedLogo = this.resolveLogoPath(data.company.logo);
     let logoRendered = false;
 
@@ -2625,116 +2716,259 @@ export class PDFGenerationService {
       }
     }
 
-    const companyX = logoRendered ? margin + logoSize + 8 : margin;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor(textDark)
+    // Company info
+    const companyX = logoRendered ? margin + logoSize + 10 : margin;
+    const companyWidth = logoRendered ? 180 : 220;
+
+    doc.fontSize(12).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.company.name, companyX, yPos);
-    doc.fontSize(6).font('Helvetica').fillColor(textMuted)
-      .text(data.branch.address || data.company.address, companyX, yPos + 12, { width: 150 });
-    doc.text(`Ph: ${data.branch.phone || data.company.phone}`, companyX, yPos + 22);
 
-    // TAX INVOICE on right
-    doc.fontSize(14).font('Helvetica-Bold').fillColor(textDark)
-      .text('TAX INVOICE', pageWidth - margin - 100, yPos, { width: 100, align: 'right' });
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(primaryColor)
+      .text(data.branch.name, companyX, yPos + 14);
 
-    // Copy badge
-    const copyLabel = (data.copyType || 'original').toUpperCase();
-    doc.rect(pageWidth - margin - 70, yPos + 20, 70, 14).fill(primaryColor);
-    doc.fontSize(6).font('Helvetica-Bold').fillColor('#ffffff')
-      .text(copyLabel + ' COPY', pageWidth - margin - 70, yPos + 24, { width: 70, align: 'center' });
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text(data.branch.address || data.company.address, companyX, yPos + 24, { width: companyWidth });
 
-    yPos = yPos + logoSize + 10;
+    // Contact info
+    const contactY = yPos + 36;
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text(`Tel: ${data.branch.phone || data.company.phone}`, companyX, contactY);
+    if (data.branch.email || data.company.email) {
+      doc.text(` | ${data.branch.email || data.company.email}`, companyX + 80, contactY);
+    }
 
-    // ===== INVOICE INFO =====
-    doc.rect(margin, yPos, contentWidth, 45).fill(bgLight).stroke(borderColor);
+    // TAX INVOICE title on right
+    doc.fontSize(10).font(this.getCurrencyFont()).fillColor(textDark)
+      .text('TAX INVOICE', pageWidth - margin - 110, yPos, { width: 110, align: 'right' });
 
-    const col1 = margin + 8;
-    const col2 = margin + contentWidth / 2;
+    // Copy type badge
+    const copyLabel = (data.copyType || 'original').toUpperCase() + ' COPY';
+    const badgeWidth = 75;
+    const badgeX = pageWidth - margin - badgeWidth;
+    doc.rect(badgeX, yPos + 22, badgeWidth, 14).fill(primaryColor);
+    doc.fontSize(7).font(this.getCurrencyFont(true)).fillColor('#ffffff')
+      .text(copyLabel, badgeX, yPos + 26, { width: badgeWidth, align: 'center' });
 
-    doc.fontSize(6).font('Helvetica').fillColor(textMuted).text('INVOICE:', col1, yPos + 5);
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(textDark).text(data.invoiceNumber, col1, yPos + 13);
+    yPos = yPos + logoSize + 12;
 
-    doc.fontSize(6).fillColor(textMuted).text('DATE:', col2, yPos + 5);
-    doc.fontSize(8).font('Helvetica').fillColor(textDark).text(format(new Date(data.invoiceDate), 'dd/MM/yyyy'), col2, yPos + 13);
+    // ===== BILL TO & INVOICE DETAILS BOXES =====
+    const leftColWidth = (contentWidth - 10) / 2;
+    const rightColX = margin + leftColWidth + 10;
 
-    doc.fontSize(6).fillColor(textMuted).text('BILL TO:', col1, yPos + 26);
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(textDark).text(data.customer.name, col1 + 40, yPos + 25);
-    doc.fontSize(7).font('Helvetica').text(data.customer.phone, col1 + 40, yPos + 34);
+    // Bill To Box
+    doc.rect(margin, yPos, leftColWidth, 58).fill(bgLight).stroke(borderColor);
+    doc.fontSize(6).font(this.getCurrencyFont(true)).fillColor(textMuted)
+      .text('BILL TO', margin + 8, yPos + 5);
 
-    yPos += 50;
+    doc.fontSize(10).font(this.getCurrencyFont(true)).fillColor(textDark)
+      .text(data.customer.name, margin + 8, yPos + 16);
 
-    // ===== DEVICE =====
-    doc.fontSize(6).font('Helvetica').fillColor(textMuted).text('DEVICE:', margin, yPos);
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(textDark).text(data.service.deviceModel, margin + 45, yPos - 1);
-    yPos += 12;
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textDark)
+      .text(`Ph: ${data.customer.phone}`, margin + 8, yPos + 28);
+
+    if (data.customer.address) {
+      doc.fontSize(6).font(this.getCurrencyFont()).fillColor(textMuted)
+        .text(data.customer.address, margin + 8, yPos + 40, { width: leftColWidth - 16 });
+    }
+
+    // Invoice Details Box
+    doc.rect(rightColX, yPos, leftColWidth, 58).fill(bgLight).stroke(borderColor);
+    doc.fontSize(6).font(this.getCurrencyFont(true)).fillColor(textMuted)
+      .text('INVOICE DETAILS', rightColX + 8, yPos + 5);
+
+    const detailsY = yPos + 16;
+    doc.fontSize(6).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text('INVOICE NO.', rightColX + 8, detailsY);
+    doc.fontSize(6).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text('DATE', rightColX + leftColWidth - 70, detailsY);
+
+    doc.fontSize(9).font(this.getCurrencyFont(true)).fillColor(textDark)
+      .text(data.invoiceNumber, rightColX + 8, detailsY + 8);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textDark)
+      .text(format(new Date(data.invoiceDate), 'dd/MM/yyyy'), rightColX + leftColWidth - 70, detailsY + 8);
+
+    doc.fontSize(6).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text('SERVICE TICKET', rightColX + 8, detailsY + 22);
+    doc.fontSize(6).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text('SERVICE DATE', rightColX + leftColWidth - 70, detailsY + 22);
+
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor(textDark)
+      .text(data.service.ticketNumber, rightColX + 8, detailsY + 30);
+    doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textDark)
+      .text(format(new Date(data.service.createdAt), 'dd/MM/yyyy'), rightColX + leftColWidth - 70, detailsY + 30);
+
+    yPos += 65;
+
+    // ===== DEVICE INFO BAR =====
+    doc.rect(margin, yPos, contentWidth, 18).fill(bgLight).stroke(borderColor);
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text('DEVICE:', margin + 8, yPos + 5);
+    doc.fontSize(9).font(this.getCurrencyFont(true)).fillColor(textDark)
+      .text(data.service.deviceModel, margin + 45, yPos + 4);
+
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted)
+      .text('ISSUE:', margin + 200, yPos + 5);
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor('#dc2626')
+      .text(data.service.issue?.toUpperCase() || 'REPAIR', margin + 230, yPos + 4, { width: 150 });
+
+    yPos += 24;
 
     // ===== ITEMS TABLE =====
-    doc.rect(margin, yPos, contentWidth, 14).fill(bgLight);
-    doc.fontSize(6).font('Helvetica-Bold').fillColor(textMuted);
+    // Table Header
+    doc.rect(margin, yPos, contentWidth, 16).fill(bgLight);
+    doc.fontSize(7).font(this.getCurrencyFont(true)).fillColor(textMuted);
     doc.text('#', margin + 5, yPos + 4);
     doc.text('DESCRIPTION', margin + 20, yPos + 4);
-    doc.text('QTY', margin + 220, yPos + 4, { width: 30, align: 'center' });
-    doc.text('RATE', margin + 260, yPos + 4, { width: 45, align: 'right' });
-    doc.text('AMOUNT', margin + 310, yPos + 4, { width: 50, align: 'right' });
-    yPos += 16;
+    doc.text('QTY', margin + 230, yPos + 4, { width: 30, align: 'center' });
+    doc.text('RATE', margin + 270, yPos + 4, { width: 50, align: 'right' });
+    doc.text('AMOUNT', margin + 325, yPos + 4, { width: 55, align: 'right' });
+    yPos += 18;
 
+    // Table rows
     let itemIndex = 1;
     const serviceCost = data.service.actualCost ?? data.service.estimatedCost;
+    const labourCharge = data.service.labourCharge || 0;
 
-    if (serviceCost > 0) {
-      doc.fontSize(7).font('Helvetica').fillColor(textDark);
+    // Service charge row
+    if (serviceCost > 0 || labourCharge > 0) {
+      const serviceAmount = labourCharge > 0 ? labourCharge : serviceCost;
+      doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textDark);
       doc.text(String(itemIndex), margin + 5, yPos);
       doc.text('Service Charge', margin + 20, yPos);
-      doc.text('1', margin + 220, yPos, { width: 30, align: 'center' });
-      doc.text(serviceCost.toFixed(2), margin + 260, yPos, { width: 45, align: 'right' });
-      doc.font('Helvetica-Bold').text(serviceCost.toFixed(2), margin + 310, yPos, { width: 50, align: 'right' });
-      yPos += 12;
+      doc.text('1', margin + 230, yPos, { width: 30, align: 'center' });
+      doc.text(serviceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 270, yPos, { width: 50, align: 'right' });
+      doc.font(this.getCurrencyFont(true)).text(serviceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 325, yPos, { width: 55, align: 'right' });
+      yPos += 14;
       itemIndex++;
     }
 
+    // Parts rows
     if (data.parts && data.parts.length > 0) {
       for (const part of data.parts) {
-        doc.fontSize(7).font('Helvetica').fillColor(textDark);
+        doc.fontSize(8).font(this.getCurrencyFont()).fillColor(textDark);
         doc.text(String(itemIndex), margin + 5, yPos);
-        doc.text(part.partName.substring(0, 35), margin + 20, yPos);
-        doc.text(String(part.quantity), margin + 220, yPos, { width: 30, align: 'center' });
-        doc.text(part.unitPrice.toFixed(2), margin + 260, yPos, { width: 45, align: 'right' });
-        doc.font('Helvetica-Bold').text(part.totalPrice.toFixed(2), margin + 310, yPos, { width: 50, align: 'right' });
-        yPos += 12;
+        doc.text(part.partName.substring(0, 30), margin + 20, yPos);
+        doc.text(String(part.quantity), margin + 230, yPos, { width: 30, align: 'center' });
+        doc.text(part.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 270, yPos, { width: 50, align: 'right' });
+        doc.font(this.getCurrencyFont(true)).text(part.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }), margin + 325, yPos, { width: 55, align: 'right' });
+        yPos += 14;
         itemIndex++;
       }
     }
 
-    yPos += 5;
+    yPos += 3;
+    doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
+    yPos += 8;
+
+    // ===== AMOUNT IN WORDS & TOTALS SECTION =====
+    const wordsWidth = contentWidth * 0.48;
+    const totalsX = margin + wordsWidth + 10;
+    const totalsWidth = contentWidth * 0.50;
+
+    // Amount in words
+    doc.fontSize(6).font(this.getCurrencyFont(true)).fillColor(textMuted)
+      .text('TOTAL AMOUNT IN WORDS', margin, yPos);
+    yPos += 10;
+
+    const amountInWords = this.numberToWords(data.totalAmount);
+    doc.rect(margin, yPos, wordsWidth, 28).fill('#fffbeb').stroke('#fcd34d');
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor(textDark)
+      .text(amountInWords, margin + 6, yPos + 8, { width: wordsWidth - 12 });
+
+    // Terms & Conditions
+    const termsY = yPos + 35;
+    doc.fontSize(6).font(this.getCurrencyFont(true)).fillColor(textMuted)
+      .text('TERMS & CONDITIONS', margin, termsY);
+
+    const terms = [
+      '• Payment due on receipt',
+      '• Warranty: 30 days for parts & service',
+      '• Physical damage not covered'
+    ];
+
+    let termY = termsY + 10;
+    doc.fontSize(5).font(this.getCurrencyFont()).fillColor(textMuted);
+    terms.forEach(term => {
+      doc.text(term, margin, termY, { width: wordsWidth });
+      termY += 8;
+    });
+
+    // Totals box
+    const totalsStartY = yPos - 10;
+    doc.rect(totalsX, totalsStartY, totalsWidth, 95).stroke(borderColor);
+
+    let tY = totalsStartY + 8;
+    const labelX = totalsX + 10;
+    const valueX = totalsX + totalsWidth - 70;
+
+    // Subtotal
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted).text('Subtotal:', labelX, tY);
+    doc.font(this.getCurrencyFont()).fillColor(textDark).text(this.formatCurrency(data.totalAmount), valueX, tY, { width: 60, align: 'right' });
+    tY += 12;
+
+    // Discount
+    const discount = data.discount || 0;
+    doc.font(this.getCurrencyFont()).fillColor(textMuted).text('Discount:', labelX, tY);
+    doc.font(this.getCurrencyFont()).fillColor(discount > 0 ? '#059669' : textDark).text(`- ${this.formatCurrency(discount)}`, valueX, tY, { width: 60, align: 'right' });
+    tY += 12;
+
+    // GST
+    const cgstRate = data.cgstRate || 9;
+    const sgstRate = data.sgstRate || 9;
+    doc.font(this.getCurrencyFont()).fillColor(textMuted).text(`GST (${cgstRate + sgstRate}%):`, labelX, tY);
+    doc.fillColor(textDark).text('Included', valueX, tY, { width: 60, align: 'right' });
+    tY += 12;
+
+    // Grand Total
+    doc.rect(totalsX + 5, tY - 2, totalsWidth - 10, 0.5).fill(borderColor);
+    tY += 4;
+    doc.fontSize(9).font(this.getCurrencyFont(true)).fillColor(textDark).text('Grand Total:', labelX, tY);
+    doc.fontSize(10).font(this.getCurrencyFont(true)).fillColor(textDark).text(this.formatCurrency(data.totalAmount), valueX - 5, tY - 1, { width: 65, align: 'right' });
+    tY += 14;
+
+    // Paid Amount
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted).text('Paid Amount:', labelX, tY);
+    doc.font(this.getCurrencyFont()).fillColor('#059669').text(this.formatCurrency(data.paidAmount), valueX, tY, { width: 60, align: 'right' });
+    tY += 12;
+
+    // Balance Due
+    doc.rect(totalsX + 5, tY - 2, totalsWidth - 10, 16).fill('#fef2f2');
+    doc.fontSize(8).font(this.getCurrencyFont(true)).fillColor('#dc2626').text('BALANCE DUE:', labelX, tY + 2);
+    doc.fontSize(10).font(this.getCurrencyFont(true)).text(this.formatCurrency(data.balanceAmount), valueX - 5, tY + 1, { width: 65, align: 'right' });
+
+    // Payment Status Badge
+    const statusColors: Record<string, { bg: string; text: string }> = {
+      'PENDING': { bg: '#fef3c7', text: '#92400e' },
+      'PARTIAL': { bg: '#dbeafe', text: '#1e40af' },
+      'PAID': { bg: '#d1fae5', text: '#065f46' },
+      'REFUNDED': { bg: '#fce7f3', text: '#9d174d' },
+    };
+    const status = data.paymentStatus?.toUpperCase() || 'PENDING';
+    const statusStyle = statusColors[status] || statusColors['PENDING'];
+
+    tY += 20;
+    const statusBadgeWidth = 100;
+    const statusBadgeX = totalsX + (totalsWidth - statusBadgeWidth) / 2;
+    doc.rect(statusBadgeX, tY, statusBadgeWidth, 14).fill(statusStyle.bg);
+    doc.fontSize(7).font(this.getCurrencyFont(true)).fillColor(statusStyle.text)
+      .text(`STATUS: ${status}`, statusBadgeX, tY + 4, { width: statusBadgeWidth, align: 'center' });
+
+    // ===== SIGNATURE SECTION =====
+    yPos = Math.max(termY + 15, tY + 25);
     doc.rect(margin, yPos, contentWidth, 0.5).fill(borderColor);
     yPos += 10;
 
-    // ===== TOTALS =====
-    const totalsX = margin + contentWidth - 140;
-    doc.fontSize(8).font('Helvetica').fillColor(textMuted).text('Subtotal:', totalsX, yPos);
-    doc.fillColor(textDark).text(`₹${data.totalAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
-    yPos += 12;
+    const sigWidth = 100;
+    doc.rect(margin + 15, yPos, sigWidth, 28).stroke(borderColor);
+    doc.rect(pageWidth - margin - sigWidth - 15, yPos, sigWidth, 28).stroke(borderColor);
 
-    doc.fillColor(textMuted).text('Discount:', totalsX, yPos);
-    doc.fillColor(textDark).text(`- ₹${(data.discount || 0).toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
-    yPos += 12;
+    doc.fontSize(6).font(this.getCurrencyFont()).fillColor(textMuted);
+    doc.text('CUSTOMER SIGNATURE', margin + 15, yPos + 32, { width: sigWidth, align: 'center' });
+    doc.text('AUTHORIZED SIGNATURE', pageWidth - margin - sigWidth - 15, yPos + 32, { width: sigWidth, align: 'center' });
 
-    doc.rect(totalsX, yPos, 140, 0.5).fill(borderColor);
-    yPos += 5;
-
-    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark).text('TOTAL:', totalsX, yPos);
-    doc.text(`₹${data.totalAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
-    yPos += 14;
-
-    doc.fontSize(8).font('Helvetica').fillColor(textMuted).text('Paid:', totalsX, yPos);
-    doc.fillColor('#059669').text(`₹${data.paidAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
-    yPos += 12;
-
-    doc.font('Helvetica-Bold').fillColor('#dc2626').text('Balance:', totalsX, yPos);
-    doc.text(`₹${data.balanceAmount.toFixed(2)}`, totalsX + 70, yPos, { width: 70, align: 'right' });
-    yPos += 20;
-
-    // ===== FOOTER =====
-    doc.fontSize(7).font('Helvetica-Oblique').fillColor(textMuted)
+    // Footer
+    yPos += 45;
+    doc.fontSize(7).font(this.getCurrencyFont()).fillColor(textMuted)
       .text('Thank you for your business!', margin, yPos, { width: contentWidth, align: 'center' });
   }
 
@@ -2769,15 +3003,15 @@ export class PDFGenerationService {
     }
 
     // Company name centered
-    doc.fontSize(is2Inch ? 9 : 11).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(is2Inch ? 9 : 11).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.company.name, margin, yPos, { width: contentWidth, align: 'center' });
     yPos += is2Inch ? 10 : 12;
 
-    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica').fillColor(textMuted)
+    doc.fontSize(is2Inch ? 5 : 6).font(this.getCurrencyFont(true)).fillColor(textMuted)
       .text('SERVICE CENTER', margin, yPos, { width: contentWidth, align: 'center' });
     yPos += is2Inch ? 8 : 10;
 
-    doc.fontSize(is2Inch ? 5 : 6)
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont())
       .text(data.branch.address || data.company.address, margin, yPos, { width: contentWidth, align: 'center' });
     yPos += is2Inch ? 8 : 10;
 
@@ -2789,12 +3023,12 @@ export class PDFGenerationService {
     yPos += 8;
 
     // TAX INVOICE title
-    doc.fontSize(is2Inch ? 10 : 12).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(is2Inch ? 8 : 10).font(this.getCurrencyFont()).fillColor(textDark)
       .text('TAX INVOICE', margin, yPos, { width: contentWidth, align: 'center' });
     yPos += is2Inch ? 12 : 14;
 
     // Invoice details
-    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica').fillColor(textDark);
+    doc.fontSize(is2Inch ? 5 : 6).font(this.getCurrencyFont()).fillColor(textDark);
     doc.text(`No: ${data.invoiceNumber}`, margin, yPos);
     doc.text(`Dt: ${format(new Date(data.invoiceDate), 'dd/MM/yy')}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
     yPos += is2Inch ? 10 : 12;
@@ -2803,7 +3037,7 @@ export class PDFGenerationService {
     const copyLabel = (data.copyType || 'original').toUpperCase() + ' COPY';
     const badgeWidth = is2Inch ? 50 : 70;
     doc.rect(centerX - badgeWidth/2, yPos, badgeWidth, is2Inch ? 10 : 12).stroke(textDark);
-    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica-Bold')
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont(true))
       .text(copyLabel, centerX - badgeWidth/2, yPos + 2, { width: badgeWidth, align: 'center' });
     yPos += is2Inch ? 14 : 18;
 
@@ -2812,20 +3046,20 @@ export class PDFGenerationService {
     yPos += 6;
 
     // Bill To
-    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textMuted)
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont(true)).fillColor(textMuted)
       .text('BILL TO:', margin, yPos);
     yPos += is2Inch ? 7 : 8;
 
-    doc.fontSize(is2Inch ? 7 : 8).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(is2Inch ? 7 : 8).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.customer.name, margin, yPos);
     yPos += is2Inch ? 9 : 10;
 
-    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica')
+    doc.fontSize(is2Inch ? 5 : 6).font(this.getCurrencyFont())
       .text(data.customer.phone, margin, yPos);
     yPos += is2Inch ? 8 : 10;
 
     if (data.customer.address) {
-      doc.fontSize(is2Inch ? 5 : 6).fillColor(textMuted)
+      doc.fontSize(is2Inch ? 4 : 5).fillColor(textMuted)
         .text(data.customer.address, margin, yPos, { width: contentWidth });
       yPos += is2Inch ? 12 : 14;
     }
@@ -2835,17 +3069,17 @@ export class PDFGenerationService {
     yPos += 6;
 
     // Device info
-    doc.fontSize(is2Inch ? 5 : 6).fillColor(textMuted).text('DEVICE:', margin, yPos);
-    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont()).fillColor(textMuted).text('DEVICE:', margin, yPos);
+    doc.fontSize(is2Inch ? 5 : 6).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(data.service.deviceModel, margin + (is2Inch ? 35 : 45), yPos);
     yPos += is2Inch ? 9 : 10;
 
-    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textMuted).text('Ticket:', margin, yPos);
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont()).fillColor(textMuted).text('Ticket:', margin, yPos);
     doc.fillColor(textDark).text(data.service.ticketNumber, margin + (is2Inch ? 30 : 40), yPos);
     yPos += is2Inch ? 9 : 10;
 
     if (data.service.issue) {
-      doc.fontSize(is2Inch ? 5 : 6).fillColor(textMuted).text('Issue:', margin, yPos);
+      doc.fontSize(is2Inch ? 4 : 5).fillColor(textMuted).text('Issue:', margin, yPos);
       doc.fillColor(textDark).text(data.service.issue.substring(0, is2Inch ? 15 : 25), margin + (is2Inch ? 25 : 35), yPos);
       yPos += is2Inch ? 10 : 12;
     }
@@ -2855,13 +3089,13 @@ export class PDFGenerationService {
     yPos += 6;
 
     // Items
-    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica-Bold').fillColor(textMuted)
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont(true)).fillColor(textMuted)
       .text('ITEMS:', margin, yPos);
     yPos += is2Inch ? 8 : 10;
 
     const serviceCost = data.service.actualCost ?? data.service.estimatedCost;
     if (serviceCost > 0) {
-      doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textDark);
+      doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont()).fillColor(textDark);
       doc.text('Service Charge', margin, yPos);
       doc.text(serviceCost.toFixed(2), margin + contentWidth - 50, yPos, { width: 50, align: 'right' });
       yPos += is2Inch ? 8 : 10;
@@ -2869,7 +3103,7 @@ export class PDFGenerationService {
 
     if (data.parts && data.parts.length > 0) {
       for (const part of data.parts) {
-        doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textDark);
+        doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont()).fillColor(textDark);
         doc.text(part.partName.substring(0, is2Inch ? 18 : 25), margin, yPos);
         doc.text(part.totalPrice.toFixed(2), margin + contentWidth - 50, yPos, { width: 50, align: 'right' });
         yPos += is2Inch ? 8 : 10;
@@ -2881,31 +3115,39 @@ export class PDFGenerationService {
     yPos += 8;
 
     // Totals
-    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica').fillColor(textDark);
+    doc.fontSize(is2Inch ? 5 : 6).font(this.getCurrencyFont()).fillColor(textDark);
     doc.text('Subtotal:', margin, yPos);
-    doc.text(`₹${data.totalAmount.toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    doc.text(this.formatCurrency(data.totalAmount), margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
     yPos += is2Inch ? 9 : 10;
 
     doc.text('Discount:', margin, yPos);
-    doc.text(`-₹${(data.discount || 0).toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    doc.text(`-${this.formatCurrency(data.discount || 0)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
     yPos += is2Inch ? 9 : 10;
+
+    // GST info
+    const cgstRate = data.cgstRate || 9;
+    const sgstRate = data.sgstRate || 9;
+    doc.fontSize(is2Inch ? 4 : 5).fillColor(textMuted);
+    doc.text(`GST (${cgstRate + sgstRate}%):`, margin, yPos);
+    doc.text('Included', margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    yPos += is2Inch ? 8 : 10;
 
     doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).undash().stroke(textMuted);
     yPos += 5;
 
-    doc.fontSize(is2Inch ? 8 : 9).font('Helvetica-Bold');
+    doc.fontSize(is2Inch ? 7 : 8).font(this.getCurrencyFont(true)).fillColor(textDark);
     doc.text('TOTAL:', margin, yPos);
-    doc.text(`₹${data.totalAmount.toFixed(2)}`, margin + contentWidth - 70, yPos, { width: 70, align: 'right' });
+    doc.text(this.formatCurrency(data.totalAmount), margin + contentWidth - 70, yPos, { width: 70, align: 'right' });
     yPos += is2Inch ? 10 : 12;
 
-    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica');
+    doc.fontSize(is2Inch ? 5 : 6).font(this.getCurrencyFont());
     doc.text('Advance:', margin, yPos);
-    doc.text(`₹${data.paidAmount.toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    doc.text(this.formatCurrency(data.paidAmount), margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
     yPos += is2Inch ? 9 : 10;
 
-    doc.font('Helvetica-Bold').fillColor('#c00');
+    doc.font(this.getCurrencyFont(true)).fillColor('#c00');
     doc.text('BALANCE:', margin, yPos);
-    doc.text(`₹${data.balanceAmount.toFixed(2)}`, margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
+    doc.text(this.formatCurrency(data.balanceAmount), margin + contentWidth - 60, yPos, { width: 60, align: 'right' });
     yPos += is2Inch ? 12 : 14;
 
     // Divider
@@ -2913,17 +3155,17 @@ export class PDFGenerationService {
     yPos += 8;
 
     // Amount in words
-    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica').fillColor(textMuted)
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont()).fillColor(textMuted)
       .text('Amount in words:', margin, yPos);
     yPos += is2Inch ? 7 : 8;
 
     const amountInWords = this.numberToWords(data.totalAmount);
-    doc.fontSize(is2Inch ? 5 : 6).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text(amountInWords, margin, yPos, { width: contentWidth });
     yPos += is2Inch ? 14 : 18;
 
     // Terms
-    doc.fontSize(is2Inch ? 4 : 5).font('Helvetica').fillColor(textMuted)
+    doc.fontSize(is2Inch ? 3 : 4).font(this.getCurrencyFont()).fillColor(textMuted)
       .text('TERMS:', margin, yPos);
     yPos += is2Inch ? 6 : 7;
     doc.text('1. Payment upon receipt', margin, yPos, { width: contentWidth });
@@ -2932,7 +3174,7 @@ export class PDFGenerationService {
     yPos += is2Inch ? 10 : 12;
 
     // Footer
-    doc.fontSize(is2Inch ? 6 : 7).font('Helvetica-Bold').fillColor(textDark)
+    doc.fontSize(is2Inch ? 5 : 6).font(this.getCurrencyFont(true)).fillColor(textDark)
       .text('Thank you!', margin, yPos, { width: contentWidth, align: 'center' });
   }
 
