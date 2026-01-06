@@ -173,12 +173,17 @@ export function createServiceColumns(options: {
       accessorKey: 'createdAt',
       header: 'Date',
       cell: ({ row }) => (
-        <div className="text-sm text-gray-900">
-          {formatDate(row.original.createdAt, 'dd MMM yyyy')}
+        <div className="text-sm">
+          <div className="text-gray-900 font-medium">
+            {formatDate(row.original.createdAt, 'dd MMM yyyy')}
+          </div>
+          <div className="text-gray-500 text-xs">
+            {formatDate(row.original.createdAt, 'hh:mm a')}
+          </div>
         </div>
       ),
       enableSorting: true,
-      size: 100,
+      size: 110,
     },
 
     // Job Sheet No (Ticket Number)
