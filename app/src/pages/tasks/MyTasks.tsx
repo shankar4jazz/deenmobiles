@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { taskApi, Task, TaskStatus } from '@/services/taskApi';
+import { taskApi, Task, TaskStatus, TaskPriority, CreateTaskData } from '@/services/taskApi';
+import { employeeApi } from '@/services/employeeApi';
+import { useAuthStore } from '@/store/authStore';
 import {
   ClipboardList,
   Clock,
@@ -10,6 +12,9 @@ import {
   Check,
   Calendar,
   User,
+  Plus,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -30,7 +35,19 @@ const PRIORITY_BADGES: Record<string, string> = {
 
 export default function MyTasks() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTask, setNewTask] = useState<CreateTaskData>({
+    title: '',
+    description: '',
+    priority: TaskPriority.MEDIUM,
+    assignedToId: '',
+    dueDate: '',
+    notes: '',
+  });
+
+  const canCreateTask = user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   // Fetch my tasks
   const { data: tasks, isLoading } = useQuery({
@@ -42,6 +59,35 @@ export default function MyTasks() {
   const { data: stats } = useQuery({
     queryKey: ['task-stats'],
     queryFn: taskApi.getTaskStats,
+  });
+
+  // Fetch employees for task assignment
+  const { data: employeesData } = useQuery({
+    queryKey: ['employees-for-tasks'],
+    queryFn: () => employeeApi.getAllEmployees({}, 1, 100),
+    enabled: canCreateTask && showCreateModal,
+  });
+
+  // Create task mutation
+  const createTaskMutation = useMutation({
+    mutationFn: (data: CreateTaskData) => taskApi.createTask(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task-stats'] });
+      toast.success('Task created successfully');
+      setShowCreateModal(false);
+      setNewTask({
+        title: '',
+        description: '',
+        priority: TaskPriority.MEDIUM,
+        assignedToId: '',
+        dueDate: '',
+        notes: '',
+      });
+    },
+    onError: () => {
+      toast.error('Failed to create task');
+    },
   });
 
   // Update status mutation
@@ -64,6 +110,15 @@ export default function MyTasks() {
 
   const handleCompleteTask = (task: Task) => {
     updateStatusMutation.mutate({ id: task.id, status: TaskStatus.COMPLETED });
+  };
+
+  const handleCreateTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTask.title || !newTask.assignedToId || !newTask.dueDate) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    createTaskMutation.mutate(newTask);
   };
 
   const formatDate = (dateString: string) => {
@@ -97,12 +152,23 @@ export default function MyTasks() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ClipboardList className="w-6 h-6" />
-          My Tasks
-        </h1>
-        <p className="text-gray-500 mt-1">View and manage your assigned tasks</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <ClipboardList className="w-6 h-6" />
+            My Tasks
+          </h1>
+          <p className="text-gray-500 mt-1">View and manage your assigned tasks</p>
+        </div>
+        {canCreateTask && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Create Task
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -264,6 +330,140 @@ export default function MyTasks() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Create Task Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">Create New Task</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTask} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter task title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter task description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assign To <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newTask.assignedToId}
+                    onChange={(e) => setNewTask({ ...newTask, assignedToId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Select employee</option>
+                    {employeesData?.employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} ({emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as TaskPriority })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value={TaskPriority.LOW}>Low</option>
+                    <option value={TaskPriority.MEDIUM}>Medium</option>
+                    <option value={TaskPriority.HIGH}>High</option>
+                    <option value={TaskPriority.URGENT}>Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Due Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={newTask.dueDate}
+                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={newTask.notes}
+                  onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Additional notes"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createTaskMutation.isPending}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {createTaskMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Create Task
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
