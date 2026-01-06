@@ -80,6 +80,7 @@ interface ServiceFilters {
   unassigned?: boolean;
   undelivered?: boolean;
   completedAll?: boolean;
+  repeatedService?: boolean;
   includeStats?: boolean;
   faultIds?: string[];
 }
@@ -472,6 +473,7 @@ export class ServiceService {
       if (status) where.status = status;
       if (undelivered) where.status = 'COMPLETED';
       if (completedAll) where.status = { in: ['COMPLETED', 'DELIVERED'] };
+      if (filters.repeatedService) where.isRepeatedService = true;
       if (ticketNumber) where.ticketNumber = { contains: ticketNumber };
 
       // Search term across multiple fields
@@ -603,6 +605,14 @@ export class ServiceService {
         },
       });
 
+      // Get count of repeated services
+      const repeatedCount = await prisma.service.count({
+        where: {
+          ...where,
+          isRepeatedService: true,
+        },
+      });
+
       // Transform to stat object
       const stats: any = {
         total: 0,
@@ -614,6 +624,7 @@ export class ServiceService {
         cancelled: 0,
         notServiceable: 0,
         unassigned: unassignedCount,
+        repeatedService: repeatedCount,
       };
 
       // Map status counts

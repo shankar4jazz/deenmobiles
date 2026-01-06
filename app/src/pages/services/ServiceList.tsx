@@ -43,6 +43,7 @@ export default function ServiceList() {
   const initialUnassigned = searchParams.get('unassigned') === 'true';
   const initialUndelivered = searchParams.get('undelivered') === 'true';
   const initialCompletedAll = searchParams.get('completedAll') === 'true';
+  const initialRepeatedService = searchParams.get('repeatedService') === 'true';
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -54,6 +55,7 @@ export default function ServiceList() {
     unassigned: initialUnassigned,
     undelivered: initialUndelivered,
     completedAll: initialCompletedAll,
+    repeatedService: initialRepeatedService,
     faultIds: [] as string[],
   });
 
@@ -104,6 +106,7 @@ export default function ServiceList() {
       unassigned: filters.unassigned || undefined,
       undelivered: filters.undelivered || undefined,
       completedAll: filters.completedAll || undefined,
+      repeatedService: filters.repeatedService || undefined,
       faultIds: filters.faultIds.length > 0 ? filters.faultIds : undefined,
       includeStats: true,
     }),
@@ -184,31 +187,34 @@ export default function ServiceList() {
   };
 
   // Handle card click for filtering
-  const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'UNDELIVERED' | 'COMPLETED_ALL' | 'ALL') => {
+  const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'UNDELIVERED' | 'COMPLETED_ALL' | 'REPEATED' | 'ALL') => {
     const newParams = new URLSearchParams();
 
     if (status === 'ALL') {
       // Clear all filters
-      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: false, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: false, repeatedService: false, page: 1 });
     } else if (status === 'UNASSIGNED') {
       newParams.set('unassigned', 'true');
-      setFilters({ ...filters, status: '', unassigned: true, undelivered: false, completedAll: false, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: true, undelivered: false, completedAll: false, repeatedService: false, page: 1 });
     } else if (status === 'UNDELIVERED') {
       newParams.set('undelivered', 'true');
-      setFilters({ ...filters, status: '', unassigned: false, undelivered: true, completedAll: false, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: true, completedAll: false, repeatedService: false, page: 1 });
     } else if (status === 'COMPLETED_ALL') {
       newParams.set('completedAll', 'true');
-      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: true, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: true, repeatedService: false, page: 1 });
+    } else if (status === 'REPEATED') {
+      newParams.set('repeatedService', 'true');
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, completedAll: false, repeatedService: true, page: 1 });
     } else {
       newParams.set('status', status);
-      setFilters({ ...filters, status, unassigned: false, undelivered: false, completedAll: false, page: 1 });
+      setFilters({ ...filters, status, unassigned: false, undelivered: false, completedAll: false, repeatedService: false, page: 1 });
     }
 
     setSearchParams(newParams);
   };
 
   // Check if any filter is active
-  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered || filters.completedAll || filters.faultIds.length > 0 || filters.startDate || filters.endDate;
+  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered || filters.completedAll || filters.repeatedService || filters.faultIds.length > 0 || filters.startDate || filters.endDate;
 
   // Handle date preset selection
   const handleDatePreset = (preset: 'today' | 'yesterday' | 'thisMonth' | 'custom' | '') => {
@@ -508,7 +514,7 @@ export default function ServiceList() {
           {/* Section 1: Service Status */}
           <div className="mb-4">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Service Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
               {/* Total */}
               <div
                 onClick={() => handleCardClick('ALL')}
@@ -616,6 +622,24 @@ export default function ServiceList() {
                   </div>
                 </div>
               </div>
+
+              {/* Repeated Service */}
+              <div
+                onClick={() => handleCardClick('REPEATED')}
+                className={`bg-gradient-to-br from-pink-400 to-rose-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.repeatedService ? 'ring-4 ring-pink-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-pink-100 uppercase tracking-wider font-semibold mb-1">Repeated</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.repeatedService}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <RefreshCw className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -667,7 +691,7 @@ export default function ServiceList() {
       {hasActiveFilter && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-gray-600">
-            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : filters.undelivered ? 'Undelivered' : filters.completedAll ? 'Completed' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
+            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : filters.undelivered ? 'Undelivered' : filters.completedAll ? 'Completed' : filters.repeatedService ? 'Repeated' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
           </span>
           <button
             onClick={() => handleCardClick('ALL')}

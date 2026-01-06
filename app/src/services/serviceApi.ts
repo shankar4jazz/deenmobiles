@@ -339,6 +339,7 @@ export interface ServiceFilters {
   unassigned?: boolean;
   undelivered?: boolean;
   completedAll?: boolean;
+  repeatedService?: boolean;
   faultIds?: string[];
 }
 
@@ -352,6 +353,7 @@ export interface ServiceStats {
   cancelled: number;
   notServiceable: number;
   unassigned: number;
+  repeatedService: number;
 }
 
 export interface AddServicePartData {
@@ -458,6 +460,7 @@ export const serviceApi = {
     if (filters?.includeStats) params.append('includeStats', 'true');
     if (filters?.unassigned) params.append('unassigned', 'true');
     if (filters?.undelivered) params.append('undelivered', 'true');
+    if (filters?.repeatedService) params.append('repeatedService', 'true');
     if (filters?.faultIds && filters.faultIds.length > 0) {
       params.append('faultIds', filters.faultIds.join(','));
     }

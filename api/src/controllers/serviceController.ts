@@ -77,6 +77,9 @@ export class ServiceController {
     // Completed all filter (COMPLETED + DELIVERED)
     if (req.query.completedAll === 'true') filters.completedAll = true;
 
+    // Repeated service filter
+    if (req.query.repeatedService === 'true') filters.repeatedService = true;
+
     // Fault IDs filter (comma-separated)
     if (req.query.faultIds) {
       filters.faultIds = (req.query.faultIds as string).split(',').filter(id => id.trim());
