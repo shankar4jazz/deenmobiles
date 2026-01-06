@@ -473,8 +473,8 @@ export class ServiceService {
       if (assignedToId) where.assignedToId = assignedToId;
       if (unassigned) where.assignedToId = null;
       if (status) where.status = status;
-      if (undelivered) where.status = 'COMPLETED';
-      if (completedAll) where.status = { in: ['COMPLETED', 'DELIVERED'] };
+      if (undelivered) { where.status = 'READY'; where.deliveryStatus = 'PENDING'; }
+      if (completedAll) where.status = 'READY';
       if (filters.repeatedService) where.isRepeatedService = true;
       if (ticketNumber) where.ticketNumber = { contains: ticketNumber };
 
@@ -643,10 +643,10 @@ export class ServiceService {
         pending: 0,
         inProgress: 0,
         waitingParts: 0,
-        completed: 0,
-        delivered: 0,
-        cancelled: 0,
-        notServiceable: 0,
+        ready: 0,
+        
+        
+        notReady: 0,
         unassigned: unassignedCount,
         repeatedService: repeatedCount,
       };
@@ -666,17 +666,11 @@ export class ServiceService {
           case 'WAITING_PARTS':
             stats.waitingParts = count;
             break;
-          case 'COMPLETED':
-            stats.completed = count;
+          case 'READY':
+            stats.ready = count;
             break;
-          case 'DELIVERED':
-            stats.delivered = count;
-            break;
-          case 'CANCELLED':
-            stats.cancelled = count;
-            break;
-          case 'NOT_SERVICEABLE':
-            stats.notServiceable = count;
+          case 'NOT_READY':
+            stats.notReady = count;
             break;
         }
       });
@@ -3447,7 +3441,7 @@ export class ServiceService {
       }
 
       // Validate service is not already cancelled or refunded
-      if (service.status === 'CANCELLED') {
+      if (service.status === 'NOT_READY') {
         throw new AppError(400, 'Service is already cancelled');
       }
 
@@ -3481,7 +3475,7 @@ export class ServiceService {
         const refundedService = await tx.service.update({
           where: { id: serviceId },
           data: {
-            status: 'CANCELLED',
+            status: 'NOT_READY',
             refundAmount: totalPaid,
             refundReason: reason,
             refundPaymentMethodId: paymentMethodId,
@@ -3504,7 +3498,7 @@ export class ServiceService {
         await tx.serviceStatusHistory.create({
           data: {
             serviceId,
-            status: 'CANCELLED',
+            status: 'NOT_READY',
             notes: `Service refunded. Amount: ₹${totalPaid}. Reason: ${reason}`,
             changedBy: userId,
           },

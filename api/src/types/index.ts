@@ -7,9 +7,8 @@ export enum ServiceStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
   WAITING_PARTS = 'WAITING_PARTS',
-  COMPLETED = 'COMPLETED',
-  DELIVERED = 'DELIVERED',
-  CANCELLED = 'CANCELLED',
+  READY = 'READY',
+  NOT_READY = 'NOT_READY',
 }
 
 export enum PaymentStatus {
