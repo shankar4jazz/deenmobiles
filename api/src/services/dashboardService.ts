@@ -95,7 +95,7 @@ export class DashboardService {
       const completedToday = await prisma.service.count({
         where: {
           ...whereClause,
-          status: 'COMPLETED',
+          status: 'READY',
           completedAt: { gte: startOfToday },
         },
       });
@@ -107,7 +107,7 @@ export class DashboardService {
       const completedYesterday = await prisma.service.count({
         where: {
           ...whereClause,
-          status: 'COMPLETED',
+          status: 'READY',
           completedAt: { gte: startOfYesterday, lt: startOfToday },
         },
       });
@@ -328,7 +328,7 @@ export class DashboardService {
         id: service.id,
         title: `${service.status} - ${service.ticketNumber}`,
         subtitle: service.customer?.name || 'Unknown Customer',
-        type: service.status === 'COMPLETED' ? 'incoming' : service.status === 'CANCELLED' ? 'outgoing' : 'neutral',
+        type: service.status === 'READY' ? 'incoming' : service.status === 'NOT_READY' ? 'outgoing' : 'neutral',
         timestamp: service.updatedAt.toISOString(),
       }));
     } catch (error) {
@@ -381,7 +381,7 @@ export class DashboardService {
             where: { branchId: branch.id, status: { in: ['PENDING', 'IN_PROGRESS', 'WAITING_PARTS'] } },
           });
           const completed = await prisma.service.count({
-            where: { branchId: branch.id, status: 'COMPLETED' },
+            where: { branchId: branch.id, status: 'READY' },
           });
           const revenue = await prisma.service.aggregate({
             where: { branchId: branch.id, actualCost: { not: null } },
@@ -569,7 +569,7 @@ export class DashboardService {
           where: { branchId, status: 'WAITING_PARTS' },
         }),
         readyForDelivery: await prisma.service.count({
-          where: { branchId, status: 'COMPLETED' },
+          where: { branchId, status: 'READY' },
         }),
       };
 
@@ -704,7 +704,7 @@ export class DashboardService {
       const assignedServices = await prisma.service.findMany({
         where: {
           assignedToId: userId,
-          status: { notIn: ['COMPLETED', 'DELIVERED', 'CANCELLED'] },
+          status: { notIn: ['READY', 'NOT_READY'] },
         },
         include: {
           customer: { select: { name: true, phone: true, address: true } },
@@ -722,7 +722,7 @@ export class DashboardService {
       const completedServices = await prisma.service.findMany({
         where: {
           assignedToId: userId,
-          status: { in: ['COMPLETED', 'DELIVERED'] },
+          status: { in: ['READY', 'NOT_READY'] },
         },
         include: {
           customer: { select: { name: true, phone: true } },
@@ -737,7 +737,7 @@ export class DashboardService {
           where: { assignedToId: userId },
         }),
         completed: await prisma.service.count({
-          where: { assignedToId: userId, status: { in: ['COMPLETED', 'DELIVERED'] } },
+          where: { assignedToId: userId, status: { in: ['READY', 'NOT_READY'] } },
         }),
         pending: await prisma.service.count({
           where: { assignedToId: userId, status: 'PENDING' },
@@ -886,7 +886,7 @@ export class DashboardService {
 
           const totalServices = services.reduce((sum, s) => sum + s._count.status, 0);
           const pendingServices = services.find(s => ['PENDING', 'IN_PROGRESS', 'WAITING_PARTS'].includes(s.status))?._count.status || 0;
-          const completedServices = services.find(s => s.status === 'COMPLETED')?._count.status || 0;
+          const completedServices = services.find(s => s.status === 'READY')?._count.status || 0;
 
           // Revenue for period
           const branchRevenue = await prisma.service.aggregate({
@@ -1354,14 +1354,14 @@ export class DashboardService {
       });
 
       // Calculate completion rate
-      const completedCount = servicesByStatus.find(s => s.status === 'COMPLETED')?._count.status || 0;
+      const completedCount = servicesByStatus.find(s => s.status === 'READY')?._count.status || 0;
       const completionRate = totalServices > 0 ? ((completedCount / totalServices) * 100).toFixed(2) : 0;
 
       // Average resolution time for completed services
       const completedServices = await prisma.service.findMany({
         where: {
           branchId,
-          status: 'COMPLETED',
+          status: 'READY',
           completedAt: { not: null },
           createdAt: { gte: start, lte: end },
         },
@@ -1397,7 +1397,7 @@ export class DashboardService {
           },
           assignedServices: {
             where: {
-              status: 'COMPLETED',
+              status: 'READY',
               createdAt: { gte: start, lte: end },
             },
             select: { id: true },
@@ -1467,7 +1467,7 @@ export class DashboardService {
       const dailyCompleted = await prisma.service.count({
         where: {
           branchId,
-          status: 'COMPLETED',
+          status: 'READY',
           completedAt: { gte: startOfDay, lte: endOfDay },
         },
       });
