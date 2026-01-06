@@ -38,6 +38,7 @@ export default function ServiceList() {
   // Initialize filters from URL params
   const initialStatus = searchParams.get('status') as ServiceStatus | '' || '';
   const initialUnassigned = searchParams.get('unassigned') === 'true';
+  const initialUndelivered = searchParams.get('undelivered') === 'true';
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -47,6 +48,7 @@ export default function ServiceList() {
     startDate: '',
     endDate: '',
     unassigned: initialUnassigned,
+    undelivered: initialUndelivered,
   });
 
   const [showFilters, setShowFilters] = useState(false);
@@ -80,6 +82,7 @@ export default function ServiceList() {
       ...filters,
       status: filters.status || undefined,
       unassigned: filters.unassigned || undefined,
+      undelivered: filters.undelivered || undefined,
       includeStats: true,
     }),
   });
@@ -159,25 +162,28 @@ export default function ServiceList() {
   };
 
   // Handle card click for filtering
-  const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'ALL') => {
+  const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'UNDELIVERED' | 'ALL') => {
     const newParams = new URLSearchParams();
 
     if (status === 'ALL') {
       // Clear all filters
-      setFilters({ ...filters, status: '', unassigned: false, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: false, page: 1 });
     } else if (status === 'UNASSIGNED') {
       newParams.set('unassigned', 'true');
-      setFilters({ ...filters, status: '', unassigned: true, page: 1 });
+      setFilters({ ...filters, status: '', unassigned: true, undelivered: false, page: 1 });
+    } else if (status === 'UNDELIVERED') {
+      newParams.set('undelivered', 'true');
+      setFilters({ ...filters, status: '', unassigned: false, undelivered: true, page: 1 });
     } else {
       newParams.set('status', status);
-      setFilters({ ...filters, status, unassigned: false, page: 1 });
+      setFilters({ ...filters, status, unassigned: false, undelivered: false, page: 1 });
     }
 
     setSearchParams(newParams);
   };
 
   // Check if any filter is active
-  const hasActiveFilter = filters.status || filters.unassigned;
+  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered;
 
   const handlePageChange = (page: number) => {
     setFilters({ ...filters, page });
@@ -280,7 +286,7 @@ export default function ServiceList() {
 
       {/* Analytics Cards */}
       {data?.stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-6">
           {/* Total */}
           <div
             onClick={() => handleCardClick('ALL')}
@@ -388,6 +394,42 @@ export default function ServiceList() {
               </div>
             </div>
           </div>
+
+          {/* Delivered */}
+          <div
+            onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
+            className={`bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.status === ServiceStatus.DELIVERED ? 'ring-4 ring-teal-300 ring-offset-2' : ''
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-teal-100 uppercase tracking-wider font-semibold mb-1">Delivered</p>
+                <p className="text-3xl font-bold text-white">{data.stats.delivered}</p>
+              </div>
+              <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                <Truck className="w-7 h-7 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Undelivered */}
+          <div
+            onClick={() => handleCardClick('UNDELIVERED')}
+            className={`bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+              filters.undelivered ? 'ring-4 ring-amber-300 ring-offset-2' : ''
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-amber-100 uppercase tracking-wider font-semibold mb-1">Undelivered</p>
+                <p className="text-3xl font-bold text-white">{data.stats.pending + data.stats.inProgress + data.stats.waitingParts + data.stats.completed}</p>
+              </div>
+              <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                <Clock className="w-7 h-7 text-white" />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -395,7 +437,7 @@ export default function ServiceList() {
       {hasActiveFilter && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-gray-600">
-            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
+            Filtering by: <span className="font-semibold">{filters.unassigned ? 'Unassigned' : filters.undelivered ? 'Undelivered' : STATUS_LABELS[filters.status as ServiceStatus]}</span>
           </span>
           <button
             onClick={() => handleCardClick('ALL')}

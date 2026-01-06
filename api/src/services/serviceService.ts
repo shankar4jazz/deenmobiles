@@ -78,6 +78,7 @@ interface ServiceFilters {
   page?: number;
   limit?: number;
   unassigned?: boolean;
+  undelivered?: boolean;
   includeStats?: boolean;
 }
 
@@ -450,6 +451,7 @@ export class ServiceService {
         page = 1,
         limit = 20,
         unassigned,
+        undelivered,
       } = filters;
 
       const skip = (page - 1) * limit;
@@ -464,6 +466,7 @@ export class ServiceService {
       if (assignedToId) where.assignedToId = assignedToId;
       if (unassigned) where.assignedToId = null;
       if (status) where.status = status;
+      if (undelivered) where.status = { in: ['PENDING', 'IN_PROGRESS', 'WAITING_PARTS', 'COMPLETED'] };
       if (ticketNumber) where.ticketNumber = { contains: ticketNumber };
 
       // Search term across multiple fields

@@ -71,6 +71,9 @@ export class ServiceController {
     // Unassigned filter
     if (req.query.unassigned === 'true') filters.unassigned = true;
 
+    // Undelivered filter (pending, in_progress, waiting_parts, completed)
+    if (req.query.undelivered === 'true') filters.undelivered = true;
+
     const result = await ServiceService.getServices(filters);
 
     return ApiResponse.success(res, result, 'Services retrieved successfully');

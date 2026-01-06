@@ -337,6 +337,7 @@ export interface ServiceFilters {
   endDate?: string;
   includeStats?: boolean;
   unassigned?: boolean;
+  undelivered?: boolean;
 }
 
 export interface ServiceStats {
