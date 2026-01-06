@@ -8,6 +8,7 @@ import { technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
+import DeliveryModal from '@/components/services/DeliveryModal';
 import ServiceTable from './ServiceTable';
 import StatsBar from './StatsBar';
 import TableFilters from './TableFilters';
@@ -63,6 +64,18 @@ export default function ServiceList() {
   const [viewMode, setViewMode] = useState<'card' | 'table'>('table');
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+
+  // Auto-open delivery modal if URL has delivery=true
+  useEffect(() => {
+    if (searchParams.get('delivery') === 'true') {
+      setShowDeliveryModal(true);
+      // Remove the param from URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('delivery');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -814,6 +827,12 @@ export default function ServiceList() {
           serviceId={editingServiceId}
         />
       )}
+
+      {/* Delivery Modal */}
+      <DeliveryModal
+        isOpen={showDeliveryModal}
+        onClose={() => setShowDeliveryModal(false)}
+      />
     </div>
   );
 }

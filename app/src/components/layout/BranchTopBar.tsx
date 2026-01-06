@@ -1,13 +1,15 @@
 import { useState, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, ChevronDown, Search, Calculator } from 'lucide-react';
+import { LogOut, User, ChevronDown, Search, Calculator, Truck } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
+import DeliveryModal from '@/components/services/DeliveryModal';
 
 export default function BranchTopBar() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -28,6 +30,15 @@ export default function BranchTopBar() {
         <div className="flex items-center justify-between px-6 py-3">
         {/* Left Side Actions */}
         <div className="flex items-center gap-4">
+          {/* Delivery Button */}
+          <button
+            onClick={() => setShowDeliveryModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-sm"
+          >
+            <Truck className="h-4 w-4" />
+            <span className="hidden sm:inline">Delivery</span>
+          </button>
+
           {/* Cash Settlement Button */}
           <button
             onClick={() => navigate('/cash-settlement')}
@@ -103,6 +114,12 @@ export default function BranchTopBar() {
         </div>
         </div>
       </div>
+
+      {/* Delivery Modal */}
+      <DeliveryModal
+        isOpen={showDeliveryModal}
+        onClose={() => setShowDeliveryModal(false)}
+      />
     </div>
   );
 }

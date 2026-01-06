@@ -82,6 +82,11 @@ const navItems: NavItem[] = [
         path: '/services',
         icon: List,
       },
+      {
+        name: 'Delivery',
+        path: '/services?delivery=true',
+        icon: Truck,
+      },
     ],
   },
   {
