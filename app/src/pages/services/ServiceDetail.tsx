@@ -504,17 +504,32 @@ export default function ServiceDetail() {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Reported Faults</h3>
             {service.faults && service.faults.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {service.faults.map((f: any) => (
-                  <span
-                    key={f.fault?.id || f.faultId}
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 border border-red-200 rounded text-sm"
-                  >
-                    <span className="font-medium text-red-700">{f.fault?.name || 'Unknown'}</span>
-                    {f.fault?.defaultPrice > 0 && (
-                      <span className="text-xs text-gray-500">₹{f.fault.defaultPrice}</span>
-                    )}
-                  </span>
-                ))}
+                {service.faults.map((f: any) => {
+                  const isWarrantyCovered = service.isWarrantyRepair &&
+                    service.matchingFaultIds?.includes(f.fault?.id || f.faultId);
+                  return (
+                    <span
+                      key={f.fault?.id || f.faultId}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm ${
+                        isWarrantyCovered
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-red-50 border border-red-200'
+                      }`}
+                    >
+                      <span className={`font-medium ${isWarrantyCovered ? 'text-green-700' : 'text-red-700'}`}>
+                        {f.fault?.name || 'Unknown'}
+                      </span>
+                      {f.fault?.defaultPrice > 0 && (
+                        <span className={`text-xs ${isWarrantyCovered ? 'line-through text-gray-400' : 'text-gray-500'}`}>
+                          ₹{f.fault.defaultPrice}
+                        </span>
+                      )}
+                      {isWarrantyCovered && (
+                        <span className="text-xs font-semibold text-green-600">FREE</span>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-400 italic">No faults recorded</p>
