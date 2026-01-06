@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { invoiceApi, Invoice } from '@/services/invoiceApi';
 import { useAuthStore } from '@/store/authStore';
@@ -14,10 +14,13 @@ import {
 import DataTable from '@/components/common/DataTable';
 import { createInvoiceColumns } from './columns';
 import { BulkAction } from '@/types/table';
+import { toast } from 'sonner';
 
 export default function InvoiceList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
+  const [deleteConfirmInvoice, setDeleteConfirmInvoice] = useState<Invoice | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
@@ -85,10 +88,36 @@ export default function InvoiceList() {
     setCurrentPage(1);
   };
 
+  // Delete invoice mutation
+  const deleteMutation = useMutation({
+    mutationFn: (invoiceId: string) => invoiceApi.delete(invoiceId),
+    onSuccess: () => {
+      toast.success('Invoice deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      setDeleteConfirmInvoice(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete invoice');
+    },
+  });
+
+  const handleDeleteInvoice = (invoice: Invoice) => {
+    setDeleteConfirmInvoice(invoice);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirmInvoice) {
+      deleteMutation.mutate(deleteConfirmInvoice.id);
+    }
+  };
+
+  // Get the latest invoice ID (first item since sorted by createdAt DESC)
+  const latestInvoiceId = filteredData?.[0]?.id;
+
   // Create column definitions with handlers
   const columns = useMemo(
-    () => createInvoiceColumns(handleViewInvoice, handleDownloadPDF, handleCloneInvoice),
-    []
+    () => createInvoiceColumns(handleViewInvoice, handleDownloadPDF, handleCloneInvoice, handleDeleteInvoice, latestInvoiceId),
+    [latestInvoiceId]
   );
 
   // Bulk actions
@@ -297,6 +326,35 @@ export default function InvoiceList() {
         }
         emptyState={emptyState}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirmInvoice(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Invoice</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete invoice <span className="font-medium">{deleteConfirmInvoice.invoiceNumber}</span>?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirmInvoice(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

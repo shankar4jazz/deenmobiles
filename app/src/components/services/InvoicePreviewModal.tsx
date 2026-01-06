@@ -102,12 +102,9 @@ export function InvoicePreviewModal({
     },
   });
 
-  // Auto-generate if no existing invoice found after check
-  useEffect(() => {
-    if (isOpen && hasChecked && !invoice && !generateMutation.isPending) {
-      generateMutation.mutate();
-    }
-  }, [isOpen, hasChecked, invoice]);
+  const handleGenerateInvoice = () => {
+    generateMutation.mutate();
+  };
 
   const handlePrint = () => {
     if (invoice?.pdfUrl) {
@@ -235,12 +232,28 @@ export function InvoicePreviewModal({
 
         {/* Content */}
         <div className="flex-1 overflow-hidden p-6">
-          {isLoading ? (
+          {isLoadingExisting ? (
             <div className="h-96 flex flex-col items-center justify-center text-gray-500">
               <Loader2 className="w-10 h-10 animate-spin mb-4" />
-              <p className="text-sm">
-                {isLoadingExisting ? 'Checking for invoice...' : 'Generating Invoice...'}
-              </p>
+              <p className="text-sm">Checking for invoice...</p>
+            </div>
+          ) : generateMutation.isPending ? (
+            <div className="h-96 flex flex-col items-center justify-center text-gray-500">
+              <Loader2 className="w-10 h-10 animate-spin mb-4" />
+              <p className="text-sm">Generating Invoice...</p>
+            </div>
+          ) : !invoice && hasChecked ? (
+            <div className="h-96 flex flex-col items-center justify-center">
+              <FileText className="w-16 h-16 text-gray-300 mb-4" />
+              <p className="text-gray-600 font-medium mb-2">No Invoice Generated Yet</p>
+              <p className="text-sm text-gray-500 mb-6">Click the button below to generate an invoice for this service</p>
+              <button
+                onClick={handleGenerateInvoice}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <FileText className="w-5 h-5" />
+                <span className="font-medium">Generate Invoice</span>
+              </button>
             </div>
           ) : generateMutation.isError ? (
             <div className="h-96 flex flex-col items-center justify-center">
