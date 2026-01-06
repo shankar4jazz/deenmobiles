@@ -47,6 +47,7 @@ import MyTasks from './pages/tasks/MyTasks';
 import ReportsPage from './pages/branch/ReportsPage';
 import CashSettlementPage from './pages/branch/CashSettlementPage';
 import SettingsPage from './pages/branch/SettingsPage';
+import SearchResultsPage from './pages/search/SearchResultsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -122,6 +123,7 @@ function App() {
               <Route path="reports" element={<ReportsPage />} />
               <Route path="cash-settlement" element={<CashSettlementPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="search" element={<SearchResultsPage />} />
             </Route>
           ) : (
             <Route path="*" element={<Navigate to="/login" />} />
