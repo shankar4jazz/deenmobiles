@@ -2828,6 +2828,7 @@ export class ServiceService {
     }>;
     notes?: string;
     markAsDelivered?: boolean;
+    discount?: number;
     userId: string;
     companyId: string;
   }) {
@@ -2895,12 +2896,19 @@ export class ServiceService {
           });
         }
 
-        // Update service advancePayment total
+        // Update service advancePayment total and discount if provided
+        const serviceUpdateData: any = {
+          advancePayment: { increment: totalAmount },
+        };
+
+        // Add additional discount if provided
+        if (data.discount && data.discount > 0) {
+          serviceUpdateData.discount = { increment: data.discount };
+        }
+
         let updatedService = await tx.service.update({
           where: { id: data.serviceId },
-          data: {
-            advancePayment: { increment: totalAmount },
-          },
+          data: serviceUpdateData,
           include: {
             customer: true,
             assignedTo: true,

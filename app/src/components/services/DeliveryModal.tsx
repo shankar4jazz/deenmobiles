@@ -69,6 +69,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
 
   const [paymentEntries, setPaymentEntries] = useState<Record<string, PaymentMethodEntry>>({});
   const [markAsDelivered, setMarkAsDelivered] = useState(true);
+  const [additionalDiscount, setAdditionalDiscount] = useState<string>('');
 
   // Fetch payment methods
   const { data: paymentMethodsData, isLoading: isLoadingMethods } = useQuery({
@@ -102,13 +103,15 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
       0
     );
     const totalAmount = estimatePrice + extraSpareTotal;
-    const discount = service.discount || 0;
-    const finalAmount = totalAmount - discount;
+    const existingDiscount = service.discount || 0;
+    const newDiscount = parseFloat(additionalDiscount) || 0;
+    const totalDiscount = existingDiscount + newDiscount;
+    const finalAmount = totalAmount - totalDiscount;
     const advancePaid = (service.paymentEntries || []).reduce((sum, p) => sum + p.amount, 0);
     const balanceDue = finalAmount - advancePaid;
 
-    return { estimatePrice, extraSpareTotal, totalAmount, discount, finalAmount, advancePaid, balanceDue };
-  }, [service]);
+    return { estimatePrice, extraSpareTotal, totalAmount, existingDiscount, newDiscount, totalDiscount, finalAmount, advancePaid, balanceDue };
+  }, [service, additionalDiscount]);
 
   const totalEntered = useMemo(() => {
     return Object.values(paymentEntries).reduce((sum, entry) => {
@@ -148,7 +151,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
       } else {
         setService(result.services[0]);
         setSearchedTicket(searchQuery.trim());
-        // Reset payment entries
+        // Reset payment entries and discount
         if (paymentMethodsData?.data) {
           const reset: Record<string, PaymentMethodEntry> = {};
           paymentMethodsData.data.forEach((method) => {
@@ -160,6 +163,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
           });
           setPaymentEntries(reset);
         }
+        setAdditionalDiscount('');
       }
     } catch (error: any) {
       setSearchError(error.response?.data?.message || 'Failed to search service');
@@ -180,9 +184,12 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
           paymentMethodId: entry.paymentMethodId,
         }));
 
+      const newDiscount = parseFloat(additionalDiscount) || 0;
+
       const data: BulkPaymentEntryData = {
         payments: validPayments,
         markAsDelivered,
+        discount: newDiscount > 0 ? newDiscount : undefined,
       };
 
       return serviceApi.addBulkPaymentEntries(service.id, data);
@@ -192,11 +199,14 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
       queryClient.invalidateQueries({ queryKey: ['service', service?.id] });
       toast.success(markAsDelivered ? 'Payment collected & delivered' : 'Payment collected');
 
+      const newDiscount = parseFloat(additionalDiscount) || 0;
+
       // Update local service state to reflect delivery - keep modal open for invoice
       if (markAsDelivered && service) {
         setService({
           ...service,
           deliveryStatus: DeliveryStatus.DELIVERED,
+          discount: (service.discount || 0) + newDiscount,
           paymentEntries: [
             ...(service.paymentEntries || []),
             ...Object.values(paymentEntries)
@@ -210,7 +220,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
               })),
           ],
         });
-        // Reset payment entries after successful payment
+        // Reset payment entries and discount after successful payment
         if (paymentMethodsData?.data) {
           const reset: Record<string, PaymentMethodEntry> = {};
           paymentMethodsData.data.forEach((method) => {
@@ -222,6 +232,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
           });
           setPaymentEntries(reset);
         }
+        setAdditionalDiscount('');
       }
     },
     onError: (error: any) => {
@@ -255,6 +266,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
     setSearchError(null);
     setPaymentEntries({});
     setMarkAsDelivered(true);
+    setAdditionalDiscount('');
     onClose();
   };
 
@@ -447,7 +459,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                       <div className="text-center py-4 text-gray-500 text-sm">Loading...</div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-4 gap-3">
                           {paymentMethodsData?.data
                             .filter((method) => ['Cash', 'UPI', 'Card'].includes(method.name))
                             .map((method) => (
@@ -470,6 +482,25 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                               </div>
                             </div>
                           ))}
+                          {/* Discount Input */}
+                          <div className="text-center">
+                            <label className="block text-xs font-medium text-red-600 mb-1">Discount</label>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                ₹
+                              </span>
+                              <input
+                                type="number"
+                                step="1"
+                                min="0"
+                                value={additionalDiscount}
+                                onChange={(e) => setAdditionalDiscount(e.target.value)}
+                                disabled={isAlreadyDelivered}
+                                className="w-full pl-5 pr-2 py-2 border border-red-200 rounded-lg text-sm text-right focus:ring-1 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 bg-red-50"
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div className="border-t pt-2 mt-2">
                           <div className="flex items-center justify-between">
@@ -520,10 +551,16 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                         <span className="font-medium">Total</span>
                         <span className="font-semibold">₹{formatCurrency(pricingSummary.totalAmount)}</span>
                       </div>
-                      {pricingSummary.discount > 0 && (
+                      {pricingSummary.existingDiscount > 0 && (
                         <div className="flex justify-between text-red-600">
-                          <span>Discount</span>
-                          <span>-₹{formatCurrency(pricingSummary.discount)}</span>
+                          <span>Existing Discount</span>
+                          <span>-₹{formatCurrency(pricingSummary.existingDiscount)}</span>
+                        </div>
+                      )}
+                      {pricingSummary.newDiscount > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span>New Discount</span>
+                          <span>-₹{formatCurrency(pricingSummary.newDiscount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-green-600">

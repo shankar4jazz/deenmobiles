@@ -265,6 +265,7 @@ export interface BulkPaymentEntryData {
   }>;
   notes?: string;
   markAsDelivered?: boolean;
+  discount?: number;
 }
 
 export interface ServiceNote {
