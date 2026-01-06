@@ -129,7 +129,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
     mutationFn: (data: { branchInventoryId: string; quantity: number; unitPrice: number; isExtraSpare: boolean; faultTag?: string }) =>
       serviceApi.addServicePart(serviceId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
       resetTagForm();
       resetExtraForm();
       resetManualForm();
@@ -140,7 +140,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
   const removePartMutation = useMutation({
     mutationFn: (partId: string) => serviceApi.removeServicePart(serviceId, partId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
     },
   });
 
@@ -149,7 +149,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
     mutationFn: ({ partId, data }: { partId: string; data: { quantity?: number; unitPrice?: number } }) =>
       serviceApi.updateServicePart(serviceId, partId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
       setEditingPartId(null);
     },
   });
@@ -159,7 +159,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
     mutationFn: ({ partId, data }: { partId: string; data: { approvalMethod: ApprovalMethod; approvalNote?: string } }) =>
       serviceApi.approveServicePart(serviceId, partId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
       setApprovingPartId(null);
       setApprovalMethod('PHONE_CALL');
       setApprovalNote('');
@@ -171,7 +171,7 @@ export default function PartsManagement({ serviceId, parts, faults, canEdit, onE
     mutationFn: ({ partId, note }: { partId: string; note?: string }) =>
       serviceApi.approveServicePartForWarranty(serviceId, partId, note),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
     },
   });
 
