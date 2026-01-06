@@ -338,6 +338,7 @@ export interface ServiceFilters {
   includeStats?: boolean;
   unassigned?: boolean;
   undelivered?: boolean;
+  faultIds?: string[];
 }
 
 export interface ServiceStats {
@@ -455,6 +456,10 @@ export const serviceApi = {
     if (filters?.endDate) params.append('endDate', filters.endDate);
     if (filters?.includeStats) params.append('includeStats', 'true');
     if (filters?.unassigned) params.append('unassigned', 'true');
+    if (filters?.undelivered) params.append('undelivered', 'true');
+    if (filters?.faultIds && filters.faultIds.length > 0) {
+      params.append('faultIds', filters.faultIds.join(','));
+    }
 
     const response = await api.get(`/services?${params.toString()}`);
     return {

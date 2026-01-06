@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { serviceApi, ServiceStatus } from '@/services/serviceApi';
 import { technicianApi } from '@/services/technicianApi';
+import { masterDataApi } from '@/services/masterDataApi';
 import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag } from 'lucide-react';
+import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
@@ -49,9 +51,13 @@ export default function ServiceList() {
     endDate: '',
     unassigned: initialUnassigned,
     undelivered: initialUndelivered,
+    faultIds: [] as string[],
   });
 
   const [showFilters, setShowFilters] = useState(false);
+  const [datePreset, setDatePreset] = useState<'today' | 'yesterday' | 'thisMonth' | 'custom' | ''>('');
+  const [showFaultDropdown, setShowFaultDropdown] = useState(false);
+  const faultDropdownRef = useRef<HTMLDivElement>(null);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [assigningServiceId, setAssigningServiceId] = useState<string | null>(null);
   const [technicianSearch, setTechnicianSearch] = useState('');
@@ -64,16 +70,26 @@ export default function ServiceList() {
         setAssigningServiceId(null);
         setTechnicianSearch('');
       }
+      if (faultDropdownRef.current && !faultDropdownRef.current.contains(event.target as Node)) {
+        setShowFaultDropdown(false);
+      }
     };
 
-    if (assigningServiceId) {
+    if (assigningServiceId || showFaultDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [assigningServiceId]);
+  }, [assigningServiceId, showFaultDropdown]);
+
+  // Fetch faults for filter dropdown
+  const { data: faultsData } = useQuery({
+    queryKey: ['faults-list'],
+    queryFn: () => masterDataApi.faults.getAll({ limit: 100 }),
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Fetch services
   const { data, isLoading, refetch } = useQuery({
@@ -83,6 +99,7 @@ export default function ServiceList() {
       status: filters.status || undefined,
       unassigned: filters.unassigned || undefined,
       undelivered: filters.undelivered || undefined,
+      faultIds: filters.faultIds.length > 0 ? filters.faultIds : undefined,
       includeStats: true,
     }),
   });
@@ -183,7 +200,67 @@ export default function ServiceList() {
   };
 
   // Check if any filter is active
-  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered;
+  const hasActiveFilter = filters.status || filters.unassigned || filters.undelivered || filters.faultIds.length > 0 || filters.startDate || filters.endDate;
+
+  // Handle date preset selection
+  const handleDatePreset = (preset: 'today' | 'yesterday' | 'thisMonth' | 'custom' | '') => {
+    setDatePreset(preset);
+    const today = new Date();
+
+    if (preset === 'today') {
+      setFilters({
+        ...filters,
+        startDate: format(startOfDay(today), 'yyyy-MM-dd'),
+        endDate: format(endOfDay(today), 'yyyy-MM-dd'),
+        page: 1,
+      });
+    } else if (preset === 'yesterday') {
+      const yesterday = subDays(today, 1);
+      setFilters({
+        ...filters,
+        startDate: format(startOfDay(yesterday), 'yyyy-MM-dd'),
+        endDate: format(endOfDay(yesterday), 'yyyy-MM-dd'),
+        page: 1,
+      });
+    } else if (preset === 'thisMonth') {
+      setFilters({
+        ...filters,
+        startDate: format(startOfMonth(today), 'yyyy-MM-dd'),
+        endDate: format(endOfMonth(today), 'yyyy-MM-dd'),
+        page: 1,
+      });
+    } else if (preset === '' || preset === 'custom') {
+      // Clear date filters or show custom inputs
+      if (preset === '') {
+        setFilters({ ...filters, startDate: '', endDate: '', page: 1 });
+      }
+    }
+  };
+
+  // Handle fault selection toggle
+  const handleFaultToggle = (faultId: string) => {
+    const newFaultIds = filters.faultIds.includes(faultId)
+      ? filters.faultIds.filter(id => id !== faultId)
+      : [...filters.faultIds, faultId];
+    setFilters({ ...filters, faultIds: newFaultIds, page: 1 });
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilters({
+      ...filters,
+      search: '',
+      status: '',
+      startDate: '',
+      endDate: '',
+      unassigned: false,
+      undelivered: false,
+      faultIds: [],
+      page: 1,
+    });
+    setDatePreset('');
+    setSearchParams(new URLSearchParams());
+  };
 
   const handlePageChange = (page: number) => {
     setFilters({ ...filters, page });
@@ -245,17 +322,117 @@ export default function ServiceList() {
             ))}
           </select>
 
+          {/* Fault Filter Dropdown */}
+          <div className="relative" ref={faultDropdownRef}>
+            <button
+              onClick={() => setShowFaultDropdown(!showFaultDropdown)}
+              className={`flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors ${
+                filters.faultIds.length > 0 ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
+              }`}
+            >
+              <Tag className="w-5 h-5" />
+              Faults
+              {filters.faultIds.length > 0 && (
+                <span className="bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {filters.faultIds.length}
+                </span>
+              )}
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            {showFaultDropdown && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                <div className="p-2">
+                  {faultsData?.data?.map((fault) => (
+                    <label
+                      key={fault.id}
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.faultIds.includes(fault.id)}
+                        onChange={() => handleFaultToggle(fault.id)}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                      <span className="text-sm text-gray-700">{fault.name}</span>
+                    </label>
+                  ))}
+                  {(!faultsData?.data || faultsData.data.length === 0) && (
+                    <p className="text-sm text-gray-500 px-3 py-2">No faults available</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Advanced Filters Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors ${
+              showFilters ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
+            }`}
           >
             <Filter className="w-5 h-5" />
-            Filters
+            More
+          </button>
+
+          {/* Clear Filters */}
+          {hasActiveFilter && (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              <X className="w-5 h-5" />
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Date Presets */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-600 mr-2">Date:</span>
+          <button
+            onClick={() => handleDatePreset('')}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+              datePreset === '' && !filters.startDate ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All Time
+          </button>
+          <button
+            onClick={() => handleDatePreset('today')}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+              datePreset === 'today' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => handleDatePreset('yesterday')}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+              datePreset === 'yesterday' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Yesterday
+          </button>
+          <button
+            onClick={() => handleDatePreset('thisMonth')}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+              datePreset === 'thisMonth' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            This Month
+          </button>
+          <button
+            onClick={() => { setDatePreset('custom'); setShowFilters(true); }}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+              datePreset === 'custom' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Custom
           </button>
         </div>
 
-        {/* Advanced Filters */}
+        {/* Advanced Filters - Custom Date Range */}
         {showFilters && (
           <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -265,7 +442,10 @@ export default function ServiceList() {
               <input
                 type="date"
                 value={filters.startDate}
-                onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                onChange={(e) => {
+                  setFilters({ ...filters, startDate: e.target.value, page: 1 });
+                  setDatePreset('custom');
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
@@ -276,7 +456,10 @@ export default function ServiceList() {
               <input
                 type="date"
                 value={filters.endDate}
-                onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                onChange={(e) => {
+                  setFilters({ ...filters, endDate: e.target.value, page: 1 });
+                  setDatePreset('custom');
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>

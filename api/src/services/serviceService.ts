@@ -80,6 +80,7 @@ interface ServiceFilters {
   unassigned?: boolean;
   undelivered?: boolean;
   includeStats?: boolean;
+  faultIds?: string[];
 }
 
 interface AddServicePartData {
@@ -452,6 +453,7 @@ export class ServiceService {
         limit = 20,
         unassigned,
         undelivered,
+        faultIds,
       } = filters;
 
       const skip = (page - 1) * limit;
@@ -485,6 +487,15 @@ export class ServiceService {
         where.createdAt = {};
         if (startDate) where.createdAt.gte = startDate;
         if (endDate) where.createdAt.lte = endDate;
+      }
+
+      // Fault filter - filter services that have any of the specified faults
+      if (faultIds && faultIds.length > 0) {
+        where.faults = {
+          some: {
+            faultId: { in: faultIds }
+          }
+        };
       }
 
       // Get total count

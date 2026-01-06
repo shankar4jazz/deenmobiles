@@ -74,6 +74,11 @@ export class ServiceController {
     // Undelivered filter (pending, in_progress, waiting_parts, completed)
     if (req.query.undelivered === 'true') filters.undelivered = true;
 
+    // Fault IDs filter (comma-separated)
+    if (req.query.faultIds) {
+      filters.faultIds = (req.query.faultIds as string).split(',').filter(id => id.trim());
+    }
+
     const result = await ServiceService.getServices(filters);
 
     return ApiResponse.success(res, result, 'Services retrieved successfully');
