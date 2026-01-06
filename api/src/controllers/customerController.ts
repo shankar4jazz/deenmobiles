@@ -13,6 +13,7 @@ export class CustomerController {
         name,
         phone,
         whatsappNumber,
+        alternativeMobile,
         email,
         address,
         idProofType,
@@ -35,6 +36,7 @@ export class CustomerController {
         name,
         phone,
         whatsappNumber: whatsappNumber || undefined,
+        alternativeMobile: alternativeMobile || undefined,
         email: email || undefined,
         address: address || undefined,
         idProofType: idProofType || undefined,
@@ -122,6 +124,7 @@ export class CustomerController {
         name,
         phone,
         whatsappNumber,
+        alternativeMobile,
         email,
         address,
         idProofType,
@@ -138,6 +141,7 @@ export class CustomerController {
       if (name) updateData.name = name;
       if (phone) updateData.phone = phone;
       if (whatsappNumber !== undefined) updateData.whatsappNumber = whatsappNumber || undefined;
+      if (alternativeMobile !== undefined) updateData.alternativeMobile = alternativeMobile || undefined;
       if (email !== undefined) updateData.email = email || undefined;
       if (address !== undefined) updateData.address = address || undefined;
       if (idProofType !== undefined) updateData.idProofType = idProofType || undefined;

@@ -7,6 +7,7 @@ export interface CreateCustomerDTO {
   name: string;
   phone: string;
   whatsappNumber?: string;
+  alternativeMobile?: string;
   email?: string;
   address?: string;
   idProofType?: string;
@@ -20,6 +21,7 @@ export interface UpdateCustomerDTO {
   name?: string;
   phone?: string;
   whatsappNumber?: string;
+  alternativeMobile?: string;
   email?: string;
   address?: string;
   idProofType?: string;
@@ -89,6 +91,7 @@ export class CustomerService {
         name: data.name,
         phone: data.phone,
         whatsappNumber: data.whatsappNumber,
+        alternativeMobile: data.alternativeMobile,
         email: data.email,
         address: data.address,
         idProofType: data.idProofType,
@@ -258,6 +261,7 @@ export class CustomerService {
         ...(data.name && { name: data.name }),
         ...(data.phone && { phone: data.phone }),
         ...(data.whatsappNumber !== undefined && { whatsappNumber: data.whatsappNumber }),
+        ...(data.alternativeMobile !== undefined && { alternativeMobile: data.alternativeMobile }),
         ...(data.email !== undefined && { email: data.email }),
         ...(data.address !== undefined && { address: data.address }),
         ...(data.idProofType !== undefined && { idProofType: data.idProofType }),

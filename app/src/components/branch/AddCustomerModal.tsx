@@ -37,10 +37,12 @@ export default function AddCustomerModal({
     'idle' | 'checking' | 'available' | 'taken'
   >('idle');
   const [idProofFile, setIdProofFile] = useState<File | null>(null);
+  const [sameAsMobile, setSameAsMobile] = useState(false);
   const [formData, setFormData] = useState<CustomerFormData>({
     name: '',
     phone: '',
     whatsappNumber: '',
+    alternativeMobile: '',
     email: '',
     address: '',
     idProofType: '',
@@ -86,6 +88,13 @@ export default function AddCustomerModal({
     };
   }, [formData.phone]);
 
+  // Sync whatsappNumber with phone when sameAsMobile is checked
+  useEffect(() => {
+    if (sameAsMobile) {
+      setFormData(prev => ({ ...prev, whatsappNumber: prev.phone }));
+    }
+  }, [sameAsMobile, formData.phone]);
+
   // Pre-populate phone number when initialPhone is provided
   useEffect(() => {
     if (initialPhone && isOpen) {
@@ -123,6 +132,7 @@ export default function AddCustomerModal({
       name: '',
       phone: '',
       whatsappNumber: '',
+      alternativeMobile: '',
       email: '',
       address: '',
       idProofType: '',
@@ -130,6 +140,7 @@ export default function AddCustomerModal({
       branchId: branchId,
     });
     setIdProofFile(null);
+    setSameAsMobile(false);
     setError('');
     setValidationErrors([]);
     setPhoneStatus('idle');
@@ -156,6 +167,7 @@ export default function AddCustomerModal({
       ...formData,
       email: formData.email?.trim() || undefined,
       whatsappNumber: formData.whatsappNumber?.trim() || undefined,
+      alternativeMobile: formData.alternativeMobile?.trim() || undefined,
       address: formData.address?.trim() || undefined,
       idProofType: formData.idProofType || undefined,
       remarks: formData.remarks?.trim() || undefined,
@@ -288,6 +300,18 @@ export default function AddCustomerModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   WhatsApp Number
                 </label>
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    id="sameAsMobile"
+                    checked={sameAsMobile}
+                    onChange={(e) => setSameAsMobile(e.target.checked)}
+                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="sameAsMobile" className="text-sm text-gray-600">
+                    Same as mobile
+                  </label>
+                </div>
                 <input
                   type="tel"
                   value={formData.whatsappNumber}
@@ -295,6 +319,28 @@ export default function AddCustomerModal({
                     setFormData({
                       ...formData,
                       whatsappNumber: e.target.value.replace(/\D/g, '').slice(0, 10),
+                    })
+                  }
+                  disabled={sameAsMobile}
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    sameAsMobile ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+                  }`}
+                  placeholder="Optional"
+                />
+              </div>
+
+              {/* Alternative Mobile Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Alternative Mobile Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.alternativeMobile}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      alternativeMobile: e.target.value.replace(/\D/g, '').slice(0, 10),
                     })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"

@@ -127,6 +127,7 @@ export interface Customer {
   email?: string;
   phone: string;
   whatsappNumber?: string;
+  alternativeMobile?: string;
   address?: string;
   idProofType?: string;
   idProofDocument?: string;
@@ -152,6 +153,7 @@ export interface CustomerFormData {
   name: string;
   phone: string;
   whatsappNumber?: string;
+  alternativeMobile?: string;
   email?: string;
   address?: string;
   idProofType?: string;
@@ -164,6 +166,7 @@ export interface CustomerUpdateData {
   name?: string;
   phone?: string;
   whatsappNumber?: string;
+  alternativeMobile?: string;
   email?: string;
   address?: string;
   idProofType?: string;

@@ -264,6 +264,7 @@ model Customer {
   idProofType     String?
   remarks         String?
   whatsappNumber  String?
+  alternativeMobile String?
   branch          Branch?          @relation(fields: [branchId], references: [id])
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   services        Service[]
@@ -300,6 +301,7 @@ model Service {
   extraSpareAmount  Float                  @default(0)  // Extra parts cost beyond estimate
   discount          Float                  @default(0)  // Discount amount
   status            ServiceStatus          @default(PENDING)
+  deliveryStatus    DeliveryStatus?        // Set when service reaches READY/NOT_READY
   assignedToId      String?
   createdById       String?                // User who created/booked the service
   dataWarrantyAccepted Boolean             @default(false) // Customer accepts data loss risk
@@ -1341,10 +1343,13 @@ enum ServiceStatus {
   PENDING
   IN_PROGRESS
   WAITING_PARTS
-  COMPLETED
+  READY
+  NOT_READY
+}
+
+enum DeliveryStatus {
+  PENDING
   DELIVERED
-  CANCELLED
-  NOT_SERVICEABLE
 }
 
 enum PaymentStatus {
