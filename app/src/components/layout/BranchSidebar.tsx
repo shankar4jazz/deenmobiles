@@ -177,7 +177,7 @@ const navItems: NavItem[] = [
 export default function BranchSidebar() {
   const location = useLocation();
   const { user } = useAuthStore();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['Masters', 'Inventory', 'Invoices']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['Masters', 'Services', 'Inventory', 'Invoices']);
 
   const toggleMenu = (name: string) => {
     setExpandedMenus((prev) =>
