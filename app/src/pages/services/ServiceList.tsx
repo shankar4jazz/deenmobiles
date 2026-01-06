@@ -8,7 +8,7 @@ import { serviceKeys, technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import EditServiceModal from '@/components/services/EditServiceModal';
-import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, Tag } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Calendar, User, Smartphone, Clock, Package, CheckCircle, UserX, Truck, Activity, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, XCircle, LayoutList, Tag } from 'lucide-react';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
@@ -473,142 +473,165 @@ export default function ServiceList() {
         )}
       </div>
 
-      {/* Analytics Cards - Single Row */}
+      {/* Analytics Cards */}
       {data?.stats && (
-        <div className="mb-6 overflow-x-auto">
-          <div className="flex gap-3 min-w-max pb-2">
-            {/* Total */}
-            <div
-              onClick={() => handleCardClick('ALL')}
-              className={`relative overflow-hidden bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                !filters.status && !filters.unassigned && !filters.undelivered && !filters.completedAll
-                  ? 'ring-4 ring-purple-300 ring-offset-2 shadow-lg shadow-purple-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/20" />
-              <div className="absolute right-3 top-10 w-4 h-4 rounded-full bg-white/30" />
-              <div className="absolute -left-2 -bottom-2 w-12 h-12 rounded-full bg-white/10" />
-              <p className="text-xs text-white/80 font-medium mb-1">Total</p>
-              <p className="text-2xl font-bold text-white">{data.stats.pending + data.stats.inProgress + data.stats.waitingParts + data.stats.completed}</p>
-            </div>
+        <>
+          {/* Section 1: Service Status */}
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Service Status</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Total */}
+              <div
+                onClick={() => handleCardClick('ALL')}
+                className={`bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  !filters.status && !filters.unassigned && !filters.undelivered && !filters.completedAll ? 'ring-4 ring-purple-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-purple-100 uppercase tracking-wider font-semibold mb-1">Total</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.pending + data.stats.inProgress + data.stats.waitingParts + data.stats.completed}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <LayoutList className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
 
-            {/* Unassigned */}
-            <div
-              onClick={() => handleCardClick('UNASSIGNED')}
-              className={`relative overflow-hidden bg-gradient-to-br from-slate-500 via-slate-600 to-gray-700 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                filters.unassigned
-                  ? 'ring-4 ring-slate-300 ring-offset-2 shadow-lg shadow-slate-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-2 -top-2 w-14 h-14 rounded-lg rotate-45 bg-white/15" />
-              <div className="absolute right-5 top-12 w-3 h-3 rounded-full bg-white/25" />
-              <div className="absolute left-2 bottom-2 w-6 h-6 rotate-12 rounded-lg bg-white/10" />
-              <p className="text-xs text-white/80 font-medium mb-1">Unassigned</p>
-              <p className="text-2xl font-bold text-white">{data.stats.unassigned}</p>
-            </div>
+              {/* Unassigned */}
+              <div
+                onClick={() => handleCardClick('UNASSIGNED')}
+                className={`bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.unassigned ? 'ring-4 ring-gray-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-100 uppercase tracking-wider font-semibold mb-1">Unassigned</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.unassigned}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <UserX className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
 
-            {/* In Progress */}
-            <div
-              onClick={() => handleCardClick(ServiceStatus.IN_PROGRESS)}
-              className={`relative overflow-hidden bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                filters.status === ServiceStatus.IN_PROGRESS
-                  ? 'ring-4 ring-blue-300 ring-offset-2 shadow-lg shadow-blue-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-3 -top-3 w-16 h-16 rounded-full bg-white/20" />
-              <div className="absolute right-6 top-8 w-5 h-5 rounded-full border-2 border-white/40" />
-              <div className="absolute -left-3 bottom-0 w-10 h-10 rounded-full bg-white/10" />
-              <p className="text-xs text-white/80 font-medium mb-1">In Progress</p>
-              <p className="text-2xl font-bold text-white">{data.stats.inProgress}</p>
-            </div>
+              {/* In Progress */}
+              <div
+                onClick={() => handleCardClick(ServiceStatus.IN_PROGRESS)}
+                className={`bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.status === ServiceStatus.IN_PROGRESS ? 'ring-4 ring-blue-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-blue-100 uppercase tracking-wider font-semibold mb-1">In Progress</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.inProgress}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <Activity className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
 
-            {/* Waiting Parts */}
-            <div
-              onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
-              className={`relative overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-amber-600 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                filters.status === ServiceStatus.WAITING_PARTS
-                  ? 'ring-4 ring-orange-300 ring-offset-2 shadow-lg shadow-orange-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-2 -top-4 w-12 h-20 rounded-full bg-white/15 transform rotate-12" />
-              <div className="absolute right-4 top-10 w-3 h-8 rounded-full bg-white/25" />
-              <div className="absolute left-1 bottom-1 w-8 h-8 rounded-full bg-white/10" />
-              <p className="text-xs text-white/80 font-medium mb-1">Waiting Parts</p>
-              <p className="text-2xl font-bold text-white">{data.stats.waitingParts}</p>
-            </div>
+              {/* Waiting Parts */}
+              <div
+                onClick={() => handleCardClick(ServiceStatus.WAITING_PARTS)}
+                className={`bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.status === ServiceStatus.WAITING_PARTS ? 'ring-4 ring-orange-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-orange-100 uppercase tracking-wider font-semibold mb-1">Waiting Parts</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.waitingParts}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <Package className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
 
-            {/* Ready */}
-            <div
-              onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
-              className={`relative overflow-hidden bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                filters.status === ServiceStatus.COMPLETED
-                  ? 'ring-4 ring-emerald-300 ring-offset-2 shadow-lg shadow-emerald-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-3 -top-3 w-16 h-16 rounded-full bg-white/20" />
-              <div className="absolute right-5 top-7 w-5 h-5 rounded-full bg-white/35" />
-              <div className="absolute -left-2 -bottom-2 w-10 h-10 rounded-full bg-white/15" />
-              <p className="text-xs text-white/80 font-medium mb-1">Ready</p>
-              <p className="text-2xl font-bold text-white">{data.stats.completed}</p>
-            </div>
+              {/* Ready (Completed) */}
+              <div
+                onClick={() => handleCardClick(ServiceStatus.COMPLETED)}
+                className={`bg-gradient-to-br from-green-400 to-green-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.status === ServiceStatus.COMPLETED ? 'ring-4 ring-green-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-green-100 uppercase tracking-wider font-semibold mb-1">Ready</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <CheckCircle className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
 
-            {/* Not Ready */}
-            <div
-              onClick={() => handleCardClick(ServiceStatus.NOT_SERVICEABLE)}
-              className={`relative overflow-hidden bg-gradient-to-br from-rose-400 via-red-500 to-pink-600 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                filters.status === ServiceStatus.NOT_SERVICEABLE
-                  ? 'ring-4 ring-rose-300 ring-offset-2 shadow-lg shadow-rose-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-2 -top-2 w-14 h-14 rotate-45 bg-white/20" />
-              <div className="absolute right-5 top-10 w-4 h-4 rotate-45 bg-white/30" />
-              <div className="absolute left-1 bottom-1 w-8 h-8 rotate-12 bg-white/10" />
-              <p className="text-xs text-white/80 font-medium mb-1">Not Ready</p>
-              <p className="text-2xl font-bold text-white">{data.stats.notServiceable}</p>
-            </div>
-
-            {/* Divider */}
-            <div className="w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent mx-1 self-stretch" />
-
-            {/* Delivered */}
-            <div
-              onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
-              className={`relative overflow-hidden bg-gradient-to-br from-teal-400 via-cyan-500 to-sky-600 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                filters.status === ServiceStatus.DELIVERED
-                  ? 'ring-4 ring-teal-300 ring-offset-2 shadow-lg shadow-teal-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-4 -top-2 w-18 h-14 rounded-full bg-white/20" />
-              <div className="absolute right-3 top-8 w-4 h-4 rounded-full bg-white/35" />
-              <div className="absolute -left-2 bottom-0 w-10 h-10 rounded-full bg-white/15" />
-              <p className="text-xs text-white/80 font-medium mb-1">Delivered</p>
-              <p className="text-2xl font-bold text-white">{data.stats.delivered}</p>
-            </div>
-
-            {/* Undelivered */}
-            <div
-              onClick={() => handleCardClick('UNDELIVERED')}
-              className={`relative overflow-hidden bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-2xl p-4 min-w-[130px] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
-                filters.undelivered
-                  ? 'ring-4 ring-amber-300 ring-offset-2 shadow-lg shadow-amber-200'
-                  : ''
-              }`}
-            >
-              <div className="absolute -right-3 -top-3 w-16 h-16 rounded-full border-4 border-white/25" />
-              <div className="absolute right-5 top-6 w-5 h-5 rounded-full bg-white/35" />
-              <div className="absolute left-0 -bottom-1 w-8 h-8 rounded-full bg-white/15" />
-              <p className="text-xs text-white/80 font-medium mb-1">Undelivered</p>
-              <p className="text-2xl font-bold text-white">{data.stats.completed}</p>
+              {/* Not Ready (Not Serviceable) */}
+              <div
+                onClick={() => handleCardClick(ServiceStatus.NOT_SERVICEABLE)}
+                className={`bg-gradient-to-br from-red-400 to-red-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.status === ServiceStatus.NOT_SERVICEABLE ? 'ring-4 ring-red-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-red-100 uppercase tracking-wider font-semibold mb-1">Not Ready</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.notServiceable}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <XCircle className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+
+          {/* Section 2: Delivery Status */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Delivery Status</h3>
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 max-w-md">
+              {/* Delivered */}
+              <div
+                onClick={() => handleCardClick(ServiceStatus.DELIVERED)}
+                className={`bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.status === ServiceStatus.DELIVERED ? 'ring-4 ring-teal-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-teal-100 uppercase tracking-wider font-semibold mb-1">Delivered</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.delivered}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <Truck className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Undelivered */}
+              <div
+                onClick={() => handleCardClick('UNDELIVERED')}
+                className={`bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
+                  filters.undelivered ? 'ring-4 ring-amber-300 ring-offset-2' : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-amber-100 uppercase tracking-wider font-semibold mb-1">Undelivered</p>
+                    <p className="text-3xl font-bold text-white">{data.stats.completed}</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
+                    <Clock className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Active Filter Indicator */}
