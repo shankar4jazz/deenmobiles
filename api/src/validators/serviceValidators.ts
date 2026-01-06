@@ -190,7 +190,7 @@ export const updateStatusValidation: ValidationChain[] = [
     .trim()
     .notEmpty()
     .withMessage('Status is required')
-    .isIn(['PENDING', 'IN_PROGRESS', 'WAITING_PARTS', 'COMPLETED', 'DELIVERED', 'CANCELLED', 'NOT_SERVICEABLE'])
+    .isIn(['PENDING', 'IN_PROGRESS', 'WAITING_PARTS', 'READY', 'NOT_READY'])
     .withMessage('Invalid service status'),
 
   body('notes')
@@ -205,10 +205,10 @@ export const updateStatusValidation: ValidationChain[] = [
     .isLength({ min: 5, max: 1000 })
     .withMessage('Reason must be between 5 and 1000 characters'),
 
-  // Custom validation: notServiceableReason is required when status is NOT_SERVICEABLE
+  // Custom validation: notServiceableReason is required when status is NOT_READY
   body()
     .custom((value, { req }) => {
-      if (req.body.status === 'NOT_SERVICEABLE' && !req.body.notServiceableReason) {
+      if (req.body.status === 'NOT_READY' && !req.body.notServiceableReason) {
         throw new Error('Reason is required when marking service as not serviceable');
       }
       return true;
