@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Edit2, Trash2, User } from 'lucide-react';
 import { Service, ServiceStatus } from '@/services/serviceApi';
