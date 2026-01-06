@@ -564,9 +564,31 @@ export class ServiceService {
       });
 
       // Get stats if requested
+      // Use a separate where clause for stats that excludes status/card filters
+      // This ensures stats always show the full distribution regardless of current filter
       let stats = null;
       if (filters.includeStats) {
-        stats = await this.getServiceStats(where);
+        const statsWhere: any = { companyId };
+        if (branchId) statsWhere.branchId = branchId;
+        if (customerId) statsWhere.customerId = customerId;
+        if (assignedToId) statsWhere.assignedToId = assignedToId;
+        // Include date range filter for stats
+        if (startDate || endDate) {
+          statsWhere.createdAt = {};
+          if (startDate) statsWhere.createdAt.gte = startDate;
+          if (endDate) statsWhere.createdAt.lte = endDate;
+        }
+        // Include fault filter for stats
+        if (faultIds && faultIds.length > 0) {
+          statsWhere.faults = {
+            some: {
+              faultId: { in: faultIds }
+            }
+          };
+        }
+        // DO NOT include: status, unassigned, undelivered, completedAll, repeatedService
+        // These are card-specific filters that should not affect the stats distribution
+        stats = await this.getServiceStats(statsWhere);
       }
 
       return {

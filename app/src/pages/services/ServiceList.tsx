@@ -519,7 +519,7 @@ export default function ServiceList() {
               <div
                 onClick={() => handleCardClick('ALL')}
                 className={`bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg p-5 hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer ${
-                  !filters.status && !filters.unassigned && !filters.undelivered && !filters.completedAll ? 'ring-4 ring-purple-300 ring-offset-2' : ''
+                  !filters.status && !filters.unassigned && !filters.undelivered && !filters.completedAll && !filters.repeatedService ? 'ring-4 ring-purple-300 ring-offset-2' : ''
                 }`}
               >
                 <div className="flex items-center justify-between">
