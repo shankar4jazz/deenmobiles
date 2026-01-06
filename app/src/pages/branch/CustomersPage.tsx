@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { customerApi } from '@/services/customerApi';
 import AddCustomerModal from '@/components/branch/AddCustomerModal';
 import EditCustomerModal from '@/components/branch/EditCustomerModal';
+import CustomerDetailModal from '@/components/customers/CustomerDetailModal';
 import * as XLSX from 'xlsx';
 import {
   Users,
@@ -32,7 +33,9 @@ export default function CustomersPage() {
   const user = useAuthStore((state) => state.user);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [editCustomerId, setEditCustomerId] = useState<string>('');
+  const [viewCustomerId, setViewCustomerId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -373,7 +376,10 @@ export default function CustomersPage() {
                         <div className="flex items-center justify-end gap-1">
                           {/* View Details */}
                           <button
-                            onClick={() => alert('View details modal coming soon')}
+                            onClick={() => {
+                              setViewCustomerId(customer.id);
+                              setShowDetailModal(true);
+                            }}
                             className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                             title="View details"
                           >
@@ -494,6 +500,16 @@ export default function CustomersPage() {
             setEditCustomerId('');
           }}
           customerId={editCustomerId}
+        />
+      )}
+
+      {showDetailModal && viewCustomerId && (
+        <CustomerDetailModal
+          customerId={viewCustomerId}
+          onClose={() => {
+            setShowDetailModal(false);
+            setViewCustomerId('');
+          }}
         />
       )}
     </>
