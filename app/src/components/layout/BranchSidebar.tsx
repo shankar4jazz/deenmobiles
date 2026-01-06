@@ -30,6 +30,8 @@ import {
   FileCheck,
   ClipboardList,
   Palette,
+  Plus,
+  List,
 } from 'lucide-react';
 
 interface NavItem {
@@ -68,8 +70,19 @@ const navItems: NavItem[] = [
   },
   {
     name: 'Services',
-    path: '/services',
     icon: Wrench,
+    children: [
+      {
+        name: 'Create Service',
+        path: '/services/new',
+        icon: Plus,
+      },
+      {
+        name: 'Services List',
+        path: '/services',
+        icon: List,
+      },
+    ],
   },
   {
     name: 'Invoices',

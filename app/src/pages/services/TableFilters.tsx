@@ -30,10 +30,6 @@ const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.WAITING_PARTS]: 'Waiting Parts',
   [ServiceStatus.READY]: 'Ready',
   [ServiceStatus.NOT_READY]: 'Not Ready',
-  [ServiceStatus.COMPLETED]: 'Completed',
-  [ServiceStatus.DELIVERED]: 'Delivered',
-  [ServiceStatus.CANCELLED]: 'Cancelled',
-  [ServiceStatus.NOT_SERVICEABLE]: 'Not Serviceable',
 };
 
 type DatePreset = 'today' | 'yesterday' | 'thisMonth' | 'custom' | '';

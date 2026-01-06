@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, CreditCard, Check, Truck } from 'lucide-react';
-import { serviceApi, ServiceStatus, BulkPaymentEntryData } from '@/services/serviceApi';
+import { serviceApi, DeliveryStatus, BulkPaymentEntryData } from '@/services/serviceApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { toast } from 'sonner';
 
@@ -20,7 +20,7 @@ interface MultiPaymentModalProps {
   onClose: () => void;
   serviceId: string;
   pricingSummary: PricingSummary;
-  currentStatus: ServiceStatus;
+  currentDeliveryStatus?: DeliveryStatus;
 }
 
 interface PaymentMethodEntry {
@@ -34,7 +34,7 @@ export default function MultiPaymentModal({
   onClose,
   serviceId,
   pricingSummary,
-  currentStatus,
+  currentDeliveryStatus,
 }: MultiPaymentModalProps) {
   const queryClient = useQueryClient();
 
@@ -71,10 +71,10 @@ export default function MultiPaymentModal({
   const remainingBalance = pricingSummary.balanceDue - totalEntered;
 
   useEffect(() => {
-    if (remainingBalance <= 0 && totalEntered > 0 && currentStatus !== ServiceStatus.DELIVERED) {
+    if (remainingBalance <= 0 && totalEntered > 0 && currentDeliveryStatus !== DeliveryStatus.DELIVERED) {
       setMarkAsDelivered(true);
     }
-  }, [remainingBalance, totalEntered, currentStatus]);
+  }, [remainingBalance, totalEntered, currentDeliveryStatus]);
 
   const bulkPaymentMutation = useMutation({
     mutationFn: () => {
@@ -242,7 +242,7 @@ export default function MultiPaymentModal({
           </div>
 
           {/* Mark as Delivered */}
-          {currentStatus !== ServiceStatus.DELIVERED && (
+          {currentDeliveryStatus !== DeliveryStatus.DELIVERED && (
             <label className="flex items-center gap-2 mt-4 p-2 border rounded cursor-pointer hover:bg-gray-50">
               <input
                 type="checkbox"

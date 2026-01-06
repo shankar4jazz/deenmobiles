@@ -1470,7 +1470,7 @@ export default function ServiceDetail() {
         onClose={() => setShowAddPaymentModal(false)}
         serviceId={service.id}
         pricingSummary={pricingSummary}
-        currentStatus={service.status}
+        currentDeliveryStatus={service.deliveryStatus}
       />
 
       {/* Refund Modal */}

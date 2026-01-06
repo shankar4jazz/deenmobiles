@@ -19,18 +19,16 @@ const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
   [ServiceStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
   [ServiceStatus.WAITING_PARTS]: 'bg-orange-100 text-orange-800',
-  [ServiceStatus.COMPLETED]: 'bg-green-100 text-green-800',
-  [ServiceStatus.DELIVERED]: 'bg-purple-100 text-purple-800',
-  [ServiceStatus.CANCELLED]: 'bg-red-100 text-red-800',
+  [ServiceStatus.READY]: 'bg-green-100 text-green-800',
+  [ServiceStatus.NOT_READY]: 'bg-gray-100 text-gray-800',
 };
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'Pending',
   [ServiceStatus.IN_PROGRESS]: 'In Progress',
   [ServiceStatus.WAITING_PARTS]: 'Waiting Parts',
-  [ServiceStatus.COMPLETED]: 'Completed',
-  [ServiceStatus.DELIVERED]: 'Delivered',
-  [ServiceStatus.CANCELLED]: 'Cancelled',
+  [ServiceStatus.READY]: 'Ready',
+  [ServiceStatus.NOT_READY]: 'Not Ready',
 };
 
 export default function TechnicianDashboard() {
@@ -72,10 +70,10 @@ export default function TechnicianDashboard() {
       pending: data.services.filter(s => s.status === ServiceStatus.PENDING).length,
       inProgress: data.services.filter(s => s.status === ServiceStatus.IN_PROGRESS).length,
       completed: data.services.filter(s =>
-        s.status === ServiceStatus.COMPLETED || s.status === ServiceStatus.DELIVERED
+        s.status === ServiceStatus.READY || s.status === ServiceStatus.NOT_READY
       ).length,
       completedToday: data.services.filter(s => {
-        if (s.status !== ServiceStatus.COMPLETED && s.status !== ServiceStatus.DELIVERED) return false;
+        if (s.status !== ServiceStatus.READY && s.status !== ServiceStatus.NOT_READY) return false;
         const completedDate = s.completedAt ? new Date(s.completedAt) : null;
         if (!completedDate) return false;
         completedDate.setHours(0, 0, 0, 0);
@@ -103,7 +101,7 @@ export default function TechnicianDashboard() {
     const createdDate = new Date(service.createdAt);
     const hoursDiff = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60);
 
-    if (service.status === ServiceStatus.COMPLETED || service.status === ServiceStatus.DELIVERED) {
+    if (service.status === ServiceStatus.READY || service.status === ServiceStatus.NOT_READY) {
       return 'border-l-green-500';
     }
     if (hoursDiff > 48) return 'border-l-red-500';
@@ -175,7 +173,7 @@ export default function TechnicianDashboard() {
 
         {/* Completed Today */}
         <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-             onClick={() => setStatusFilter(ServiceStatus.COMPLETED)}>
+             onClick={() => setStatusFilter(ServiceStatus.READY)}>
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-green-100 rounded-lg">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
