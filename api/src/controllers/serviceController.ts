@@ -541,6 +541,23 @@ export class ServiceController {
   });
 
   /**
+   * GET /api/v1/services/check-active/:customerDeviceId
+   * Check if a device has any active (non-delivered) service
+   */
+  static checkActiveServices = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { customerDeviceId } = req.params;
+    const companyId = req.user!.companyId;
+
+    if (!customerDeviceId) {
+      throw new AppError(400, 'Customer device ID is required');
+    }
+
+    const result = await ServiceService.checkActiveServices(customerDeviceId, companyId);
+
+    return ApiResponse.success(res, result, 'Active services check completed');
+  });
+
+  /**
    * POST /api/v1/services/:id/refund
    * Process service refund
    */

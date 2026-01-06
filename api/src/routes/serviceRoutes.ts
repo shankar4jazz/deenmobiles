@@ -85,6 +85,22 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/services/check-active/:customerDeviceId
+ * @desc    Check if device has any active (non-delivered) service
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.get(
+  '/check-active/:customerDeviceId',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  ServiceController.checkActiveServices
+);
+
+/**
  * @route   GET /api/v1/services/:id
  * @desc    Get service by ID
  * @access  Private (All authenticated users)

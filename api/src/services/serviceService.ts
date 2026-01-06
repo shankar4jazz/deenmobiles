@@ -595,6 +595,7 @@ export class ServiceService {
         completed: 0,
         delivered: 0,
         cancelled: 0,
+        notServiceable: 0,
         unassigned: unassignedCount,
       };
 
@@ -621,6 +622,9 @@ export class ServiceService {
             break;
           case 'CANCELLED':
             stats.cancelled = count;
+            break;
+          case 'NOT_SERVICEABLE':
+            stats.notServiceable = count;
             break;
         }
       });
@@ -3304,6 +3308,80 @@ export class ServiceService {
     } catch (error) {
       Logger.error('Error checking previous services', { error, customerDeviceId });
       throw error instanceof AppError ? error : new AppError(500, 'Failed to check previous services');
+    }
+  }
+
+  /**
+   * Check if a device has any active (non-delivered) service
+   * Returns info about the active service if found
+   */
+  static async checkActiveServices(
+    customerDeviceId: string,
+    companyId: string
+  ): Promise<{
+    hasActiveService: boolean;
+    activeService: {
+      id: string;
+      ticketNumber: string;
+      createdAt: Date;
+      status: ServiceStatus;
+      faults?: { id: string; name: string }[];
+    } | null;
+  }> {
+    try {
+      // Find any service for this device that is not delivered or cancelled
+      const activeService = await prisma.service.findFirst({
+        where: {
+          customerDeviceId,
+          companyId,
+          status: {
+            notIn: [ServiceStatus.DELIVERED, ServiceStatus.CANCELLED],
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          id: true,
+          ticketNumber: true,
+          createdAt: true,
+          status: true,
+          faults: {
+            select: {
+              fault: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!activeService) {
+        return {
+          hasActiveService: false,
+          activeService: null,
+        };
+      }
+
+      return {
+        hasActiveService: true,
+        activeService: {
+          id: activeService.id,
+          ticketNumber: activeService.ticketNumber,
+          createdAt: activeService.createdAt,
+          status: activeService.status,
+          faults: activeService.faults.map((f) => ({
+            id: f.fault.id,
+            name: f.fault.name,
+          })),
+        },
+      };
+    } catch (error) {
+      Logger.error('Error checking active services', { error, customerDeviceId });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to check active services');
     }
   }
 

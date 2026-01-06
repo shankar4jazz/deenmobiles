@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { serviceApi, CreateServiceData, PreviousServiceInfo } from '@/services/serviceApi';
+import { serviceApi, CreateServiceData, PreviousServiceInfo, ActiveServiceInfo } from '@/services/serviceApi';
 import { warrantyApi, WarrantyRecord, formatWarrantyDays } from '@/services/warrantyApi';
 import { masterDataApi } from '@/services/masterDataApi';
 import { customerDeviceApi } from '@/services/customerDeviceApi';
@@ -79,6 +79,10 @@ export default function CreateService() {
   // Repeated service tracking
   const [previousServiceInfo, setPreviousServiceInfo] = useState<PreviousServiceInfo | null>(null);
   const [isCheckingPreviousServices, setIsCheckingPreviousServices] = useState(false);
+
+  // Active service tracking (device still in service)
+  const [activeServiceInfo, setActiveServiceInfo] = useState<ActiveServiceInfo | null>(null);
+  const [isCheckingActiveService, setIsCheckingActiveService] = useState(false);
 
   // Warranty repair state
   const [isWarrantyRepair, setIsWarrantyRepair] = useState(false);
@@ -210,6 +214,26 @@ export default function CreateService() {
       setPreviousServiceInfo(null);
     }
   }, [selectedDevice?.id, faultIdsKey]);
+
+  // Check for active services when device is selected
+  useEffect(() => {
+    if (selectedDevice?.id) {
+      setIsCheckingActiveService(true);
+      serviceApi.checkActiveServices(selectedDevice.id)
+        .then((info) => {
+          setActiveServiceInfo(info);
+        })
+        .catch((error) => {
+          console.error('Failed to check active services:', error);
+          setActiveServiceInfo(null);
+        })
+        .finally(() => {
+          setIsCheckingActiveService(false);
+        });
+    } else {
+      setActiveServiceInfo(null);
+    }
+  }, [selectedDevice?.id]);
 
   // Create service mutation
   const createServiceMutation = useMutation({
@@ -498,6 +522,65 @@ export default function CreateService() {
                       Clear warranty selection
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active Service Warning - Shows when device has undelivered service */}
+          {activeServiceInfo?.hasActiveService && activeServiceInfo.activeService && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-orange-800">Device Still In Service</h4>
+                    <Link
+                      to={`/services/${activeServiceInfo.activeService.id}`}
+                      target="_blank"
+                      className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium"
+                    >
+                      View Active Service
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                  <p className="text-sm text-orange-700 mt-1">
+                    This device already has an active service that has not been delivered.
+                    You can still create a new service if needed.
+                  </p>
+                  <div className="mt-2 p-2 bg-white/60 rounded border border-orange-100">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">Ticket:</span>
+                      <span className="font-semibold text-gray-800">{activeServiceInfo.activeService.ticketNumber}</span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-500">Status:</span>
+                      <span className={`font-medium px-2 py-0.5 rounded-full text-xs ${
+                        activeServiceInfo.activeService.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        activeServiceInfo.activeService.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                        activeServiceInfo.activeService.status === 'WAITING_PARTS' ? 'bg-purple-100 text-purple-800' :
+                        activeServiceInfo.activeService.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                        activeServiceInfo.activeService.status === 'NOT_SERVICEABLE' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {activeServiceInfo.activeService.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    {activeServiceInfo.activeService.faults && activeServiceInfo.activeService.faults.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-xs text-gray-500">Current Faults:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {activeServiceInfo.activeService.faults.map((fault) => (
+                            <span
+                              key={fault.id}
+                              className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full"
+                            >
+                              {fault.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

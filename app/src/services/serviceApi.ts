@@ -347,6 +347,7 @@ export interface ServiceStats {
   completed: number;
   delivered: number;
   cancelled: number;
+  notServiceable: number;
   unassigned: number;
 }
 
@@ -381,6 +382,17 @@ export interface PreviousServiceInfo {
   matchingFaultIds: string[];
 }
 
+export interface ActiveServiceInfo {
+  hasActiveService: boolean;
+  activeService: {
+    id: string;
+    ticketNumber: string;
+    createdAt: string;
+    status: ServiceStatus;
+    faults?: { id: string; name: string }[];
+  } | null;
+}
+
 export const serviceApi = {
   /**
    * Create a new service
@@ -402,6 +414,14 @@ export const serviceApi = {
     const queryString = params.toString();
     const url = `/services/check-previous/${customerDeviceId}${queryString ? `?${queryString}` : ''}`;
     const response = await api.get(url);
+    return response.data.data;
+  },
+
+  /**
+   * Check if a device has any active (non-delivered) service
+   */
+  checkActiveServices: async (customerDeviceId: string): Promise<ActiveServiceInfo> => {
+    const response = await api.get(`/services/check-active/${customerDeviceId}`);
     return response.data.data;
   },
 
