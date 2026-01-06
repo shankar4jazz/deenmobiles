@@ -468,7 +468,7 @@ export class ServiceService {
       if (assignedToId) where.assignedToId = assignedToId;
       if (unassigned) where.assignedToId = null;
       if (status) where.status = status;
-      if (undelivered) where.status = { in: ['PENDING', 'IN_PROGRESS', 'WAITING_PARTS', 'COMPLETED'] };
+      if (undelivered) where.status = 'COMPLETED';
       if (ticketNumber) where.ticketNumber = { contains: ticketNumber };
 
       // Search term across multiple fields
