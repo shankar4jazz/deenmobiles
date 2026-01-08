@@ -93,7 +93,7 @@ export class AnalyticsService {
       tech.services.push(service);
 
       // Count completed services
-      if (service.status === 'READY' || service.status === 'READY') {
+      if (service.status === 'READY' || service.status === 'NOT_READY') {
         tech.completedServices++;
       }
 
@@ -697,7 +697,7 @@ export class AnalyticsService {
     // Count by status
     let servicesReceived = services.length;
     let servicesCompleted = services.filter(
-      (s) => s.status === 'READY' || s.status === 'READY'
+      (s) => s.status === 'READY' || s.status === 'NOT_READY'
     ).length;
     let servicesInProgress = services.filter((s) => s.status === 'IN_PROGRESS').length;
 
@@ -711,7 +711,7 @@ export class AnalyticsService {
     // Find top technician
     const technicianMap = new Map<string, { name: string; count: number }>();
     for (const service of services) {
-      if (service.assignedTo && (service.status === 'READY' || service.status === 'READY')) {
+      if (service.assignedTo && (service.status === 'READY' || service.status === 'NOT_READY')) {
         const techId = service.assignedToId!;
         if (!technicianMap.has(techId)) {
           technicianMap.set(techId, { name: service.assignedTo.name, count: 0 });
@@ -795,7 +795,7 @@ export class AnalyticsService {
     // Count totals
     const totalServices = services.length;
     const completedServices = services.filter(
-      (s) => s.status === 'READY' || s.status === 'READY'
+      (s) => s.status === 'READY' || s.status === 'NOT_READY'
     ).length;
 
     // Calculate revenue
@@ -834,7 +834,7 @@ export class AnalyticsService {
     }>();
 
     for (const service of services) {
-      if (service.assignedTo && (service.status === 'READY' || service.status === 'READY')) {
+      if (service.assignedTo && (service.status === 'READY' || service.status === 'NOT_READY')) {
         const techId = service.assignedToId!;
         if (!technicianMap.has(techId)) {
           technicianMap.set(techId, {
@@ -1100,7 +1100,7 @@ export class AnalyticsService {
 
       const data = dataMap.get(key)!;
       data.total++;
-      if (service.status === 'READY' || service.status === 'READY') {
+      if (service.status === 'READY' || service.status === 'NOT_READY') {
         data.completed++;
       }
     }
