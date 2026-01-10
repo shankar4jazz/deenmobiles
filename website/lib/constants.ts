@@ -58,15 +58,15 @@ const getApiBaseUrl = () => {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
-  
+
   // Use different URLs for different environments
   if (process.env.NODE_ENV === 'production') {
     // In production, use the production API URL
     return 'https://api.deenmobiles.com/api/v1';
   }
-  
+
   // Development default
-  return 'http://localhost:3000/api/v1';
+  return 'http://localhost:5000/api/v1';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

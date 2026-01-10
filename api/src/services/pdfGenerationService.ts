@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import { format } from 'date-fns';
+import QRCode from 'qrcode';
 
 interface CompanyInfo {
   name: string;
@@ -11,6 +12,7 @@ interface CompanyInfo {
   logo?: string | null;
   gst?: string | null;
   website?: string | null;
+  jobSheetInstructions?: string | null;
 }
 
 // Copy type for job sheet generation
@@ -221,6 +223,7 @@ export class PDFGenerationService {
   private isServerless: boolean;
   private fontsDir: string;
   private fontsAvailable: boolean = false;
+  private tamilFontsAvailable: boolean = false;
 
   constructor() {
     // Use /tmp on serverless environments (Vercel)
@@ -235,11 +238,12 @@ export class PDFGenerationService {
   }
 
   /**
-   * Check if custom fonts are available for rupee symbol support
+   * Check if custom fonts are available for rupee symbol and Tamil support
    */
   private checkFontsAvailability(): void {
     const regularFont = path.join(this.fontsDir, 'NotoSans-Regular.ttf');
     const boldFont = path.join(this.fontsDir, 'NotoSans-Bold.ttf');
+    const notoSansTamilFont = path.join(this.fontsDir, 'NotoSansTamil-Regular.ttf');
 
     if (fs.existsSync(regularFont) && fs.existsSync(boldFont)) {
       this.fontsAvailable = true;
@@ -249,23 +253,51 @@ export class PDFGenerationService {
       console.warn('[PDF] Custom fonts not found. Rupee symbol may not render correctly.');
       console.warn(`[PDF] Expected fonts at: ${this.fontsDir}`);
     }
+
+    // Check Tamil font availability (NotoSansTamil for Tamil script)
+    if (fs.existsSync(notoSansTamilFont)) {
+      this.tamilFontsAvailable = true;
+      console.log('[PDF] NotoSansTamil font available for Tamil text support');
+    } else {
+      this.tamilFontsAvailable = false;
+      console.warn('[PDF] NotoSansTamil font not found. Tamil text may not render correctly.');
+    }
   }
 
   /**
-   * Register custom fonts on a PDF document for rupee symbol support
+   * Register custom fonts on a PDF document for rupee symbol and Tamil support
    */
   private registerFonts(doc: typeof PDFDocument): void {
-    if (!this.fontsAvailable) return;
+    // Register NotoSans fonts for rupee symbol
+    if (this.fontsAvailable) {
+      try {
+        const regularFont = path.join(this.fontsDir, 'NotoSans-Regular.ttf');
+        const boldFont = path.join(this.fontsDir, 'NotoSans-Bold.ttf');
 
-    try {
-      const regularFont = path.join(this.fontsDir, 'NotoSans-Regular.ttf');
-      const boldFont = path.join(this.fontsDir, 'NotoSans-Bold.ttf');
+        doc.registerFont('NotoSans', regularFont);
+        doc.registerFont('NotoSans-Bold', boldFont);
+        console.log('[PDF] NotoSans fonts registered successfully');
+      } catch (error: any) {
+        console.error('[PDF] Failed to register NotoSans fonts:', error.message);
+      }
+    }
 
-      doc.registerFont('NotoSans', regularFont);
-      doc.registerFont('NotoSans-Bold', boldFont);
-      console.log('[PDF] Custom fonts registered successfully');
-    } catch (error: any) {
-      console.error('[PDF] Failed to register custom fonts:', error.message);
+    // Register NotoSansTamil font for Tamil text support
+    if (this.tamilFontsAvailable) {
+      try {
+        const notoSansTamilFont = path.join(this.fontsDir, 'NotoSansTamil-Regular.ttf');
+        const notoSansTamilBold = path.join(this.fontsDir, 'NotoSansTamil-Bold.ttf');
+
+        doc.registerFont('NotoSansTamil', notoSansTamilFont);
+        if (fs.existsSync(notoSansTamilBold)) {
+          doc.registerFont('NotoSansTamil-Bold', notoSansTamilBold);
+        } else {
+          doc.registerFont('NotoSansTamil-Bold', notoSansTamilFont);
+        }
+        console.log('[PDF] NotoSansTamil font registered for Tamil text support');
+      } catch (error: any) {
+        console.error('[PDF] Failed to register NotoSansTamil font:', error.message);
+      }
     }
   }
 
@@ -289,6 +321,101 @@ export class PDFGenerationService {
       return bold ? 'NotoSans-Bold' : 'NotoSans';
     }
     return bold ? 'Helvetica-Bold' : 'Helvetica';
+  }
+
+  /**
+   * Check if a character is Tamil (Unicode range: 0x0B80 - 0x0BFF)
+   */
+  private isTamilChar(char: string): boolean {
+    const code = char.charCodeAt(0);
+    return code >= 0x0B80 && code <= 0x0BFF;
+  }
+
+  /**
+   * Render mixed Tamil/English text by segmenting and using appropriate fonts
+   * This handles the case where NotoSansTamil only supports Tamil and NotoSans only supports Latin
+   * Includes automatic line wrapping to prevent overflow
+   */
+  private renderMixedText(
+    doc: typeof PDFDocument,
+    text: string,
+    x: number,
+    y: number,
+    options: { width?: number; lineGap?: number; fontSize?: number } = {}
+  ): void {
+    const { fontSize = 7, lineGap = 1.2, width = 200 } = options;
+    const latinFont = this.fontsAvailable ? 'NotoSans' : 'Helvetica';
+    const tamilFont = this.tamilFontsAvailable ? 'NotoSansTamil' : latinFont;
+    const lineHeight = fontSize + lineGap;
+    const maxWidth = width;
+
+    // If Tamil fonts not available, just render with Latin font
+    if (!this.tamilFontsAvailable) {
+      doc.fontSize(fontSize).font(latinFont).text(text, x, y, { width, lineGap });
+      return;
+    }
+
+    // Split text into lines first (respecting explicit newlines)
+    const lines = text.split('\n');
+    let currentY = y;
+
+    for (const line of lines) {
+      // Segment line by script type (Tamil vs Latin)
+      const segments: { text: string; isTamil: boolean }[] = [];
+      let currentSegment = '';
+      let currentIsTamil: boolean | null = null;
+
+      for (const char of line) {
+        const isTamil = this.isTamilChar(char);
+
+        if (currentIsTamil === null) {
+          currentIsTamil = isTamil;
+          currentSegment = char;
+        } else if (isTamil === currentIsTamil || char === ' ') {
+          currentSegment += char;
+        } else {
+          if (currentSegment) {
+            segments.push({ text: currentSegment, isTamil: currentIsTamil });
+          }
+          currentSegment = char;
+          currentIsTamil = isTamil;
+        }
+      }
+      if (currentSegment) {
+        segments.push({ text: currentSegment, isTamil: currentIsTamil || false });
+      }
+
+      // Render segments with word wrapping
+      let currentX = x;
+
+      for (const segment of segments) {
+        const font = segment.isTamil ? tamilFont : latinFont;
+        doc.fontSize(fontSize).font(font);
+
+        // Split segment into words for wrapping
+        const words = segment.text.split(/(\s+)/);
+
+        for (const word of words) {
+          if (!word) continue;
+
+          const wordWidth = doc.widthOfString(word);
+
+          // Check if word fits on current line
+          if (currentX + wordWidth > x + maxWidth && currentX > x) {
+            // Move to next line
+            currentY += lineHeight;
+            currentX = x;
+          }
+
+          // Render the word
+          doc.text(word, currentX, currentY, { continued: false, lineBreak: false });
+          currentX += wordWidth;
+        }
+      }
+
+      // Move to next line after processing the line
+      currentY += lineHeight;
+    }
   }
 
   /**
@@ -474,7 +601,8 @@ export class PDFGenerationService {
         let isThermal = false;
         switch (format.toLowerCase()) {
           case 'a5':
-            docOptions = { size: 'A5', margin: 25 };
+          case 'a5-v2':
+            docOptions = { size: 'A5', margin: 20 };
             break;
           case 'thermal':
             docOptions = { size: [216, 800], margin: 8 }; // 3 inch width (216 points), auto height
@@ -489,35 +617,46 @@ export class PDFGenerationService {
         const doc = new PDFDocument(docOptions);
         const stream = fs.createWriteStream(filePath);
 
+        // Register Unicode fonts for multi-language support (Tamil, Hindi, etc.)
+        this.registerFonts(doc);
+
         doc.pipe(stream);
 
         // Set copy type in data for rendering
         data.copyType = copyType;
 
-        if (isThermal) {
-          // Thermal receipt format
-          if (copyType === 'office') {
-            this.addJobSheetThermalOffice(doc, data, format);
+        // Async wrapper for template rendering (some templates like A5-V2 are async)
+        const renderTemplate = async () => {
+          if (isThermal) {
+            // Thermal receipt format
+            if (copyType === 'office') {
+              this.addJobSheetThermalOffice(doc, data, format);
+            } else {
+              this.addJobSheetThermalCustomer(doc, data, format);
+            }
+          } else if (format.toLowerCase() === 'a5-v2') {
+            // A5 V2 format with QR code (customer only)
+            await this.addJobSheetA5V2Customer(doc, data);
+          } else if (format.toLowerCase() === 'a5') {
+            // A5 compact format
+            if (copyType === 'office') {
+              this.addJobSheetA5Office(doc, data);
+            } else {
+              this.addJobSheetA5Customer(doc, data);
+            }
           } else {
-            this.addJobSheetThermalCustomer(doc, data, format);
+            // A4 format
+            if (copyType === 'office') {
+              this.addJobSheetA4OfficeFull(doc, data);
+            } else {
+              this.addJobSheetA4CustomerFull(doc, data);
+            }
           }
-        } else if (format.toLowerCase() === 'a5') {
-          // A5 compact format
-          if (copyType === 'office') {
-            this.addJobSheetA5Office(doc, data);
-          } else {
-            this.addJobSheetA5Customer(doc, data);
-          }
-        } else {
-          // A4 format
-          if (copyType === 'office') {
-            this.addJobSheetA4OfficeFull(doc, data);
-          } else {
-            this.addJobSheetA4CustomerFull(doc, data);
-          }
-        }
+        };
 
-        doc.end();
+        renderTemplate().then(() => {
+          doc.end();
+        }).catch(reject);
 
         stream.on('finish', () => {
           resolve(`${this.baseUrl}/uploads/jobsheets/${fileName}`);
@@ -588,6 +727,24 @@ export class PDFGenerationService {
       'WARRANTY_INTERNAL': 'Warranty',
     };
     return method ? (methods[method] || method) : '';
+  }
+
+  /**
+   * Helper: Generate QR code as buffer for embedding in PDF
+   */
+  private async generateQRCodeBuffer(url: string): Promise<Buffer> {
+    try {
+      const qrBuffer = await QRCode.toBuffer(url, {
+        type: 'png',
+        width: 100,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      });
+      return qrBuffer;
+    } catch (error) {
+      console.error('[QRCode] Failed to generate QR code:', error);
+      throw error;
+    }
   }
 
   /**
@@ -936,10 +1093,13 @@ export class PDFGenerationService {
       '6. Device password required for testing purposes.',
       '7. Accessories left are at customer\'s own risk.'
     ];
-    const termsText = data.template?.termsAndConditions || defaultTerms.join('\n');
+    // Priority: Company instructions > Template terms > Default terms
+    const termsText = data.company?.jobSheetInstructions || data.template?.termsAndConditions || defaultTerms.join('\n');
 
     let termsY = yPos + 14;
-    const termsLines = termsText.split('\n').length > 1 ? termsText.split('\n') : defaultTerms;
+    const termsLines = termsText.split('\n').filter(line => line.trim()).length > 0
+      ? termsText.split('\n').filter(line => line.trim())
+      : defaultTerms;
     doc.fontSize(7).font('Helvetica').fillColor(textMuted);
     termsLines.forEach(term => {
       doc.text(term, margin, termsY, { width: termsWidth - 10 });
@@ -1956,6 +2116,355 @@ export class PDFGenerationService {
     // Terms
     doc.fontSize(5).font('Helvetica').fillColor('#666666')
       .text('Terms: Non-refundable advance | 7 days collect | 30 days warranty | No data liability', margin, yPos, { width: contentWidth, align: 'center' });
+  }
+
+  /**
+   * A5 V2 Customer Copy - Professional format with QR Code
+   * Based on Deen Mobiles template design (Final Version - Single Page Fixed Layout)
+   * Updated: Matches client format with improved font sizes and layout
+   */
+  private async addJobSheetA5V2Customer(doc: PDFKit.PDFDocument, data: JobSheetData): Promise<void> {
+    const margin = 15;
+    const pageWidth = 420; // A5 width in points
+    const pageHeight = 595; // A5 height in points
+    const contentWidth = pageWidth - (margin * 2);
+
+    // Colors - Dark Green & Dark Blue for professional look
+    const colorGreen = '#15803d';      // Dark Green - Company name, Total Cost, Thank you
+    const colorBlue = '#1d4ed8';       // Dark Blue - Service Center, Scan QR text
+    const colorRed = '#dc2626';        // DEVICE DETAILS text
+    const colorSignBlue = '#1e40af';   // Dark Blue for signatures
+    const textDark = '#000000';        // JOB SHEET title, general text
+    const textMuted = '#666666';
+    const borderColor = '#000000';
+
+    // ===== FIXED LAYOUT POSITIONS (Ensures single page) =====
+    const headerY = 8;
+    const headerHeight = 78;           // Increased for larger professional logo
+    const jobSheetTitleY = headerY + headerHeight;
+    const jobSheetTitleHeight = 18;
+    const jobInfoY = jobSheetTitleY + jobSheetTitleHeight;
+    const jobInfoHeight = 95;
+    const deviceDetailsY = jobInfoY + jobInfoHeight + 6;
+    const maxDeviceDetailsHeight = 200; // Increased height for device details
+    const footerHeight = 18;
+    const footerY = pageHeight - margin - footerHeight;
+
+    let yPos = headerY;
+
+    // ===== HEADER SECTION =====
+    const logoSize = 80;               // Large professional logo size (increased)
+    const resolvedLogo = this.resolveLogoPath(data.company.logo);
+    let logoRendered = false;
+
+    // Logo on left - Professional display with proper centering
+    if (data.template?.showCompanyLogo !== false && resolvedLogo) {
+      try {
+        doc.image(resolvedLogo, margin, yPos, { fit: [logoSize, logoSize] });
+        logoRendered = true;
+      } catch (e: any) {
+        console.error(`[Logo] A5V2 failed: ${e.message}`);
+      }
+    }
+
+    // Company name and address in center
+    const centerX = margin + (logoRendered ? logoSize + 8 : 0);
+    const centerWidth = contentWidth - (logoRendered ? logoSize + 8 : 0) - 85;
+
+    // Company name - DARK GREEN color, larger font
+    doc.fontSize(16).font('Helvetica-Bold').fillColor(colorGreen)
+      .text(data.company.name.toUpperCase(), centerX, yPos + 10, { width: centerWidth, align: 'center' });
+
+    // Service Center - DARK BLUE color, centered
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(colorBlue)
+      .text('Service Center', centerX, yPos + 28, { width: centerWidth, align: 'center' });
+
+    // Address - Increased font size for better readability
+    const address = data.branch.address || data.company.address || '';
+    doc.fontSize(8).font('Helvetica').fillColor(textDark)
+      .text(address, centerX, yPos + 44, { width: centerWidth, align: 'center', lineGap: 1.5 });
+
+    // Phone numbers on right - Professional display
+    const phoneX = pageWidth - margin - 80;
+    const branchPhone = data.branch.phone || data.company.phone || '';
+    const phoneLines = branchPhone.split(',').map(p => p.trim());
+
+    // Phone numbers with proper vertical centering
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark);
+    phoneLines.forEach((phone, idx) => {
+      doc.text(phone, phoneX, yPos + 18 + (idx * 14), { width: 75, align: 'right' });
+    });
+
+    // ===== JOB SHEET TITLE - BLACK BOLD TEXT =====
+    yPos = jobSheetTitleY;
+    doc.fontSize(12).font('Helvetica-Bold').fillColor(textDark)
+      .text('J O B   S H E E T', margin, yPos + 2, { width: contentWidth, align: 'center' });
+
+    // ===== TWO COLUMN: JOB INFO + QR CODE (BORDERED BOX) =====
+    yPos = jobInfoY;
+    const leftColWidth = contentWidth * 0.60;
+    const rightColWidth = contentWidth * 0.40;
+    const rightColX = margin + leftColWidth;
+    const serviceJobNoRowHeight = 22; // Height for Service Job No bordered cell
+
+    // Draw main bordered box
+    doc.rect(margin, yPos, contentWidth, jobInfoHeight).lineWidth(1).stroke(borderColor);
+    doc.moveTo(rightColX, yPos).lineTo(rightColX, yPos + jobInfoHeight).stroke(borderColor);
+
+    // Draw bordered cell for Service Job No row (left column only)
+    doc.rect(margin, yPos, leftColWidth, serviceJobNoRowHeight).lineWidth(1).stroke(borderColor);
+
+    // Left column - Job info
+    const labelX = margin + 6;
+    const colonX = margin + 80;
+    const valueX = margin + 90;
+
+    const jobNumber = data.jobSheetNumber.replace(/[^0-9]/g, '') || data.jobSheetNumber;
+    const bookingDate = format(new Date(data.service.createdAt), 'dd/MM/yyyy hh:mm a');
+    const bookedBy = data.createdBy?.name || '-';
+
+    // Service Job No - Inside bordered cell
+    let leftY = yPos + 5;
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark);
+    doc.text('Service Job No  :', labelX, leftY);
+    doc.fontSize(16).font('Helvetica-Bold').text(jobNumber, valueX + 10, leftY - 2);
+
+    // Other job details below the bordered cell
+    leftY = yPos + serviceJobNoRowHeight + 6;
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark);
+    doc.text('Booking Date', labelX, leftY);
+    doc.text(':', colonX, leftY);
+    doc.font('Helvetica').text(bookingDate, valueX, leftY);
+    leftY += 14;
+
+    doc.font('Helvetica-Bold').text('Cust. Name', labelX, leftY);
+    doc.text(':', colonX, leftY);
+    doc.font('Helvetica').text(data.customer.name, valueX, leftY);
+    leftY += 14;
+
+    doc.font('Helvetica-Bold').text('Mobile No.', labelX, leftY);
+    doc.text(':', colonX, leftY);
+    doc.font('Helvetica').text(data.customer.phone, valueX, leftY);
+    leftY += 14;
+
+    doc.font('Helvetica-Bold').text('Booked By', labelX, leftY);
+    doc.text(':', colonX, leftY);
+    doc.font('Helvetica').text(bookedBy, valueX, leftY);
+
+    // Right column - QR Code section
+    // "Tracking QR Code" - GREEN background, WHITE text, BOLD
+    const qrLabelWidth = rightColWidth - 16;
+    const qrLabelHeight = 16;
+    const qrLabelX = rightColX + 8;
+    doc.rect(qrLabelX, yPos + 6, qrLabelWidth, qrLabelHeight).fill(colorGreen);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+      .text('Tracking QR Code', qrLabelX, yPos + 9, { width: qrLabelWidth, align: 'center' });
+
+    // Generate and embed QR code with ticket number for tracking
+    try {
+      const qrUrl = `https://deenmobiles.com/track?ticket=${encodeURIComponent(data.service.ticketNumber)}`;
+      const qrBuffer = await this.generateQRCodeBuffer(qrUrl);
+      const qrSize = 50;
+      const qrX = rightColX + (rightColWidth - qrSize) / 2;
+      doc.image(qrBuffer, qrX, yPos + 26, { width: qrSize, height: qrSize });
+    } catch (e) {
+      console.error('[A5V2] QR code generation failed:', e);
+    }
+
+    // "Scan QR Code For Status" - BLUE text
+    doc.fontSize(7).font('Helvetica').fillColor(colorBlue)
+      .text('Scan QR Code For Status', rightColX + 4, yPos + 80, { width: rightColWidth - 8, align: 'center' });
+
+    // ===== DEVICE DETAILS SECTION (WITH BORDER - FIXED HEIGHT) =====
+    yPos = deviceDetailsY;
+    const deviceDetailsSectionY = yPos;
+
+    // Calculate device details content height (capped at max)
+    const detailLabelX = margin + 8;
+    const detailColonX = margin + 100;
+    const detailValueX = margin + 110;
+    const detailValueWidth = contentWidth - 120;
+
+    // Calculate faults text height
+    const faultsText = data.faults?.map(f => f.name).join(' + ') || '-';
+    doc.fontSize(9).font('Helvetica');
+    const faultsHeight = Math.min(doc.heightOfString(faultsText, { width: detailValueWidth }), 24);
+
+    // Calculate total device details height (capped)
+    let deviceDetailsContentHeight = 20; // Title + underline
+    deviceDetailsContentHeight += 12; // Device Details line 1
+    if (data.service.deviceIMEI) deviceDetailsContentHeight += 11; // IMEI line
+    deviceDetailsContentHeight += Math.max(faultsHeight, 12) + 2; // Faults
+    deviceDetailsContentHeight += 12; // Device Condition
+    deviceDetailsContentHeight += 12; // Damage Condition
+    deviceDetailsContentHeight += 12; // Accessories
+    deviceDetailsContentHeight += 12; // Service Notes
+    deviceDetailsContentHeight += 12; // Data loss Approval
+    deviceDetailsContentHeight += 6; // Padding
+
+    // Cap at maximum height to ensure single page
+    const deviceDetailsSectionHeight = Math.min(deviceDetailsContentHeight, maxDeviceDetailsHeight);
+
+    // Draw border around Device Details section
+    doc.rect(margin, deviceDetailsSectionY, contentWidth, deviceDetailsSectionHeight).lineWidth(1).stroke(borderColor);
+
+    // DEVICE DETAILS Title - RED TEXT + UNDERLINE (inside border)
+    yPos = deviceDetailsSectionY + 6;
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(colorRed)
+      .text('D E V I C E   D E T A I L S', margin, yPos, { width: contentWidth, align: 'center' });
+    yPos += 12;
+
+    // Red underline
+    const titleWidth = doc.widthOfString('D E V I C E   D E T A I L S');
+    const underlineX = margin + (contentWidth - titleWidth) / 2;
+    doc.moveTo(underlineX, yPos).lineTo(underlineX + titleWidth, yPos).lineWidth(1).stroke(colorRed);
+    yPos += 8;
+
+    // Device Details (model + IMEI) - Improved font sizes
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark)
+      .text('Device Details', detailLabelX, yPos);
+    doc.text(':', detailColonX, yPos);
+    doc.font('Helvetica-Bold').text(data.service.deviceModel, detailValueX, yPos);
+    yPos += 12;
+    if (data.service.deviceIMEI) {
+      doc.fontSize(8).font('Helvetica').text(data.service.deviceIMEI, detailValueX, yPos);
+      yPos += 11;
+    }
+
+    // Faults
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark)
+      .text('Faults', detailLabelX, yPos);
+    doc.text(':', detailColonX, yPos);
+    doc.font('Helvetica-Bold').text(faultsText, detailValueX, yPos, { width: detailValueWidth, height: 24, ellipsis: true });
+    yPos += Math.max(faultsHeight, 12) + 2;
+
+    // Device Condition
+    const deviceCondition = data.service.deviceCondition?.toUpperCase() || '-';
+    doc.font('Helvetica-Bold').text('Device Condition', detailLabelX, yPos);
+    doc.text(':', detailColonX, yPos);
+    doc.font('Helvetica').text(deviceCondition, detailValueX, yPos);
+    yPos += 12;
+
+    // Damage Condition
+    const damageText = data.damageConditions?.map(d => d.name).join(', ') || '-';
+    doc.font('Helvetica-Bold').text('Damage Condition', detailLabelX, yPos);
+    doc.text(':', detailColonX, yPos);
+    doc.font('Helvetica').text(damageText, detailValueX, yPos, { width: detailValueWidth });
+    yPos += 12;
+
+    // Accessories
+    const accessoriesText = data.accessories?.map(a => a.name).join(', ') || '-';
+    doc.font('Helvetica-Bold').text('Accessories', detailLabelX, yPos);
+    doc.text(':', detailColonX, yPos);
+    doc.font('Helvetica').text(accessoriesText, detailValueX, yPos, { width: detailValueWidth });
+    yPos += 12;
+
+    // Service Notes
+    const serviceNotes = data.service.intakeNotes || '-';
+    doc.font('Helvetica-Bold').text('Service Notes', detailLabelX, yPos);
+    doc.text(':', detailColonX, yPos);
+    doc.font('Helvetica').text(serviceNotes, detailValueX, yPos, { width: detailValueWidth });
+    yPos += 12;
+
+    // Data loss Approval
+    const dataApproval = data.service.dataWarrantyAccepted ? 'Approved' : 'Not Approved';
+    doc.font('Helvetica-Bold').text('Data loss Approval', detailLabelX, yPos);
+    doc.text(':', detailColonX, yPos);
+    doc.font('Helvetica').text(dataApproval, detailValueX, yPos);
+
+    // Move yPos to after Device Details border
+    yPos = deviceDetailsSectionY + deviceDetailsSectionHeight + 5;
+
+    // ===== TERMS & COST + SIGNATURE SECTION (FILL REMAINING SPACE - 10% reduced) =====
+    const termsColWidth = contentWidth * 0.50;
+    const costColWidth = contentWidth * 0.50;
+    const costColX = margin + termsColWidth;
+
+    // Calculate remaining space for Terms/Cost/Signature section
+    const signatureRowHeight = 45;    // Increased for more signing space
+    const gap = 4;                     // Compact gap
+    const remainingHeight = footerY - yPos - gap;
+    const termsCostHeight = remainingHeight - signatureRowHeight;
+
+    // Get terms text - Priority: Company instructions > Template terms > Default
+    const termsText = data.company?.jobSheetInstructions || data.template?.termsAndConditions ||
+      '1. Advance payment is non-refundable.\n2. Device must be collected within 7 days of service completion.\n3. Company is not responsible for data loss during repair.\n4. Warranty: 30 days for parts and 15 days for service.\n5. Additional charges may apply for parts replacement.\n6. Customer must provide device password if required for testing.\n7. Any accessories left with the device are at customer\'s own risk.';
+
+    const totalBottomHeight = termsCostHeight + signatureRowHeight;
+
+    // Draw main container border (Terms + Cost + Signatures)
+    doc.rect(margin, yPos, contentWidth, totalBottomHeight).lineWidth(1).stroke(borderColor);
+
+    // Vertical divider (full height)
+    doc.moveTo(costColX, yPos).lineTo(costColX, yPos + totalBottomHeight).stroke(borderColor);
+
+    // Horizontal line separating Terms/Cost from Signatures
+    doc.moveTo(margin, yPos + termsCostHeight).lineTo(pageWidth - margin, yPos + termsCostHeight).stroke(borderColor);
+
+    // Terms & Conditions (left column) - Mixed Tamil/English support
+    // Uses NotoSans for Latin characters and NotoSansTamil for Tamil characters
+    const termsTitleFont = this.fontsAvailable ? 'NotoSans-Bold' : 'Helvetica-Bold';
+    const termsPadding = 8; // Increased padding for better spacing
+
+    doc.fontSize(9).font(termsTitleFont).fillColor(textDark)
+      .text('TERMS & CONDITIONS*', margin + termsPadding, yPos + 4);
+
+    // Use renderMixedText for proper Tamil+English rendering with auto line wrap
+    doc.fillColor(textDark);
+    this.renderMixedText(doc, termsText, margin + termsPadding, yPos + 18, {
+      width: termsColWidth - (termsPadding * 2), // Proper padding on both sides
+      lineGap: 1.2,  // Increased line gap for readability
+      fontSize: 7    // Increased font size for better readability
+    });
+
+    // Cost section (right column) - DARK GREEN color - LARGER FONT
+    const costAmount = `Rs.${data.service.estimatedCost.toFixed(0)}`;
+    const costLabel = 'TOTAL COST : ';
+    const costFullText = costLabel + costAmount;
+    const availableCostWidth = costColWidth - 20;
+
+    // Measure text widths to determine if single line fits
+    doc.fontSize(14).font('Helvetica-Bold');
+    const fullTextWidth = doc.widthOfString(costFullText);
+
+    let costEndY: number;
+
+    if (fullTextWidth <= availableCostWidth) {
+      // Single line - fits within available width
+      doc.fontSize(14).font('Helvetica-Bold').fillColor(colorGreen)
+        .text(costFullText, costColX + 8, yPos + 6);
+      costEndY = yPos + 24;
+    } else {
+      // Two lines - amount too large
+      doc.fontSize(11).font('Helvetica-Bold').fillColor(colorGreen)
+        .text('TOTAL COST :', costColX + 8, yPos + 5);
+      doc.fontSize(16).font('Helvetica-Bold').fillColor(colorGreen)
+        .text(costAmount, costColX + 8, yPos + 18);
+      costEndY = yPos + 34;
+    }
+
+    doc.fontSize(8).font('Helvetica').fillColor(textMuted)
+      .text('For Delivery use only', costColX + 8, costEndY + 4);
+
+    // Delivery signature box (fixed minimum height)
+    const deliveryBoxTop = costEndY + 16;
+    const deliveryBoxHeight = 35; // Fixed height for delivery box
+    doc.rect(costColX + 8, deliveryBoxTop, costColWidth - 20, deliveryBoxHeight).lineWidth(0.5).stroke(textMuted);
+
+    // ===== SIGNATURE ROW (Inside bottom of container) - BLUE COLOR =====
+    const signatureY = yPos + termsCostHeight;
+
+    // Signature cells - Left (Customer Sign) - BLUE color (centered in larger row)
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(colorSignBlue)
+      .text('Customer Sign', margin + 25, signatureY + signatureRowHeight - 15);
+
+    // Signature cells - Right (Authorised Sign) - BLUE color (centered in larger row)
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(colorSignBlue)
+      .text('Authorised Sign', costColX + 30, signatureY + signatureRowHeight - 15);
+
+    // ===== FOOTER - AT PAGE BOTTOM, GREEN COLOR =====
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(colorGreen)
+      .text(`Thank you for your trust with ${data.company.name}!`, margin, footerY, { width: contentWidth, align: 'center' });
   }
 
   /**
@@ -3481,8 +3990,8 @@ export class PDFGenerationService {
   private addJobSheetFooter(doc: PDFKit.PDFDocument, data: JobSheetData): void {
     doc.moveDown(2);
 
-    // Terms & Conditions - use custom or default
-    const termsAndConditions = data.template?.termsAndConditions ||
+    // Terms & Conditions - Priority: Company instructions > Template terms > Default
+    const termsAndConditions = data.company?.jobSheetInstructions || data.template?.termsAndConditions ||
       '1. Advance payment is non-refundable.\n' +
       '2. Device must be collected within 7 days of completion.\n' +
       '3. Company is not responsible for data loss during repair.\n' +

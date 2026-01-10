@@ -9,7 +9,7 @@ interface GenerateJobSheetData {
   serviceId: string;
   userId: string;
   templateId?: string;
-  format?: 'A4' | 'A5' | 'thermal' | 'thermal-2' | 'thermal-3';
+  format?: 'A4' | 'A5' | 'A5-V2' | 'thermal' | 'thermal-2' | 'thermal-3';
   copyType?: 'customer' | 'office';
 }
 
@@ -91,16 +91,7 @@ export class JobSheetService {
               email: true,
             },
           },
-          company: {
-            select: {
-              name: true,
-              address: true,
-              phone: true,
-              email: true,
-              logo: true,
-              gstin: true,
-            },
-          },
+          company: true,
           previousService: {
             select: {
               ticketNumber: true,

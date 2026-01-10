@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, X, Check, Database, Upload, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check, Database, Upload, Download, FileText, Save, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { masterDataApi, accessoryApi } from '../../services/masterDataApi';
+import { companyApi } from '../../services/companyApi';
 import {
   ItemCategory,
   ItemUnit,
@@ -27,7 +28,7 @@ import {
   CreateAccessoryDto,
 } from '../../types/masters';
 
-type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'fault' | 'payment-method' | 'expense-category' | 'service-issue' | 'accessory';
+type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'fault' | 'payment-method' | 'expense-category' | 'service-issue' | 'accessory' | 'jobsheet-instructions';
 
 export default function MastersPage() {
   const [activeTab, setActiveTab] = useState<MasterType>('category');
@@ -98,6 +99,41 @@ export default function MastersPage() {
     queryFn: () => accessoryApi.getAll({ limit: 100, isActive: true }),
     staleTime: masterDataStaleTime,
   });
+
+  // Company query for job sheet instructions
+  const companyQuery = useQuery({
+    queryKey: ['company'],
+    queryFn: companyApi.getCompany,
+    staleTime: masterDataStaleTime,
+  });
+
+  // State for job sheet instructions
+  const [jobSheetInstructions, setJobSheetInstructions] = useState('');
+  const [instructionsChanged, setInstructionsChanged] = useState(false);
+
+  // Update local state when company data loads
+  useEffect(() => {
+    if (companyQuery.data?.jobSheetInstructions) {
+      setJobSheetInstructions(companyQuery.data.jobSheetInstructions);
+    }
+  }, [companyQuery.data]);
+
+  // Mutation for updating job sheet instructions
+  const updateInstructionsMutation = useMutation({
+    mutationFn: (instructions: string) => companyApi.updateCompany({ jobSheetInstructions: instructions }),
+    onSuccess: () => {
+      toast.success('Job sheet instructions saved successfully');
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      setInstructionsChanged(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to save instructions');
+    },
+  });
+
+  const handleSaveInstructions = () => {
+    updateInstructionsMutation.mutate(jobSheetInstructions);
+  };
 
   const handleOpenModal = (item?: any) => {
     setEditingItem(item || null);
@@ -303,6 +339,21 @@ export default function MastersPage() {
                 {accessoriesQuery.data?.data.length || 0}
               </span>
             </button>
+
+            {/* Divider */}
+            <div className="my-2 border-t border-gray-200"></div>
+
+            <button
+              onClick={() => setActiveTab('jobsheet-instructions')}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'jobsheet-instructions'
+                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              <span>Job Sheet Instructions</span>
+            </button>
           </nav>
         </div>
 
@@ -400,6 +451,79 @@ export default function MastersPage() {
                 onEdit={handleOpenModal}
                 onImport={() => setIsImportModalOpen(true)}
               />
+            )}
+            {activeTab === 'jobsheet-instructions' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      Job Sheet Instructions
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      These instructions will appear on all job sheets. Supports any language (Tamil, Hindi, English, etc.)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  {companyQuery.isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Instructions / Terms & Conditions
+                        </label>
+                        <textarea
+                          value={jobSheetInstructions}
+                          onChange={(e) => {
+                            setJobSheetInstructions(e.target.value);
+                            setInstructionsChanged(true);
+                          }}
+                          rows={15}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-normal text-sm"
+                          placeholder="Enter job sheet instructions here...
+
+Example:
+1. அட்வான்ஸ் பேமென்ட் கட்டாயம்
+2. 30 நாட்கள் வாரண்டி உள்ளது
+3. சாதனத்தை 30 நாட்களுக்குள் எடுக்க வேண்டும்
+
+1. Advance payment is mandatory
+2. 30 days warranty on repairs
+3. Device must be collected within 30 days"
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                          Tip: You can write in any language. The text will appear exactly as typed on the job sheet PDF.
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleSaveInstructions}
+                          disabled={!instructionsChanged || updateInstructionsMutation.isPending}
+                          className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {updateInstructionsMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              Save Instructions
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>

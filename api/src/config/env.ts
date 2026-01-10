@@ -6,7 +6,7 @@ export const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),
   apiVersion: process.env.API_VERSION || 'v1',
-  baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+  baseUrl: process.env.BASE_URL || 'http://localhost:5000',
 
   database: {
     url: process.env.DATABASE_URL || '',
@@ -40,7 +40,7 @@ export const config = {
   },
 
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:5174',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5000,http://localhost:3001,http://localhost:5173,http://localhost:5174',
   },
 
   rateLimit: {

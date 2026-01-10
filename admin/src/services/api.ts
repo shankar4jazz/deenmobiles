@@ -7,14 +7,14 @@ const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
+
   // In production, use same origin
   if (import.meta.env.PROD) {
     return window.location.origin;
   }
-  
+
   // Development default
-  return 'http://localhost:3000';
+  return 'http://localhost:5000';
 };
 
 const API_URL = getApiUrl();

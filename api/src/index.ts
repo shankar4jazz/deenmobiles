@@ -47,6 +47,7 @@ import taskRoutes from './routes/taskRoutes';
 import cashSettlementRoutes from './routes/cashSettlementRoutes';
 import gstr1Routes from './routes/gstr1Routes';
 import warrantyRoutes from './routes/warrantyRoutes';
+import companyRoutes from './routes/companyRoutes';
 
 const app: Application = express();
 
@@ -62,11 +63,11 @@ app.get('/health', async (req: Request, res: Response) => {
     environment: config.env,
     port: config.port,
   };
-  
-  res.status(200).json({ 
-    success: true, 
-    data: health, 
-    message: 'Server is healthy' 
+
+  res.status(200).json({
+    success: true,
+    data: health,
+    message: 'Server is healthy'
   });
 });
 
@@ -77,16 +78,16 @@ app.get('/health/detailed', async (req: Request, res: Response) => {
     database: false,
     timestamp: new Date().toISOString(),
   };
-  
+
   // Check database connection
   try {
     checks.database = await checkDatabaseConnection();
   } catch (error) {
     console.error('Database health check failed:', error);
   }
-  
+
   const isHealthy = Object.values(checks).every(check => check !== false);
-  
+
   res.status(isHealthy ? 200 : 503).json({
     success: isHealthy,
     data: checks,
@@ -97,7 +98,7 @@ app.get('/health/detailed', async (req: Request, res: Response) => {
 // Middleware
 // Configure helmet with CSP to allow iframe embedding from app origins
 const allowedFrameOrigins = config.env === 'development'
-  ? ["'self'", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
+  ? ["'self'", "http://localhost:5173", "http://localhost:5174", "http://localhost:5000"]
   : ["'self'", ...config.cors.origin.split(',').map(o => o.trim()).filter(Boolean)];
 
 app.use(helmet({
@@ -119,7 +120,7 @@ const corsOptions = {
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // Check if origin is in the allowed list
     if (corsOrigins.includes(origin) || corsOrigins.includes('*')) {
       callback(null, true);
@@ -202,6 +203,7 @@ app.use(`/api/${config.apiVersion}/reports/gstr1`, gstr1Routes);
 app.use(`/api/${config.apiVersion}/tasks`, taskRoutes);
 app.use(`/api/${config.apiVersion}/cash-settlements`, cashSettlementRoutes);
 app.use(`/api/${config.apiVersion}/warranties`, warrantyRoutes);
+app.use(`/api/${config.apiVersion}/company`, companyRoutes);
 
 // Public routes (no authentication required)
 app.use(`/api/${config.apiVersion}/public`, publicRoutes);
@@ -226,13 +228,13 @@ const server = app.listen(PORT, async () => {
   Logger.info(`Base URL: ${config.baseUrl || `http://localhost:${PORT}`}`);
   Logger.info(`Health Check: ${config.baseUrl || `http://localhost:${PORT}`}/health`);
   Logger.info('────────────────────────────────────────────');
-  
+
   // Check database connection on startup
   const dbConnected = await checkDatabaseConnection();
   if (!dbConnected) {
     Logger.warn('⚠️  Database connection failed - API running with limited functionality');
   }
-  
+
   Logger.info('════════════════════════════════════════════');
 });
 

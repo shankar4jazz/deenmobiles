@@ -68,7 +68,7 @@ export interface JobSheetListResponse {
 }
 
 // Job Sheet Format Types
-export type JobSheetFormat = 'A4' | 'A5' | 'thermal';
+export type JobSheetFormat = 'A4' | 'A5' | 'A5-V2' | 'thermal';
 
 // Job Sheet Copy Types
 export type JobSheetCopyType = 'customer' | 'office';
@@ -79,7 +79,7 @@ export const jobSheetApi = {
   generateFromService: async (
     serviceId: string,
     templateId?: string,
-    format: JobSheetFormat = 'A4',
+    format: JobSheetFormat = 'A5-V2',
     copyType: JobSheetCopyType = 'customer'
   ): Promise<JobSheet> => {
     const response = await api.post(`/services/${serviceId}/jobsheet`, {
@@ -120,7 +120,7 @@ export const jobSheetApi = {
   // Regenerate job sheet PDF with format and copy type support
   regeneratePDF: async (
     id: string,
-    format: JobSheetFormat = 'A4',
+    format: JobSheetFormat = 'A5-V2',
     copyType: JobSheetCopyType = 'customer'
   ): Promise<JobSheet> => {
     const response = await api.post(`/jobsheets/${id}/regenerate`, { format, copyType });

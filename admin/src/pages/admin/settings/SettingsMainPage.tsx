@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FileText, Settings, Hash } from 'lucide-react';
+import { FileText, Settings, Hash, Building2 } from 'lucide-react';
 import ThemeList from '../themes/ThemeList';
 import JobSheetTemplateList from '../jobsheet-templates/JobSheetTemplateList';
 import DocumentNumberSettings from '@/components/settings/DocumentNumberSettings';
+import CompanySettings from '@/components/settings/CompanySettings';
 
 interface Tab {
   id: string;
@@ -14,9 +15,15 @@ interface Tab {
 
 export default function SettingsMainPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTabParam = searchParams.get('tab') || 'invoice';
+  const activeTabParam = searchParams.get('tab') || 'company';
 
   const tabs: Tab[] = [
+    {
+      id: 'company',
+      label: 'Company',
+      icon: Building2,
+      component: <CompanySettings />,
+    },
     {
       id: 'invoice',
       label: 'Invoice',
@@ -55,11 +62,11 @@ export default function SettingsMainPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="w-7 h-7" />
-            Templates
+            <Settings className="w-7 h-7" />
+            Settings
           </h1>
           <p className="text-gray-600 mt-1">
-            Manage templates for invoices, estimates, and job sheets
+            Manage company details, templates, and document settings
           </p>
         </div>
       </div>

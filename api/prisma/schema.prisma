@@ -16,6 +16,7 @@ model Company {
   logo                String?
   gstin               String?                    // Company GSTIN for GST reporting
   stateCode           String?                    // 2-digit state code for place of supply
+  jobSheetInstructions String?                   @db.Text  // Job sheet instructions (supports any language)
   isActive            Boolean                    @default(true)
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt

@@ -21,7 +21,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
         ws: true,
@@ -38,12 +38,12 @@ export default defineConfig({
         },
       },
       '/socket.io': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:5000',
         ws: true,
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },
