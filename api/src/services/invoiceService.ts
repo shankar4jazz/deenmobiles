@@ -281,10 +281,10 @@ export class InvoiceService {
         matchingFaultIds,
       };
 
-      // Generate PDF
-      const pdfUrl = await pdfGenerationService.generateInvoicePDF(pdfData);
+      // NOTE: PDF is generated on-demand when user requests view/download
+      // This reduces storage usage - PDF only saved when sharing via WhatsApp
 
-      // Create invoice
+      // Create invoice (no PDF stored - generated on-demand)
       const invoice = await prisma.invoice.create({
         data: {
           invoiceNumber,
@@ -295,7 +295,8 @@ export class InvoiceService {
           paymentStatus,
           isWarrantyInvoice: isWarrantyRepair,
           companyId: service.companyId,
-          pdfUrl,
+          branchId: service.branchId,
+          // pdfUrl is null - PDF generated on-demand
         },
         include: {
           service: {
@@ -1100,6 +1101,340 @@ export class InvoiceService {
       Logger.error('Error regenerating invoice PDF:', error);
       throw error;
     }
+  }
+
+  /**
+   * Stream Invoice PDF on-demand for A5/thermal formats (no file saved to disk)
+   * Used for View/Download operations
+   */
+  static async streamInvoicePDF(
+    invoiceId: string,
+    companyId: string,
+    format: string = 'A5'
+  ): Promise<{ buffer: Buffer; invoiceNumber: string }> {
+    try {
+      // Get invoice with full details
+      const invoice = await this.getInvoiceById(invoiceId, companyId);
+
+      if (!invoice) {
+        throw new AppError(404, 'Invoice not found');
+      }
+
+      const service = invoice.service;
+
+      // Prepare data for PDF generation
+      const pdfData = {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.createdAt,
+        service: {
+          ticketNumber: service.ticketNumber,
+          createdAt: service.createdAt,
+          deviceModel: service.deviceModel,
+          issue: service.damageCondition,
+          diagnosis: service.diagnosis || undefined,
+          actualCost: service.actualCost || undefined,
+          estimatedCost: service.estimatedCost,
+          labourCharge: service.labourCharge || 0,
+          advancePayment: service.advancePayment,
+          completedAt: service.completedAt || undefined,
+        },
+        customer: {
+          name: service.customer.name,
+          phone: service.customer.phone,
+          address: service.customer.address || undefined,
+          email: service.customer.email || undefined,
+        },
+        branch: service.branch,
+        company: service.company,
+        parts: service.partsUsed.map((sp: any) => ({
+          partName: sp.item?.itemName || sp.part?.name || 'Unknown Part',
+          quantity: sp.quantity,
+          unitPrice: sp.unitPrice,
+          totalPrice: sp.totalPrice,
+        })),
+        payments: invoice.payments.map((p: any) => ({
+          amount: p.amount,
+          paymentMethod: p.paymentMethod?.name || 'Unknown',
+          transactionId: p.transactionId || undefined,
+          createdAt: p.createdAt,
+        })),
+        totalAmount: invoice.totalAmount,
+        paidAmount: invoice.paidAmount,
+        balanceAmount: invoice.balanceAmount,
+        paymentStatus: invoice.paymentStatus,
+      };
+
+      // Generate PDF buffer (no file saved)
+      const buffer = await pdfGenerationService.generateInvoicePDFBuffer(pdfData, format);
+
+      Logger.info(`Invoice ${invoice.invoiceNumber} streamed on-demand (${format})`);
+      return { buffer, invoiceNumber: invoice.invoiceNumber };
+    } catch (error) {
+      Logger.error('Error streaming invoice PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stream Sales Tax Invoice PDF on-demand (no file saved to disk)
+   * Used for View/Download operations
+   */
+  static async streamSalesTaxInvoicePDF(
+    invoiceId: string
+  ): Promise<{ buffer: Buffer; invoiceNumber: string }> {
+    try {
+      // Fetch invoice with all related data
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              item: true,
+            },
+          },
+          service: {
+            include: {
+              partsUsed: {
+                include: {
+                  part: true,
+                  item: true,
+                },
+              },
+              branch: true,
+            },
+          },
+          company: true,
+          theme: true,
+        },
+      });
+
+      if (!invoice) {
+        throw new AppError(404, 'Invoice not found');
+      }
+
+      // Get branch info from invoice's branchId or service's branch
+      let branch = null;
+      if (invoice.branchId) {
+        branch = await prisma.branch.findUnique({
+          where: { id: invoice.branchId },
+        });
+      } else if (invoice.service?.branch) {
+        branch = invoice.service.branch;
+      }
+
+      // Prepare Sales Tax Invoice data
+      const pdfData = await this.prepareSalesTaxInvoiceData(invoice, branch);
+
+      // Generate PDF buffer (no file saved)
+      const buffer = await pdfGenerationService.generateSalesTaxInvoicePDFBuffer(pdfData);
+
+      Logger.info(`Sales Tax Invoice ${invoice.invoiceNumber} streamed on-demand`);
+      return { buffer, invoiceNumber: invoice.invoiceNumber };
+    } catch (error) {
+      Logger.error('Error streaming sales tax invoice PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get shareable Sales Tax Invoice URL (for WhatsApp sharing)
+   * Generates PDF and saves to storage (regenerates with latest data if file exists)
+   */
+  static async getShareableSalesTaxInvoiceURL(
+    invoiceId: string
+  ): Promise<{ pdfUrl: string; invoiceNumber: string }> {
+    try {
+      // Fetch invoice with all related data
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              item: true,
+            },
+          },
+          service: {
+            include: {
+              partsUsed: {
+                include: {
+                  part: true,
+                  item: true,
+                },
+              },
+              branch: true,
+            },
+          },
+          company: true,
+          theme: true,
+        },
+      });
+
+      if (!invoice) {
+        throw new AppError(404, 'Invoice not found');
+      }
+
+      // Get branch info from invoice's branchId or service's branch
+      let branch = null;
+      if (invoice.branchId) {
+        branch = await prisma.branch.findUnique({
+          where: { id: invoice.branchId },
+        });
+      } else if (invoice.service?.branch) {
+        branch = invoice.service.branch;
+      }
+
+      // Prepare Sales Tax Invoice data
+      const pdfData = await this.prepareSalesTaxInvoiceData(invoice, branch);
+
+      // Generate PDF and save to storage
+      const pdfUrl = await pdfGenerationService.generateSalesTaxInvoicePDF(pdfData);
+
+      // Update invoice with new PDF URL
+      await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: { pdfUrl },
+      });
+
+      Logger.info(`Sales Tax Invoice ${invoice.invoiceNumber} generated for sharing`);
+      return {
+        pdfUrl,
+        invoiceNumber: invoice.invoiceNumber,
+      };
+    } catch (error) {
+      Logger.error('Error generating shareable sales tax invoice URL:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper method to prepare Sales Tax Invoice data from invoice record
+   */
+  private static async prepareSalesTaxInvoiceData(invoice: any, branch: any): Promise<any> {
+    // Get branch state code for tax calculation
+    const branchStateCode = branch?.stateCode || invoice.company?.stateCode || '33'; // Default Tamil Nadu
+    const customerStateCode = invoice.customer?.stateCode || branchStateCode;
+
+    // Determine if inter-state (IGST) or intra-state (CGST+SGST)
+    const isInterState = branchStateCode !== customerStateCode;
+
+    // Build items from invoice items or service parts
+    let items: any[] = [];
+    let sno = 1;
+
+    if (invoice.items && invoice.items.length > 0) {
+      // Use invoice items
+      items = invoice.items.map((item: any) => ({
+        sno: sno++,
+        productName: item.description,
+        hsnCode: item.hsnCode || item.item?.hsnCode || '',
+        quantity: item.quantity,
+        rate: Number(item.unitPrice) || 0,
+        amount: Number(item.amount) || 0,
+      }));
+    } else if (invoice.service?.partsUsed && invoice.service.partsUsed.length > 0) {
+      // Use service parts
+      items = invoice.service.partsUsed.map((part: any) => ({
+        sno: sno++,
+        productName: part.item?.itemName || part.part?.name || 'Service',
+        hsnCode: part.item?.hsnCode || part.part?.hsnCode || '85171300',
+        quantity: part.quantity,
+        rate: Number(part.unitPrice) || 0,
+        amount: Number(part.totalPrice) || 0,
+      }));
+    }
+
+    // If no items, create a single service line item
+    if (items.length === 0) {
+      items = [{
+        sno: 1,
+        productName: invoice.service?.deviceModel ? `${invoice.service.deviceModel} SERVICE` : 'Service Charge',
+        hsnCode: '998719', // HSN for repair services
+        quantity: 1,
+        rate: Number(invoice.totalAmount) || 0,
+        amount: Number(invoice.totalAmount) || 0,
+      }];
+    }
+
+    // Calculate tax amounts
+    const grossAmount = Number(invoice.totalAmount) || 0;
+    const gstRate = 18; // Default GST rate
+    const taxableAmount = grossAmount / (1 + gstRate / 100); // Reverse calculate taxable amount
+    const totalTax = grossAmount - taxableAmount;
+
+    let cgstAmount = 0;
+    let sgstAmount = 0;
+    let igstAmount = 0;
+
+    if (isInterState) {
+      igstAmount = totalTax;
+    } else {
+      cgstAmount = totalTax / 2;
+      sgstAmount = totalTax / 2;
+    }
+
+    // Get round off (difference between gross and actual net)
+    const netAmount = Math.round(grossAmount);
+    const roundOff = netAmount - grossAmount;
+
+    // Get terms - Priority: Company invoiceTermsText > Theme termsAndConditions > Defaults
+    let termsAndConditions: string[] = [];
+    let invoiceTermsText: string | undefined = undefined;
+
+    if (invoice.company?.invoiceTermsText) {
+      // Use company's invoice terms text (supports multi-language)
+      invoiceTermsText = invoice.company.invoiceTermsText;
+      termsAndConditions = invoice.company.invoiceTermsText.split('\n').filter((t: string) => t.trim());
+    } else if (invoice.theme?.termsAndConditions) {
+      termsAndConditions = invoice.theme.termsAndConditions.split('\n').filter((t: string) => t.trim());
+    } else {
+      termsAndConditions = [
+        'Goods once sold will not be accepted back.',
+        `Subject to ${branch?.name || invoice.company?.name} Jurisdiction`,
+      ];
+    }
+
+    return {
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.createdAt,
+      customer: {
+        name: invoice.customer?.name || 'Walk-in Customer',
+        phone: invoice.customer?.phone || '',
+        address: invoice.customer?.address || '',
+        gstin: invoice.customer?.gstin || undefined,
+        stateCode: customerStateCode,
+      },
+      items,
+      grossAmount,
+      roundOff,
+      netAmount,
+      taxableAmount,
+      gstRate,
+      cgstAmount,
+      sgstAmount,
+      igstAmount,
+      isInterState,
+      branch: {
+        name: branch?.name || '',
+        address: branch?.address || '',
+        phone: branch?.phone || '',
+        email: branch?.email || '',
+        gstin: branch?.gstin || invoice.company?.gstin || '',
+        stateCode: branchStateCode,
+      },
+      company: {
+        name: invoice.company?.name || '',
+        address: invoice.company?.address || '',
+        phone: invoice.company?.phone || '',
+        email: invoice.company?.email || '',
+        logo: invoice.company?.logo || undefined,
+        gst: invoice.company?.gstin || undefined,
+        website: invoice.company?.website || undefined,
+      },
+      termsAndConditions,
+      invoiceTermsText,
+    };
   }
 }
 

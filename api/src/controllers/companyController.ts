@@ -21,7 +21,7 @@ export class CompanyController {
    */
   static updateCompany = asyncHandler(async (req: AuthRequest, res: Response) => {
     const companyId = req.user!.companyId;
-    const { name, email, phone, address, gstin, stateCode, jobSheetInstructions } = req.body;
+    const { name, email, phone, address, gstin, stateCode, jobSheetInstructions, invoiceTermsText, estimationTermsText } = req.body;
 
     const company = await CompanyService.updateCompany(companyId, {
       name,
@@ -31,6 +31,8 @@ export class CompanyController {
       gstin,
       stateCode,
       jobSheetInstructions,
+      invoiceTermsText,
+      estimationTermsText,
     });
 
     return ApiResponse.success(res, company, 'Company details updated successfully');

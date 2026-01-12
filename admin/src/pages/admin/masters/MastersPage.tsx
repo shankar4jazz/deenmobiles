@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, X, Check, Database, Upload, Download, FileText, Save, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { masterDataApi, accessoryApi } from '@/services/masterDataApi';
+import { masterDataApi, accessoryApi, invoiceTermsApi, estimationTermsApi } from '@/services/masterDataApi';
 import { companyApi } from '@/services/companyApi';
 import {
   ItemCategory,
@@ -16,6 +16,8 @@ import {
   ExpenseCategory,
   ServiceIssue,
   Accessory,
+  InvoiceTerms,
+  EstimationTerms,
   CreateItemCategoryDto,
   CreateItemUnitDto,
   CreateItemGSTRateDto,
@@ -26,9 +28,11 @@ import {
   CreateExpenseCategoryDto,
   CreateServiceIssueDto,
   CreateAccessoryDto,
+  CreateInvoiceTermsDto,
+  CreateEstimationTermsDto,
 } from '@/types/masters';
 
-type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'fault' | 'payment-method' | 'expense-category' | 'service-issue' | 'accessory' | 'jobsheet-instructions';
+type MasterType = 'category' | 'unit' | 'gst-rate' | 'brand' | 'model' | 'fault' | 'payment-method' | 'expense-category' | 'service-issue' | 'accessory' | 'invoice-terms' | 'estimation-terms' | 'jobsheet-instructions';
 
 export default function MastersPage() {
   const [activeTab, setActiveTab] = useState<MasterType>('category');
@@ -100,6 +104,18 @@ export default function MastersPage() {
     staleTime: masterDataStaleTime,
   });
 
+  const invoiceTermsQuery = useQuery({
+    queryKey: ['invoiceTerms'],
+    queryFn: () => invoiceTermsApi.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
+  });
+
+  const estimationTermsQuery = useQuery({
+    queryKey: ['estimationTerms'],
+    queryFn: () => estimationTermsApi.getAll({ limit: 100, isActive: true }),
+    staleTime: masterDataStaleTime,
+  });
+
   // Company query for job sheet instructions
   const companyQuery = useQuery({
     queryKey: ['company'],
@@ -111,10 +127,24 @@ export default function MastersPage() {
   const [jobSheetInstructions, setJobSheetInstructions] = useState('');
   const [instructionsChanged, setInstructionsChanged] = useState(false);
 
+  // State for invoice terms text
+  const [invoiceTermsText, setInvoiceTermsText] = useState('');
+  const [invoiceTermsChanged, setInvoiceTermsChanged] = useState(false);
+
+  // State for estimation terms text
+  const [estimationTermsText, setEstimationTermsText] = useState('');
+  const [estimationTermsChanged, setEstimationTermsChanged] = useState(false);
+
   // Update local state when company data loads
   useEffect(() => {
     if (companyQuery.data?.jobSheetInstructions) {
       setJobSheetInstructions(companyQuery.data.jobSheetInstructions);
+    }
+    if (companyQuery.data?.invoiceTermsText) {
+      setInvoiceTermsText(companyQuery.data.invoiceTermsText);
+    }
+    if (companyQuery.data?.estimationTermsText) {
+      setEstimationTermsText(companyQuery.data.estimationTermsText);
     }
   }, [companyQuery.data]);
 
@@ -131,8 +161,42 @@ export default function MastersPage() {
     },
   });
 
+  // Mutation for updating invoice terms
+  const updateInvoiceTermsMutation = useMutation({
+    mutationFn: (terms: string) => companyApi.updateCompany({ invoiceTermsText: terms }),
+    onSuccess: () => {
+      toast.success('Invoice terms saved successfully');
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      setInvoiceTermsChanged(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to save invoice terms');
+    },
+  });
+
+  // Mutation for updating estimation terms
+  const updateEstimationTermsMutation = useMutation({
+    mutationFn: (terms: string) => companyApi.updateCompany({ estimationTermsText: terms }),
+    onSuccess: () => {
+      toast.success('Estimation terms saved successfully');
+      queryClient.invalidateQueries({ queryKey: ['company'] });
+      setEstimationTermsChanged(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to save estimation terms');
+    },
+  });
+
   const handleSaveInstructions = () => {
     updateInstructionsMutation.mutate(jobSheetInstructions);
+  };
+
+  const handleSaveInvoiceTerms = () => {
+    updateInvoiceTermsMutation.mutate(invoiceTermsText);
+  };
+
+  const handleSaveEstimationTerms = () => {
+    updateEstimationTermsMutation.mutate(estimationTermsText);
   };
 
   const handleOpenModal = (item?: any) => {
@@ -344,6 +408,45 @@ export default function MastersPage() {
             <div className="my-2 border-t border-gray-200"></div>
 
             <button
+              onClick={() => setActiveTab('invoice-terms')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'invoice-terms'
+                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span>Invoice Terms</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'invoice-terms'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {invoiceTermsQuery.data?.data.length || 0}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('estimation-terms')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'estimation-terms'
+                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span>Estimation Terms</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'estimation-terms'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {estimationTermsQuery.data?.data.length || 0}
+              </span>
+            </button>
+
+            {/* Divider */}
+            <div className="my-2 border-t border-gray-200"></div>
+
+            <button
               onClick={() => setActiveTab('jobsheet-instructions')}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 activeTab === 'jobsheet-instructions'
@@ -451,6 +554,150 @@ export default function MastersPage() {
                 onEdit={handleOpenModal}
                 onImport={() => setIsImportModalOpen(true)}
               />
+            )}
+            {activeTab === 'invoice-terms' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      Invoice Terms & Conditions
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      These terms will appear on all invoices. Supports any language (Tamil, Hindi, English, etc.)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  {companyQuery.isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Invoice Terms & Conditions
+                        </label>
+                        <textarea
+                          value={invoiceTermsText}
+                          onChange={(e) => {
+                            setInvoiceTermsText(e.target.value);
+                            setInvoiceTermsChanged(true);
+                          }}
+                          rows={15}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-normal text-sm"
+                          placeholder="Enter invoice terms & conditions here...
+
+Example:
+1. பில் பெற்றவுடன் பணம் செலுத்த வேண்டும்
+2. பொருட்கள் விற்பனைக்குப் பிறகு திருப்பி அளிக்கப்படாது
+
+1. Payment due upon receipt
+2. Goods once sold cannot be returned
+3. Subject to local jurisdiction"
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                          Tip: You can write in any language. The text will appear exactly as typed on the invoice PDF.
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleSaveInvoiceTerms}
+                          disabled={!invoiceTermsChanged || updateInvoiceTermsMutation.isPending}
+                          className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {updateInvoiceTermsMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              Save Invoice Terms
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {activeTab === 'estimation-terms' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      Estimation Terms & Conditions
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      These terms will appear on all estimations. Supports any language (Tamil, Hindi, English, etc.)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  {companyQuery.isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Estimation Terms & Conditions
+                        </label>
+                        <textarea
+                          value={estimationTermsText}
+                          onChange={(e) => {
+                            setEstimationTermsText(e.target.value);
+                            setEstimationTermsChanged(true);
+                          }}
+                          rows={15}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-normal text-sm"
+                          placeholder="Enter estimation terms & conditions here...
+
+Example:
+1. மதிப்பீடு 7 நாட்களுக்கு மட்டுமே செல்லுபடியாகும்
+2. உண்மையான விலை மாறுபடலாம்
+
+1. Estimate valid for 7 days only
+2. Actual price may vary based on inspection
+3. Advance payment required to start work"
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                          Tip: You can write in any language. The text will appear exactly as typed on the estimation PDF.
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleSaveEstimationTerms}
+                          disabled={!estimationTermsChanged || updateEstimationTermsMutation.isPending}
+                          className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {updateEstimationTermsMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              Save Estimation Terms
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
             {activeTab === 'jobsheet-instructions' && (
               <div className="space-y-4">
@@ -1860,7 +2107,9 @@ function MasterDataModal({
       defaultPrice: 0,
       level: 1,
       technicianPoints: 0,
-      tags: ''
+      tags: '',
+      content: '',
+      sortOrder: 0
     }
   );
   const queryClient = useQueryClient();
@@ -1883,6 +2132,8 @@ function MasterDataModal({
       if (type === 'expense-category') return masterDataApi.expenseCategories.create(data);
       if (type === 'service-issue') return masterDataApi.serviceIssues.create(data);
       if (type === 'accessory') return accessoryApi.create(data);
+      if (type === 'invoice-terms') return invoiceTermsApi.create(data);
+      if (type === 'estimation-terms') return estimationTermsApi.create(data);
       throw new Error('Invalid type');
     },
     onSuccess: () => {
@@ -1897,6 +2148,8 @@ function MasterDataModal({
           type === 'payment-method' ? 'paymentMethods' :
           type === 'expense-category' ? 'expenseCategories' :
           type === 'service-issue' ? 'serviceIssues' :
+          type === 'invoice-terms' ? 'invoiceTerms' :
+          type === 'estimation-terms' ? 'estimationTerms' :
           'accessories'
         ],
       });
@@ -1916,6 +2169,8 @@ function MasterDataModal({
       if (type === 'expense-category') return masterDataApi.expenseCategories.update(item.id, data);
       if (type === 'service-issue') return masterDataApi.serviceIssues.update(item.id, data);
       if (type === 'accessory') return accessoryApi.update(item.id, data);
+      if (type === 'invoice-terms') return invoiceTermsApi.update(item.id, data);
+      if (type === 'estimation-terms') return estimationTermsApi.update(item.id, data);
       throw new Error('Invalid type');
     },
     onSuccess: () => {
@@ -1930,6 +2185,8 @@ function MasterDataModal({
           type === 'payment-method' ? 'paymentMethods' :
           type === 'expense-category' ? 'expenseCategories' :
           type === 'service-issue' ? 'serviceIssues' :
+          type === 'invoice-terms' ? 'invoiceTerms' :
+          type === 'estimation-terms' ? 'estimationTerms' :
           'accessories'
         ],
       });
@@ -1961,6 +2218,8 @@ function MasterDataModal({
              type === 'payment-method' ? 'Payment Method' :
              type === 'expense-category' ? 'Expense Category' :
              type === 'service-issue' ? 'Damage Condition' :
+             type === 'invoice-terms' ? 'Invoice Term' :
+             type === 'estimation-terms' ? 'Estimation Term' :
              'Accessory'}
           </h3>
           <button
@@ -1971,18 +2230,53 @@ function MasterDataModal({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              required
-            />
-          </div>
+          {/* Content field for Invoice/Estimation Terms */}
+          {(type === 'invoice-terms' || type === 'estimation-terms') ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Term Content *
+                </label>
+                <textarea
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  rows={3}
+                  maxLength={500}
+                  required
+                  placeholder="Enter the term or condition text..."
+                />
+                <p className="text-xs text-gray-500 mt-1">{formData.content?.length || 0}/500 characters</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sort Order
+                </label>
+                <input
+                  type="number"
+                  value={formData.sortOrder || 0}
+                  onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  min={0}
+                />
+                <p className="text-xs text-gray-500 mt-1">Lower numbers appear first</p>
+              </div>
+            </>
+          ) : (
+            /* Name field for other types */
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Name *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
+              />
+            </div>
+          )}
           {(type === 'category' || type === 'unit' || type === 'brand' || type === 'model' || type === 'fault' || type === 'payment-method' || type === 'expense-category' || type === 'accessory') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

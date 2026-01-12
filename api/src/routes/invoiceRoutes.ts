@@ -194,4 +194,57 @@ router.post(
   InvoiceController.regenerateInvoicePDF
 );
 
+/**
+ * @route   GET /api/v1/invoices/:id/tax-invoice/stream
+ * @desc    Stream Sales Tax Invoice PDF on-demand (no file saved) - for viewing
+ * @access  Private (All authenticated users)
+ */
+router.get(
+  '/:id/tax-invoice/stream',
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN
+  ),
+  validate(invoiceIdValidation),
+  InvoiceController.streamSalesTaxInvoicePDF
+);
+
+/**
+ * @route   GET /api/v1/invoices/:id/tax-invoice/download
+ * @desc    Download Sales Tax Invoice PDF on-demand (no file saved)
+ * @access  Private (All authenticated users)
+ */
+router.get(
+  '/:id/tax-invoice/download',
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN
+  ),
+  validate(invoiceIdValidation),
+  InvoiceController.downloadSalesTaxInvoicePDF
+);
+
+/**
+ * @route   POST /api/v1/invoices/:id/tax-invoice/share
+ * @desc    Get shareable Sales Tax Invoice URL (for WhatsApp sharing) - saves to storage
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.post(
+  '/:id/tax-invoice/share',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(invoiceIdValidation),
+  InvoiceController.getShareableSalesTaxInvoiceURL
+);
+
 export default router;

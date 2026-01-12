@@ -127,9 +127,61 @@ export const jobSheetApi = {
     return response.data.data;
   },
 
-  // Download job sheet PDF
+  // Download job sheet PDF (legacy - returns URL from storage)
   downloadPDF: async (id: string): Promise<{ pdfUrl: string }> => {
     const response = await api.get(`/jobsheets/${id}/pdf`);
+    return response.data.data;
+  },
+
+  // Stream job sheet PDF on-demand (no file saved) - for viewing
+  // Returns a blob URL that can be used to display the PDF
+  streamPDF: async (
+    serviceId: string,
+    format: JobSheetFormat = 'A5-V2',
+    copyType: JobSheetCopyType = 'customer'
+  ): Promise<string> => {
+    const response = await api.get(
+      `/services/${serviceId}/jobsheet/stream?format=${format}&copyType=${copyType}`,
+      { responseType: 'blob' }
+    );
+    // Create a blob URL for the PDF
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    return URL.createObjectURL(blob);
+  },
+
+  // Download job sheet PDF on-demand (no file saved) - for downloading
+  downloadPDFOnDemand: async (
+    serviceId: string,
+    format: JobSheetFormat = 'A5-V2',
+    copyType: JobSheetCopyType = 'customer'
+  ): Promise<void> => {
+    const response = await api.get(
+      `/services/${serviceId}/jobsheet/download?format=${format}&copyType=${copyType}`,
+      { responseType: 'blob' }
+    );
+    // Create a download link
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `jobsheet_${serviceId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  // Get shareable job sheet URL (for WhatsApp sharing)
+  // This saves the PDF to storage and returns a shareable URL
+  getShareableURL: async (
+    serviceId: string,
+    format: JobSheetFormat = 'A5-V2',
+    copyType: JobSheetCopyType = 'customer'
+  ): Promise<{ pdfUrl: string; jobSheetNumber: string }> => {
+    const response = await api.post(`/services/${serviceId}/jobsheet/share`, {
+      format,
+      copyType,
+    });
     return response.data.data;
   },
 };

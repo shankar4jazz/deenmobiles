@@ -907,4 +907,140 @@ export class MasterDataController {
 
     return ApiResponse.success(res, accessory, 'Accessory deactivated successfully');
   });
+
+  // ==================== INVOICE TERMS ENDPOINTS ====================
+
+  /**
+   * GET /api/v1/master-data/invoice-terms
+   * Get all invoice terms
+   */
+  static getAllInvoiceTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const companyId = req.user!.companyId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const filters = {
+      companyId,
+      search: req.query.search as string,
+      isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined,
+      page,
+      limit,
+    };
+
+    const result = await MasterDataService.getAllInvoiceTerms(filters);
+
+    return ApiResponse.success(res, result, 'Invoice terms retrieved successfully');
+  });
+
+  /**
+   * POST /api/v1/master-data/invoice-terms
+   * Create a new invoice term
+   */
+  static createInvoiceTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { content, sortOrder } = req.body;
+    const companyId = req.user!.companyId;
+
+    const invoiceTerm = await MasterDataService.createInvoiceTerms({
+      content,
+      sortOrder,
+      companyId,
+    });
+
+    return ApiResponse.created(res, invoiceTerm, 'Invoice term created successfully');
+  });
+
+  /**
+   * PUT /api/v1/master-data/invoice-terms/:id
+   * Update invoice term
+   */
+  static updateInvoiceTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const updateData = req.body;
+
+    const invoiceTerm = await MasterDataService.updateInvoiceTerms(id, companyId, updateData);
+
+    return ApiResponse.success(res, invoiceTerm, 'Invoice term updated successfully');
+  });
+
+  /**
+   * DELETE /api/v1/master-data/invoice-terms/:id
+   * Deactivate invoice term (soft delete)
+   */
+  static deactivateInvoiceTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    const invoiceTerm = await MasterDataService.deactivateInvoiceTerms(id, companyId);
+
+    return ApiResponse.success(res, invoiceTerm, 'Invoice term deactivated successfully');
+  });
+
+  // ==================== ESTIMATION TERMS ENDPOINTS ====================
+
+  /**
+   * GET /api/v1/master-data/estimation-terms
+   * Get all estimation terms
+   */
+  static getAllEstimationTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const companyId = req.user!.companyId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const filters = {
+      companyId,
+      search: req.query.search as string,
+      isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined,
+      page,
+      limit,
+    };
+
+    const result = await MasterDataService.getAllEstimationTerms(filters);
+
+    return ApiResponse.success(res, result, 'Estimation terms retrieved successfully');
+  });
+
+  /**
+   * POST /api/v1/master-data/estimation-terms
+   * Create a new estimation term
+   */
+  static createEstimationTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { content, sortOrder } = req.body;
+    const companyId = req.user!.companyId;
+
+    const estimationTerm = await MasterDataService.createEstimationTerms({
+      content,
+      sortOrder,
+      companyId,
+    });
+
+    return ApiResponse.created(res, estimationTerm, 'Estimation term created successfully');
+  });
+
+  /**
+   * PUT /api/v1/master-data/estimation-terms/:id
+   * Update estimation term
+   */
+  static updateEstimationTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const updateData = req.body;
+
+    const estimationTerm = await MasterDataService.updateEstimationTerms(id, companyId, updateData);
+
+    return ApiResponse.success(res, estimationTerm, 'Estimation term updated successfully');
+  });
+
+  /**
+   * DELETE /api/v1/master-data/estimation-terms/:id
+   * Deactivate estimation term (soft delete)
+   */
+  static deactivateEstimationTerms = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    const estimationTerm = await MasterDataService.deactivateEstimationTerms(id, companyId);
+
+    return ApiResponse.success(res, estimationTerm, 'Estimation term deactivated successfully');
+  });
 }

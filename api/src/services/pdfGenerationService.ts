@@ -4,6 +4,17 @@ import path from 'path';
 import { format } from 'date-fns';
 import QRCode from 'qrcode';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const bwipjs = require('bwip-js');
+
+// Interface for service label data
+interface ServiceLabelData {
+  ticketNumber: string;
+  deviceModel: string;
+  devicePassword?: string;
+  faults: string[];
+}
+
 interface CompanyInfo {
   name: string;
   address: string;
@@ -212,6 +223,54 @@ interface EstimateData {
     email: string;
   };
   company: CompanyInfo;
+}
+
+// Sales Tax Invoice Data (GST compliant format)
+interface SalesTaxInvoiceItem {
+  sno: number;
+  productName: string;
+  hsnCode?: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+interface SalesTaxInvoiceData {
+  invoiceNumber: string;
+  invoiceDate: Date;
+  customer: {
+    name: string;
+    phone: string;
+    address?: string;
+    gstin?: string;
+    stateCode?: string;
+  };
+  items: SalesTaxInvoiceItem[];
+  // Tax calculation
+  grossAmount: number;
+  roundOff: number;
+  netAmount: number;
+  // GST breakdown
+  taxableAmount: number;
+  gstRate: number; // e.g., 18
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
+  isInterState: boolean; // true = IGST, false = CGST+SGST
+  // Company & Branch info
+  branch: {
+    name: string;
+    address: string;
+    phone: string;
+    email?: string;
+    gstin?: string;
+    stateCode?: string;
+  };
+  company: CompanyInfo;
+  // Terms & Conditions (from master)
+  termsAndConditions?: string[];
+  // Invoice Terms Text (multi-language support from company settings)
+  invoiceTermsText?: string;
 }
 
 /**
@@ -586,7 +645,83 @@ export class PDFGenerationService {
   }
 
   /**
-   * Generate Job Sheet PDF with format support (A4, A5, Thermal) and copy type
+   * Generate Job Sheet PDF as Buffer (for on-demand streaming - no file saved)
+   * Used for View/Download operations
+   */
+  async generateJobSheetPDFBuffer(data: JobSheetData, format: string = 'A4', copyType: JobSheetCopyType = 'customer'): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Configure page size based on format
+        let docOptions: any = {};
+        let isThermal = false;
+        switch (format.toLowerCase()) {
+          case 'a5':
+          case 'a5-v2':
+            docOptions = { size: 'A5', margin: 20 };
+            break;
+          case 'thermal':
+          case 'thermal-2':
+          case 'thermal-3':
+            docOptions = { size: [216, 800], margin: 8 };
+            isThermal = true;
+            break;
+          case 'a4':
+          default:
+            docOptions = { size: 'A4', margin: 30 };
+            break;
+        }
+
+        const doc = new PDFDocument(docOptions);
+        const chunks: Buffer[] = [];
+
+        // Register Unicode fonts for multi-language support (Tamil, Hindi, etc.)
+        this.registerFonts(doc);
+
+        // Collect chunks in memory instead of writing to file
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Set copy type in data for rendering
+        data.copyType = copyType;
+
+        // Async wrapper for template rendering (some templates like A5-V2 are async)
+        const renderTemplate = async () => {
+          if (isThermal) {
+            if (copyType === 'office') {
+              this.addJobSheetThermalOffice(doc, data, format);
+            } else {
+              this.addJobSheetThermalCustomer(doc, data, format);
+            }
+          } else if (format.toLowerCase() === 'a5-v2') {
+            await this.addJobSheetA5V2Customer(doc, data);
+          } else if (format.toLowerCase() === 'a5') {
+            if (copyType === 'office') {
+              this.addJobSheetA5Office(doc, data);
+            } else {
+              this.addJobSheetA5Customer(doc, data);
+            }
+          } else {
+            if (copyType === 'office') {
+              this.addJobSheetA4OfficeFull(doc, data);
+            } else {
+              this.addJobSheetA4CustomerFull(doc, data);
+            }
+          }
+        };
+
+        renderTemplate().then(() => {
+          doc.end();
+        }).catch(reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Generate Job Sheet PDF and save to file (for WhatsApp sharing)
+   * Returns the URL for sharing
    */
   async generateJobSheetPDF(data: JobSheetData, format: string = 'A4', copyType: JobSheetCopyType = 'customer'): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -2128,6 +2263,7 @@ export class PDFGenerationService {
     const pageWidth = 420; // A5 width in points
     const pageHeight = 595; // A5 height in points
     const contentWidth = pageWidth - (margin * 2);
+    const mmToPt = 2.83465; // 1mm = 2.83465pt
 
     // Colors - Dark Green & Dark Blue for professional look
     const colorGreen = '#15803d';      // Dark Green - Company name, Total Cost, Thank you
@@ -2140,20 +2276,20 @@ export class PDFGenerationService {
 
     // ===== FIXED LAYOUT POSITIONS (Ensures single page) =====
     const headerY = 8;
-    const headerHeight = 78;           // Increased for larger professional logo
+    const headerHeight = 78;           // Header section height
     const jobSheetTitleY = headerY + headerHeight;
     const jobSheetTitleHeight = 18;
     const jobInfoY = jobSheetTitleY + jobSheetTitleHeight;
     const jobInfoHeight = 95;
     const deviceDetailsY = jobInfoY + jobInfoHeight + 6;
-    const maxDeviceDetailsHeight = 200; // Increased height for device details
+    const deviceDetailsHeight = 60 * mmToPt; // 60mm fixed height
     const footerHeight = 18;
     const footerY = pageHeight - margin - footerHeight;
 
     let yPos = headerY;
 
     // ===== HEADER SECTION =====
-    const logoSize = 80;               // Large professional logo size (increased)
+    const logoSize = 80;               // Large professional logo size
     const resolvedLogo = this.resolveLogoPath(data.company.logo);
     let logoRendered = false;
 
@@ -2179,20 +2315,46 @@ export class PDFGenerationService {
     doc.fontSize(11).font('Helvetica-Bold').fillColor(colorBlue)
       .text('Service Center', centerX, yPos + 28, { width: centerWidth, align: 'center' });
 
-    // Address - Increased font size for better readability
+    // Address - Branch address with proper readability
     const address = data.branch.address || data.company.address || '';
     doc.fontSize(8).font('Helvetica').fillColor(textDark)
       .text(address, centerX, yPos + 44, { width: centerWidth, align: 'center', lineGap: 1.5 });
 
-    // Phone numbers on right - Professional display
-    const phoneX = pageWidth - margin - 80;
+    // Phone numbers on right - Single line with comma, responsive to new line
+    const phoneX = pageWidth - margin - 90;
     const branchPhone = data.branch.phone || data.company.phone || '';
-    const phoneLines = branchPhone.split(',').map(p => p.trim());
+    const phoneNumbers = branchPhone.split(',').map(p => p.trim()).filter(p => p);
 
-    // Phone numbers with proper vertical centering
+    // Draw phone icon using SVG path data (from ic_phone.svg)
+    // Original SVG viewBox: 0 0 24 24, scale to 10pt icon
+    const iconSize = 10;
+    const scale = iconSize / 24;
+    const iconX = phoneX;
+    const iconY = yPos + 14;
+
+    doc.save();
+    doc.translate(iconX, iconY);
+    doc.scale(scale);
+
+    // SVG path from ic_phone.svg - phone icon outline
+    doc.path('M14.05 6C15.0268 6.19057 15.9244 6.66826 16.6281 7.37194C17.3318 8.07561 17.8095 8.97326 18 9.95M14.05 2C16.0793 2.22544 17.9716 3.13417 19.4163 4.57701C20.8609 6.01984 21.7721 7.91101 22 9.94M18.5 21C9.93959 21 3 14.0604 3 5.5C3 5.11378 3.01413 4.73086 3.04189 4.35173C3.07375 3.91662 3.08968 3.69907 3.2037 3.50103C3.29814 3.33701 3.4655 3.18146 3.63598 3.09925C3.84181 3 4.08188 3 4.56201 3H7.37932C7.78308 3 7.98496 3 8.15802 3.06645C8.31089 3.12515 8.44701 3.22049 8.55442 3.3441C8.67601 3.48403 8.745 3.67376 8.88299 4.05321L10.0491 7.26005C10.2096 7.70153 10.2899 7.92227 10.2763 8.1317C10.2643 8.31637 10.2012 8.49408 10.0942 8.64506C9.97286 8.81628 9.77145 8.93713 9.36863 9.17882L8 10C9.2019 12.6489 11.3501 14.7999 14 16L14.8212 14.6314C15.0629 14.2285 15.1837 14.0271 15.3549 13.9058C15.5059 13.7988 15.6836 13.7357 15.8683 13.7237C16.0777 13.7101 16.2985 13.7904 16.74 13.9509L19.9468 15.117C20.3262 15.255 20.516 15.324 20.6559 15.4456C20.7795 15.553 20.8749 15.6891 20.9335 15.842C21 16.015 21 16.2169 21 16.6207V19.438C21 19.9181 21 20.1582 20.9007 20.364C20.8185 20.5345 20.663 20.7019 20.499 20.7963C20.3009 20.9103 20.0834 20.9262 19.6483 20.9581C19.2691 20.9859 18.8862 21 18.5 21Z')
+       .lineWidth(2 / scale) // Adjust stroke width for scaling
+       .strokeColor(textDark)
+       .stroke();
+
+    doc.restore();
+
+    // Phone numbers - responsive (comma separated, wraps to new line if needed)
+    const phoneTextX = phoneX + iconSize + 3;
+    const phoneTextWidth = 77;
     doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark);
-    phoneLines.forEach((phone, idx) => {
-      doc.text(phone, phoneX, yPos + 18 + (idx * 14), { width: 75, align: 'right' });
+
+    // Display numbers with comma, allow natural line wrap
+    const phoneDisplayText = phoneNumbers.join(', ');
+    doc.text(phoneDisplayText, phoneTextX, yPos + 16, {
+      width: phoneTextWidth,
+      align: 'left',
+      lineGap: 3
     });
 
     // ===== JOB SHEET TITLE - BLACK BOLD TEXT =====
@@ -2275,11 +2437,12 @@ export class PDFGenerationService {
     doc.fontSize(7).font('Helvetica').fillColor(colorBlue)
       .text('Scan QR Code For Status', rightColX + 4, yPos + 80, { width: rightColWidth - 8, align: 'center' });
 
-    // ===== DEVICE DETAILS SECTION (WITH BORDER - FIXED HEIGHT) =====
+    // ===== DEVICE DETAILS SECTION (WITH BORDER - 60mm FIXED HEIGHT) =====
     yPos = deviceDetailsY;
     const deviceDetailsSectionY = yPos;
+    const deviceDetailsSectionHeight = deviceDetailsHeight; // 60mm fixed
 
-    // Calculate device details content height (capped at max)
+    // Detail positioning
     const detailLabelX = margin + 8;
     const detailColonX = margin + 100;
     const detailValueX = margin + 110;
@@ -2290,22 +2453,7 @@ export class PDFGenerationService {
     doc.fontSize(9).font('Helvetica');
     const faultsHeight = Math.min(doc.heightOfString(faultsText, { width: detailValueWidth }), 24);
 
-    // Calculate total device details height (capped)
-    let deviceDetailsContentHeight = 20; // Title + underline
-    deviceDetailsContentHeight += 12; // Device Details line 1
-    if (data.service.deviceIMEI) deviceDetailsContentHeight += 11; // IMEI line
-    deviceDetailsContentHeight += Math.max(faultsHeight, 12) + 2; // Faults
-    deviceDetailsContentHeight += 12; // Device Condition
-    deviceDetailsContentHeight += 12; // Damage Condition
-    deviceDetailsContentHeight += 12; // Accessories
-    deviceDetailsContentHeight += 12; // Service Notes
-    deviceDetailsContentHeight += 12; // Data loss Approval
-    deviceDetailsContentHeight += 6; // Padding
-
-    // Cap at maximum height to ensure single page
-    const deviceDetailsSectionHeight = Math.min(deviceDetailsContentHeight, maxDeviceDetailsHeight);
-
-    // Draw border around Device Details section
+    // Draw border around Device Details section (60mm height)
     doc.rect(margin, deviceDetailsSectionY, contentWidth, deviceDetailsSectionHeight).lineWidth(1).stroke(borderColor);
 
     // DEVICE DETAILS Title - RED TEXT + UNDERLINE (inside border)
@@ -2366,25 +2514,25 @@ export class PDFGenerationService {
     doc.font('Helvetica').text(serviceNotes, detailValueX, yPos, { width: detailValueWidth });
     yPos += 12;
 
-    // Data loss Approval
-    const dataApproval = data.service.dataWarrantyAccepted ? 'Approved' : 'Not Approved';
-    doc.font('Helvetica-Bold').text('Data loss Approval', detailLabelX, yPos);
-    doc.text(':', detailColonX, yPos);
-    doc.font('Helvetica').text(dataApproval, detailValueX, yPos);
+    // Data loss Approval - ONLY show if data is present (dataWarrantyAccepted is true)
+    if (data.service.dataWarrantyAccepted === true) {
+      doc.font('Helvetica-Bold').text('Data loss Approval', detailLabelX, yPos);
+      doc.text(':', detailColonX, yPos);
+      doc.font('Helvetica').text('Approved', detailValueX, yPos);
+    }
 
     // Move yPos to after Device Details border
     yPos = deviceDetailsSectionY + deviceDetailsSectionHeight + 5;
 
-    // ===== TERMS & COST + SIGNATURE SECTION (FILL REMAINING SPACE - 10% reduced) =====
+    // ===== TERMS & COST + SIGNATURE SECTION =====
     const termsColWidth = contentWidth * 0.50;
     const costColWidth = contentWidth * 0.50;
     const costColX = margin + termsColWidth;
 
-    // Calculate remaining space for Terms/Cost/Signature section
-    const signatureRowHeight = 45;    // Increased for more signing space
-    const gap = 4;                     // Compact gap
-    const remainingHeight = footerY - yPos - gap;
-    const termsCostHeight = remainingHeight - signatureRowHeight;
+    // Fixed heights as per requirements
+    const termsCostHeight = 50 * mmToPt; // 50mm for T&C row
+    const deliveryCellHeight = 40 * mmToPt; // 40mm for delivery cell
+    const signatureRowHeight = 40; // Signature row height
 
     // Get terms text - Priority: Company instructions > Template terms > Default
     const termsText = data.company?.jobSheetInstructions || data.template?.termsAndConditions ||
@@ -2401,70 +2549,66 @@ export class PDFGenerationService {
     // Horizontal line separating Terms/Cost from Signatures
     doc.moveTo(margin, yPos + termsCostHeight).lineTo(pageWidth - margin, yPos + termsCostHeight).stroke(borderColor);
 
-    // Terms & Conditions (left column) - Mixed Tamil/English support
-    // Uses NotoSans for Latin characters and NotoSansTamil for Tamil characters
+    // ===== TERMS & CONDITIONS (left column) =====
     const termsTitleFont = this.fontsAvailable ? 'NotoSans-Bold' : 'Helvetica-Bold';
-    const termsPadding = 8; // Increased padding for better spacing
+    const termsPadding = 8;
 
     doc.fontSize(9).font(termsTitleFont).fillColor(textDark)
       .text('TERMS & CONDITIONS*', margin + termsPadding, yPos + 4);
 
-    // Use renderMixedText for proper Tamil+English rendering with auto line wrap
+    // Use renderMixedText for proper Tamil+English rendering - REDUCED FONT SIZE for responsive
     doc.fillColor(textDark);
     this.renderMixedText(doc, termsText, margin + termsPadding, yPos + 18, {
-      width: termsColWidth - (termsPadding * 2), // Proper padding on both sides
-      lineGap: 1.2,  // Increased line gap for readability
-      fontSize: 7    // Increased font size for better readability
+      width: termsColWidth - (termsPadding * 2),
+      lineGap: 1,
+      fontSize: 6  // Reduced from 7 to 6 for better fit
     });
 
-    // Cost section (right column) - DARK GREEN color - LARGER FONT
+    // ===== COST SECTION (right column) =====
+    // TOTAL COST with border bottom - label has color but less prominent than cost
     const costAmount = `Rs.${data.service.estimatedCost.toFixed(0)}`;
-    const costLabel = 'TOTAL COST : ';
-    const costFullText = costLabel + costAmount;
-    const availableCostWidth = costColWidth - 20;
 
-    // Measure text widths to determine if single line fits
-    doc.fontSize(14).font('Helvetica-Bold');
-    const fullTextWidth = doc.widthOfString(costFullText);
+    // "TOTAL COST :" - colored but less prominent (muted green)
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#22863a')  // Muted green
+      .text('TOTAL COST : ', costColX + 8, yPos + 6, { continued: true });
 
-    let costEndY: number;
+    // Cost amount - bigger, highlighted in bright green
+    doc.fontSize(14).font('Helvetica-Bold').fillColor(colorGreen)
+      .text(costAmount);
 
-    if (fullTextWidth <= availableCostWidth) {
-      // Single line - fits within available width
-      doc.fontSize(14).font('Helvetica-Bold').fillColor(colorGreen)
-        .text(costFullText, costColX + 8, yPos + 6);
-      costEndY = yPos + 24;
-    } else {
-      // Two lines - amount too large
-      doc.fontSize(11).font('Helvetica-Bold').fillColor(colorGreen)
-        .text('TOTAL COST :', costColX + 8, yPos + 5);
-      doc.fontSize(16).font('Helvetica-Bold').fillColor(colorGreen)
-        .text(costAmount, costColX + 8, yPos + 18);
-      costEndY = yPos + 34;
-    }
+    // Border bottom under TOTAL COST line - FULL WIDTH without gaps
+    const costLineY = yPos + 22;
+    doc.moveTo(costColX + 1, costLineY).lineTo(costColX + costColWidth - 1, costLineY).lineWidth(1).stroke(borderColor);
 
+    // "For Delivery use only" - below border
     doc.fontSize(8).font('Helvetica').fillColor(textMuted)
-      .text('For Delivery use only', costColX + 8, costEndY + 4);
+      .text('For Delivery use only', costColX + 8, costLineY + 6);
 
-    // Delivery signature box (fixed minimum height)
-    const deliveryBoxTop = costEndY + 16;
-    const deliveryBoxHeight = 35; // Fixed height for delivery box
-    doc.rect(costColX + 8, deliveryBoxTop, costColWidth - 20, deliveryBoxHeight).lineWidth(0.5).stroke(textMuted);
+    // Delivery cell - 40mm height, NO BOX (empty space for delivery signature)
+    // Just leave the space empty - no rectangle drawn
 
     // ===== SIGNATURE ROW (Inside bottom of container) - BLUE COLOR =====
     const signatureY = yPos + termsCostHeight;
 
-    // Signature cells - Left (Customer Sign) - BLUE color (centered in larger row)
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(colorSignBlue)
-      .text('Customer Sign', margin + 25, signatureY + signatureRowHeight - 15);
+    // Calculate center positions for signatures
+    const leftCellCenterX = margin + (termsColWidth / 2);
+    const rightCellCenterX = costColX + (costColWidth / 2);
 
-    // Signature cells - Right (Authorised Sign) - BLUE color (centered in larger row)
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(colorSignBlue)
-      .text('Authorised Sign', costColX + 30, signatureY + signatureRowHeight - 15);
+    // Signature cells - Left (Customer Sign) - BLUE color (centered at bottom)
+    const customerSignText = 'Customer Sign';
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(colorSignBlue);
+    const customerSignWidth = doc.widthOfString(customerSignText);
+    doc.text(customerSignText, leftCellCenterX - (customerSignWidth / 2), signatureY + signatureRowHeight - 12);
 
-    // ===== FOOTER - AT PAGE BOTTOM, GREEN COLOR =====
+    // Signature cells - Right (Authorised Sign) - BLUE color (centered at bottom)
+    const authorisedSignText = 'Authorised Sign';
+    const authorisedSignWidth = doc.widthOfString(authorisedSignText);
+    doc.text(authorisedSignText, rightCellCenterX - (authorisedSignWidth / 2), signatureY + signatureRowHeight - 12);
+
+    // ===== FOOTER - WITH PADDING TOP FOR PROFESSIONAL GAP =====
+    const footerPaddingTop = 8; // Professional gap between signature row and footer
     doc.fontSize(10).font('Helvetica-Bold').fillColor(colorGreen)
-      .text(`Thank you for your trust with ${data.company.name}!`, margin, footerY, { width: contentWidth, align: 'center' });
+      .text(`Thank you for your trust with ${data.company.name}!`, margin, footerY + footerPaddingTop, { width: contentWidth, align: 'center' });
   }
 
   /**
@@ -2968,6 +3112,65 @@ export class PDFGenerationService {
         });
 
         stream.on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Generate Invoice PDF Buffer (on-demand, no file saved)
+   * Used for streaming PDF directly to client
+   */
+  async generateInvoicePDFBuffer(data: InvoiceData, format: string = 'A4', copyType: string = 'original'): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Set copy type in data
+        data.copyType = copyType as 'original' | 'duplicate' | 'customer';
+
+        // Configure page size based on format
+        let docOptions: any = {};
+        let isThermal = false;
+        switch (format.toLowerCase()) {
+          case 'a5':
+            docOptions = { size: 'A5', margin: 25 };
+            break;
+          case 'thermal':
+          case 'thermal-3':
+            docOptions = { size: [216, 800], margin: 8 }; // 3 inch width (216 points)
+            isThermal = true;
+            break;
+          case 'thermal-2':
+            docOptions = { size: [144, 800], margin: 5 }; // 2 inch width (144 points)
+            isThermal = true;
+            break;
+          case 'a4':
+          default:
+            docOptions = { size: 'A4', margin: 30 };
+            break;
+        }
+
+        const doc = new PDFDocument(docOptions);
+        const chunks: Buffer[] = [];
+
+        // Register custom fonts for rupee symbol support
+        this.registerFonts(doc);
+
+        // Collect chunks in memory
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Route to format-specific methods
+        if (isThermal) {
+          this.addInvoiceThermal(doc, data, format);
+        } else if (format.toLowerCase() === 'a5') {
+          this.addInvoiceA5Compact(doc, data);
+        } else {
+          this.addInvoiceA4Full(doc, data);
+        }
+
+        doc.end();
       } catch (error) {
         reject(error);
       }
@@ -4619,6 +4822,643 @@ export class PDFGenerationService {
         770,
         { align: 'center' }
       );
+  }
+
+  /**
+   * Generate a barcode image buffer using bwip-js
+   */
+  private async generateBarcodeBuffer(text: string): Promise<Buffer> {
+    try {
+      const png = await bwipjs.toBuffer({
+        bcid: 'code128',
+        text: text,
+        scale: 3,
+        height: 8,
+        includetext: false,
+      });
+      return png;
+    } catch (error: any) {
+      console.error('[PDF] Failed to generate barcode:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate Service Label PDF (35mm x 22mm) - Landscape
+   * Used for product identification on devices
+   * Compact layout - all content fits on single label
+   */
+  async generateServiceLabelPDF(data: ServiceLabelData): Promise<Buffer> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Label size: 35mm width x 22mm height (landscape)
+        // 1mm = 2.83465pt
+        const mmToPt = 2.83465;
+        const labelWidth = 35 * mmToPt; // ~99.21pt
+        const labelHeight = 22 * mmToPt; // ~62.36pt
+        const margin = 1.5 * mmToPt; // 1.5mm margin
+
+        const doc = new PDFDocument({
+          size: [labelWidth, labelHeight],
+          margin: 0,
+        });
+
+        const chunks: Buffer[] = [];
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        const contentWidth = labelWidth - (margin * 2);
+        const contentX = margin;
+
+        // NO outer border - clean label design
+
+        // Extract ticket number (last part after last hyphen)
+        const ticketParts = data.ticketNumber.split('-');
+        const ticketShort = ticketParts[ticketParts.length - 1] || data.ticketNumber;
+
+        let yPos = margin;
+
+        // 1. Device Model (bold italic, underlined) - at top, centered
+        doc
+          .fontSize(6)
+          .font('Helvetica-BoldOblique')
+          .text(data.deviceModel, contentX, yPos, {
+            width: contentWidth,
+            align: 'center',
+            underline: true,
+            lineBreak: false,
+          });
+        yPos += 8;
+
+        // 2. Barcode - centered, full width
+        const barcodeWidth = contentWidth;
+        const barcodeHeight = 9;
+
+        try {
+          const barcodeBuffer = await this.generateBarcodeBuffer(ticketShort);
+          const barcodeX = (labelWidth - barcodeWidth) / 2;
+          doc.image(barcodeBuffer, barcodeX, yPos, {
+            width: barcodeWidth,
+            height: barcodeHeight,
+          });
+        } catch (barcodeError) {
+          console.error('[PDF] Barcode generation failed, using text fallback');
+        }
+        yPos += barcodeHeight;
+
+        // 3. Ticket Number (bold, centered, large) - below barcode
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text(ticketShort, contentX, yPos, {
+            width: contentWidth,
+            align: 'center',
+            lineBreak: false,
+          });
+        yPos += 11;
+
+        // 4. FAULT: section - "FAULT:" on same line as fault text
+        // Allow 2 lines max, medium font size, no truncation
+        const faultText = data.faults.length > 0
+          ? data.faults.join(' + ').toUpperCase()
+          : 'N/A';
+
+        // Font size for fault section - medium, human readable
+        const faultFontSize = 5;
+
+        // Draw "FAULT:" underlined, then fault text on same line (allows 2 lines wrap)
+        doc
+          .fontSize(faultFontSize)
+          .font('Helvetica')
+          .text('FAULT: ', contentX, yPos, {
+            underline: true,
+            continued: true,
+          })
+          .font('Helvetica-Bold')
+          .text(faultText, {
+            underline: false,
+            width: contentWidth,
+            lineBreak: true,
+            height: 14, // Approx 2 lines height
+          });
+
+        // 5. Bottom row: Password (left) and Empty Box (right)
+        // Fixed position at bottom of label
+        const bottomY = labelHeight - margin - (4 * mmToPt); // 4mm from bottom
+
+        // Box dimensions
+        const boxWidth = 10 * mmToPt; // 10mm
+        const boxHeight = 4 * mmToPt; // 4mm
+        const boxRadius = 1.5 * mmToPt;
+        const boxX = labelWidth - margin - boxWidth;
+        const boxY = bottomY;
+
+        // PW- with password (PW underlined) - bottom left, single line
+        if (data.devicePassword) {
+          // Calculate available width for password (leave space for box)
+          const pwWidth = boxX - contentX - 2;
+          doc
+            .fontSize(5)
+            .font('Helvetica')
+            .text('PW', contentX, boxY + 1, {
+              underline: true,
+              continued: true,
+            })
+            .font('Helvetica')
+            .text(`-${data.devicePassword}`, {
+              underline: false,
+              width: pwWidth,
+              lineBreak: false,
+            });
+        }
+
+        // Empty rounded rectangle (checkbox/sticker area) - bottom right
+        doc
+          .lineWidth(0.75)
+          .roundedRect(boxX, boxY, boxWidth, boxHeight, boxRadius)
+          .stroke();
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Generate Sales Tax Invoice PDF as Buffer (for on-demand streaming - no file saved)
+   * A4 format with exact layout matching reference design
+   */
+  async generateSalesTaxInvoicePDFBuffer(data: SalesTaxInvoiceData): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({
+          size: 'A4',
+          margin: 25, // Must match margin used in renderSalesTaxInvoice
+        });
+
+        const chunks: Buffer[] = [];
+
+        // Register fonts
+        this.registerFonts(doc);
+
+        // Collect chunks in memory
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Render the Sales Tax Invoice
+        this.renderSalesTaxInvoice(doc, data);
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Generate Sales Tax Invoice PDF and save to file
+   * Returns the URL for sharing
+   */
+  async generateSalesTaxInvoicePDF(data: SalesTaxInvoiceData): Promise<string> {
+    return new Promise((resolve, reject) => {
+      try {
+        const fileName = `sales_invoice_${data.invoiceNumber.replace(/\//g, '-')}_${Date.now()}.pdf`;
+        const filePath = path.join(this.uploadDir, 'invoices', fileName);
+
+        const doc = new PDFDocument({
+          size: 'A4',
+          margin: 25, // Must match margin used in renderSalesTaxInvoice
+        });
+
+        const stream = fs.createWriteStream(filePath);
+
+        // Register fonts
+        this.registerFonts(doc);
+
+        doc.pipe(stream);
+
+        // Render the Sales Tax Invoice
+        this.renderSalesTaxInvoice(doc, data);
+
+        doc.end();
+
+        stream.on('finish', () => {
+          resolve(`${this.baseUrl}/uploads/invoices/${fileName}`);
+        });
+
+        stream.on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Render Sales Tax Invoice content (A4 format)
+   * Professional layout with full borders and maximized table height
+   */
+  private renderSalesTaxInvoice(doc: typeof PDFDocument, data: SalesTaxInvoiceData): void {
+    const pageWidth = 595; // A4 width in points
+    const pageHeight = 842; // A4 height in points
+    const margin = 25;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // Colors
+    const textDark = '#000000';
+    const textMuted = '#333333';
+    const borderColor = '#000000';
+    const headerBg = '#FFF8E1'; // Light yellow for header
+
+    // Fonts
+    const regularFont = this.fontsAvailable ? 'NotoSans' : 'Helvetica';
+    const boldFont = this.fontsAvailable ? 'NotoSans-Bold' : 'Helvetica-Bold';
+
+    // ═══════════════════════════════════════════════════════════════
+    // OUTER BORDER - Full page border
+    // ═══════════════════════════════════════════════════════════════
+    doc.rect(margin, margin, contentWidth, pageHeight - (margin * 2)).stroke(borderColor);
+
+    let yPos = margin;
+
+    // ═══════════════════════════════════════════════════════════════
+    // HEADER SECTION - "TAX INVOICE" title with border
+    // ═══════════════════════════════════════════════════════════════
+    const titleHeight = 35;
+    doc.rect(margin, yPos, contentWidth, titleHeight).stroke(borderColor);
+
+    doc.fontSize(20).font(boldFont).fillColor(textDark)
+      .text('TAX INVOICE', margin, yPos + 8, { width: contentWidth, align: 'center' });
+    yPos += titleHeight;
+
+    // ═══════════════════════════════════════════════════════════════
+    // COMPANY HEADER with Logo - with border
+    // ═══════════════════════════════════════════════════════════════
+    const companyHeaderHeight = 70;
+    doc.rect(margin, yPos, contentWidth, companyHeaderHeight).stroke(borderColor);
+
+    const logoWidth = 65;
+    const logoHeight = 55;
+    const logoX = margin + 8;
+    const logoY = yPos + 8;
+
+    // Try to add company logo on the left
+    const logo = this.resolveLogoPath(data.company.logo);
+    if (logo) {
+      const validation = this.validateLogoFile(logo);
+      if (validation.valid && validation.buffer) {
+        try {
+          doc.image(validation.buffer, logoX, logoY, {
+            width: logoWidth,
+            height: logoHeight,
+            fit: [logoWidth, logoHeight],
+          });
+        } catch (e) {
+          console.warn('[PDF] Failed to add logo:', e);
+        }
+      }
+    }
+
+    // Company details centered (to the right of logo area)
+    const companyTextX = margin + logoWidth + 20;
+    const companyTextWidth = contentWidth - logoWidth - 30;
+    let companyY = yPos + 8;
+
+    // Company Name (Bold, Large)
+    doc.fontSize(14).font(boldFont).fillColor(textDark)
+      .text(data.company.name, companyTextX, companyY, { width: companyTextWidth, align: 'center' });
+    companyY += 18;
+
+    // Branch Address
+    const branchAddress = data.branch.address || data.company.address;
+    doc.fontSize(9).font(regularFont).fillColor(textMuted)
+      .text(branchAddress, companyTextX, companyY, { width: companyTextWidth, align: 'center' });
+    companyY += 13;
+
+    // Phone
+    const branchPhone = data.branch.phone || data.company.phone;
+    doc.fontSize(9).font(regularFont).fillColor(textMuted)
+      .text(`PHONE : ${branchPhone}`, companyTextX, companyY, { width: companyTextWidth, align: 'center' });
+    companyY += 13;
+
+    // GSTIN (Bold)
+    const gstin = data.branch.gstin || data.company.gst;
+    if (gstin) {
+      doc.fontSize(9).font(boldFont).fillColor(textDark)
+        .text(`GSTIN: ${gstin}`, companyTextX, companyY, { width: companyTextWidth, align: 'center' });
+    }
+
+    yPos += companyHeaderHeight;
+
+    // ═══════════════════════════════════════════════════════════════
+    // CUSTOMER INFO & INVOICE INFO - with border
+    // ═══════════════════════════════════════════════════════════════
+    const customerInfoHeight = 70;
+    doc.rect(margin, yPos, contentWidth, customerInfoHeight).stroke(borderColor);
+
+    // Vertical divider between customer and invoice info
+    const dividerX = margin + (contentWidth * 0.6);
+    doc.moveTo(dividerX, yPos).lineTo(dividerX, yPos + customerInfoHeight).stroke(borderColor);
+
+    const labelWidth = 95;
+    const lineHeight = 15;
+    let leftY = yPos + 8;
+    let rightY = yPos + 8;
+
+    // Left Column - Customer Details
+    doc.fontSize(9).font(regularFont).fillColor(textDark);
+
+    // CUSTOMER NAME
+    doc.text('CUSTOMER NAME', margin + 5, leftY);
+    doc.text(':', margin + labelWidth, leftY);
+    doc.font(boldFont).text(data.customer.name, margin + labelWidth + 10, leftY, { width: dividerX - margin - labelWidth - 20 });
+    leftY += lineHeight;
+
+    // MOBILE NO
+    doc.font(regularFont).text('MOBILE NO', margin + 5, leftY);
+    doc.text(':', margin + labelWidth, leftY);
+    doc.text(data.customer.phone, margin + labelWidth + 10, leftY);
+    leftY += lineHeight;
+
+    // ADDRESS
+    doc.text('ADDRESS', margin + 5, leftY);
+    doc.text(':', margin + labelWidth, leftY);
+    doc.text(data.customer.address || '-', margin + labelWidth + 10, leftY, { width: dividerX - margin - labelWidth - 20 });
+    leftY += lineHeight;
+
+    // GST NO (only if customer has GSTIN)
+    if (data.customer.gstin) {
+      doc.text('GST NO', margin + 5, leftY);
+      doc.text(':', margin + labelWidth, leftY);
+      doc.text(data.customer.gstin, margin + labelWidth + 10, leftY);
+    }
+
+    // Right Column - Invoice Details
+    const invoiceLabelX = dividerX + 8;
+    const invoiceValueX = dividerX + 80;
+    const rightColWidth = contentWidth - (dividerX - margin) - 10;
+
+    doc.fontSize(9).font(regularFont).fillColor(textDark);
+    doc.text('Invoice No', invoiceLabelX, rightY);
+    doc.font(boldFont).text(`: ${data.invoiceNumber}`, invoiceValueX, rightY);
+    rightY += lineHeight;
+
+    doc.font(regularFont).text('Date', invoiceLabelX, rightY);
+    const formattedDate = format(new Date(data.invoiceDate), 'dd/MM/yyyy');
+    doc.text(`: ${formattedDate}`, invoiceValueX, rightY);
+
+    yPos += customerInfoHeight;
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRODUCT TABLE - Maximized height
+    // ═══════════════════════════════════════════════════════════════
+    const tableHeaderHeight = 22;
+
+    // Calculate footer requirements (optimized for single page)
+    const taxSectionHeight = 55;
+    const amountWordsHeight = 16;
+    const termsAndSignatureHeight = 65; // Combined: terms + signature (no border between)
+    const totalFooterHeight = taxSectionHeight + amountWordsHeight + termsAndSignatureHeight;
+
+    // Calculate maximum table body height
+    const tableBodyHeight = pageHeight - yPos - margin - totalFooterHeight - tableHeaderHeight;
+
+    // Column widths - adjusted for better proportions
+    const col1Width = 35;   // S.NO
+    const col2Width = 225;  // PRODUCT NAME
+    const col3Width = 75;   // HSN CODE
+    const col4Width = 45;   // QTY
+    const col5Width = 70;   // RATE
+    const col6Width = contentWidth - col1Width - col2Width - col3Width - col4Width - col5Width; // AMOUNT
+
+    // Column positions
+    const col1X = margin;
+    const col2X = col1X + col1Width;
+    const col3X = col2X + col2Width;
+    const col4X = col3X + col3Width;
+    const col5X = col4X + col4Width;
+    const col6X = col5X + col5Width;
+
+    // Table header with background
+    doc.rect(margin, yPos, contentWidth, tableHeaderHeight).fillAndStroke(headerBg, borderColor);
+
+    // Header text
+    const headerTextY = yPos + 6;
+    doc.fontSize(9).font(boldFont).fillColor(textDark);
+    doc.text('S.NO', col1X, headerTextY, { width: col1Width, align: 'center' });
+    doc.text('PRODUCT NAME', col2X, headerTextY, { width: col2Width, align: 'center' });
+    doc.text('HSN CODE', col3X, headerTextY, { width: col3Width, align: 'center' });
+    doc.text('QTY', col4X, headerTextY, { width: col4Width, align: 'center' });
+    doc.text('RATE', col5X, headerTextY, { width: col5Width, align: 'center' });
+    doc.text('AMOUNT', col6X, headerTextY, { width: col6Width, align: 'center' });
+
+    // Vertical lines for header
+    doc.moveTo(col2X, yPos).lineTo(col2X, yPos + tableHeaderHeight).stroke(borderColor);
+    doc.moveTo(col3X, yPos).lineTo(col3X, yPos + tableHeaderHeight).stroke(borderColor);
+    doc.moveTo(col4X, yPos).lineTo(col4X, yPos + tableHeaderHeight).stroke(borderColor);
+    doc.moveTo(col5X, yPos).lineTo(col5X, yPos + tableHeaderHeight).stroke(borderColor);
+    doc.moveTo(col6X, yPos).lineTo(col6X, yPos + tableHeaderHeight).stroke(borderColor);
+
+    yPos += tableHeaderHeight;
+    const tableBodyTop = yPos;
+
+    // Draw table body outline
+    doc.rect(margin, tableBodyTop, contentWidth, tableBodyHeight).stroke(borderColor);
+
+    // Extend vertical column lines through body
+    doc.moveTo(col2X, tableBodyTop).lineTo(col2X, tableBodyTop + tableBodyHeight).stroke(borderColor);
+    doc.moveTo(col3X, tableBodyTop).lineTo(col3X, tableBodyTop + tableBodyHeight).stroke(borderColor);
+    doc.moveTo(col4X, tableBodyTop).lineTo(col4X, tableBodyTop + tableBodyHeight).stroke(borderColor);
+    doc.moveTo(col5X, tableBodyTop).lineTo(col5X, tableBodyTop + tableBodyHeight).stroke(borderColor);
+    doc.moveTo(col6X, tableBodyTop).lineTo(col6X, tableBodyTop + tableBodyHeight).stroke(borderColor);
+
+    // Render items
+    const rowHeight = 20;
+    const maxRows = Math.floor(tableBodyHeight / rowHeight);
+    let itemY = tableBodyTop + 5;
+    doc.fontSize(9).font(regularFont).fillColor(textDark);
+
+    for (let i = 0; i < Math.min(data.items.length, maxRows); i++) {
+      const item = data.items[i];
+      doc.text(item.sno.toString(), col1X, itemY, { width: col1Width, align: 'center' });
+      doc.text(item.productName, col2X + 3, itemY, { width: col2Width - 6 });
+      doc.text(item.hsnCode || '', col3X, itemY, { width: col3Width, align: 'center' });
+      doc.text(item.quantity.toString(), col4X, itemY, { width: col4Width, align: 'center' });
+      doc.text(item.rate.toFixed(2), col5X, itemY, { width: col5Width, align: 'center' });
+      doc.text(item.amount.toFixed(2), col6X, itemY, { width: col6Width, align: 'center' });
+      itemY += rowHeight;
+    }
+
+    yPos = tableBodyTop + tableBodyHeight;
+
+    // ═══════════════════════════════════════════════════════════════
+    // TAX & SUMMARY SECTION - with border
+    // ═══════════════════════════════════════════════════════════════
+    doc.rect(margin, yPos, contentWidth, taxSectionHeight).stroke(borderColor);
+
+    // Tax breakdown table (left side)
+    const taxTableX = margin + 5;
+    const taxTableY = yPos + 5;
+    const taxTableWidth = 280;
+    const taxColWidth = 70;
+
+    // Tax table header
+    doc.rect(taxTableX, taxTableY, taxTableWidth, 18).stroke(borderColor);
+    doc.fontSize(8).font(boldFont).fillColor(textDark);
+    doc.text('TAX.AMT', taxTableX, taxTableY + 5, { width: taxColWidth, align: 'center' });
+    doc.text('CGST', taxTableX + taxColWidth, taxTableY + 5, { width: taxColWidth, align: 'center' });
+    doc.text('SGST', taxTableX + taxColWidth * 2, taxTableY + 5, { width: taxColWidth, align: 'center' });
+    doc.text('IGST', taxTableX + taxColWidth * 3, taxTableY + 5, { width: taxColWidth, align: 'center' });
+
+    // Vertical lines in tax table
+    doc.moveTo(taxTableX + taxColWidth, taxTableY).lineTo(taxTableX + taxColWidth, taxTableY + 45).stroke(borderColor);
+    doc.moveTo(taxTableX + taxColWidth * 2, taxTableY).lineTo(taxTableX + taxColWidth * 2, taxTableY + 45).stroke(borderColor);
+    doc.moveTo(taxTableX + taxColWidth * 3, taxTableY).lineTo(taxTableX + taxColWidth * 3, taxTableY + 45).stroke(borderColor);
+
+    // Tax table values row
+    const taxValuesY = taxTableY + 18;
+    doc.rect(taxTableX, taxValuesY, taxTableWidth, 27).stroke(borderColor);
+
+    doc.fontSize(8).font(regularFont);
+    doc.text(`GST ${data.gstRate}%`, taxTableX + 2, taxValuesY + 3, { width: taxColWidth - 4 });
+    doc.text(data.taxableAmount.toFixed(2), taxTableX + 2, taxValuesY + 14, { width: taxColWidth - 4 });
+    doc.text(data.cgstAmount.toFixed(2), taxTableX + taxColWidth, taxValuesY + 8, { width: taxColWidth, align: 'center' });
+    doc.text(data.sgstAmount.toFixed(2), taxTableX + taxColWidth * 2, taxValuesY + 8, { width: taxColWidth, align: 'center' });
+    doc.text(data.igstAmount.toFixed(2), taxTableX + taxColWidth * 3, taxValuesY + 8, { width: taxColWidth, align: 'center' });
+
+    // Summary section (right side)
+    const summaryX = margin + 310;
+    let summaryY = yPos + 8;
+
+    doc.fontSize(9).font(regularFont).fillColor(textDark);
+    doc.text('Gross Amount', summaryX, summaryY);
+    doc.text(':', summaryX + 80, summaryY);
+    doc.text(data.grossAmount.toFixed(2), summaryX + 90, summaryY, { width: 80, align: 'right' });
+    summaryY += 14;
+
+    doc.text('Round Off', summaryX, summaryY);
+    doc.text(':', summaryX + 80, summaryY);
+    doc.text(data.roundOff.toFixed(2), summaryX + 90, summaryY, { width: 80, align: 'right' });
+    summaryY += 14;
+
+    doc.font(boldFont).fontSize(11);
+    doc.text('Net Amount', summaryX, summaryY);
+    doc.text(':', summaryX + 80, summaryY);
+    doc.text(data.netAmount.toFixed(2), summaryX + 90, summaryY, { width: 80, align: 'right' });
+
+    yPos += taxSectionHeight;
+
+    // ═══════════════════════════════════════════════════════════════
+    // AMOUNT IN WORDS - with border
+    // ═══════════════════════════════════════════════════════════════
+    doc.rect(margin, yPos, contentWidth, amountWordsHeight).stroke(borderColor);
+    const amountInWords = this.numberToWords(data.netAmount);
+    doc.fontSize(9).font(regularFont).fillColor(textDark)
+      .text(amountInWords, margin + 5, yPos + 3, { width: contentWidth - 10, lineBreak: false });
+    yPos += amountWordsHeight;
+
+    // ═══════════════════════════════════════════════════════════════
+    // TERMS & CONDITIONS + SIGNATURE - Professional section with multi-language support
+    // ═══════════════════════════════════════════════════════════════
+    const termsStartY = yPos;
+    doc.rect(margin, termsStartY, contentWidth, termsAndSignatureHeight).stroke(borderColor);
+
+    // TERMS & CONDITIONS header at top left
+    const termsTitleFont = this.fontsAvailable ? 'NotoSans-Bold' : 'Helvetica-Bold';
+    const termsRegularFont = this.fontsAvailable ? 'NotoSans' : 'Helvetica';
+    doc.fontSize(8).font(termsTitleFont).fillColor(textDark)
+      .text('TERMS & CONDITIONS', margin + 5, termsStartY + 3, { lineBreak: false });
+
+    // E. & O.E. at top right
+    doc.fontSize(8).font(termsRegularFont).fillColor(textDark)
+      .text('E. & O.E.', pageWidth - margin - 55, termsStartY + 3, { width: 50, align: 'right', lineBreak: false });
+
+    // Terms content - supports multiple languages (Tamil, Hindi, English)
+    let termsY = termsStartY + 14;
+    const termsContentWidth = contentWidth - 10;
+    const maxTermsLines = 4; // Limit lines to fit in section
+    let linesRendered = 0;
+
+    // Use invoiceTermsText if available (multi-language), otherwise fall back to termsAndConditions array
+    if (data.invoiceTermsText && data.invoiceTermsText.trim()) {
+      // Render multi-language terms using renderMixedText
+      const termsLines = data.invoiceTermsText.split('\n').filter(line => line.trim());
+
+      for (let i = 0; i < Math.min(termsLines.length, maxTermsLines); i++) {
+        const termText = termsLines[i].trim();
+        if (termText) {
+          this.renderMixedText(doc, termText, margin + 5, termsY, {
+            width: termsContentWidth,
+            fontSize: 7,
+            lineGap: 1
+          });
+          termsY += 9;
+          linesRendered++;
+        }
+      }
+    } else if (data.termsAndConditions && data.termsAndConditions.length > 0) {
+      // Fall back to array-based terms
+      doc.fontSize(7).font(termsRegularFont).fillColor(textDark);
+      data.termsAndConditions.slice(0, maxTermsLines).forEach((term, index) => {
+        doc.text(`(${index + 1}) ${term}`, margin + 5, termsY, { width: termsContentWidth, lineBreak: false });
+        termsY += 9;
+      });
+    } else {
+      // Default terms
+      doc.fontSize(7).font(termsRegularFont).fillColor(textDark);
+      doc.text('(1) Goods once sold will not be accepted back.', margin + 5, termsY, { width: termsContentWidth, lineBreak: false });
+      termsY += 9;
+      doc.text(`(2) Subject to ${data.company.name} Jurisdiction.`, margin + 5, termsY, { width: termsContentWidth, lineBreak: false });
+    }
+
+    // Signatures at bottom of combined section (fixed position from section start)
+    const signatureY = termsStartY + termsAndSignatureHeight - 12;
+    doc.fontSize(9).font(termsRegularFont).fillColor(textDark);
+
+    // Render both signatures at exact same Y position without width/align that could trigger page break
+    // Left: Customer Signature
+    doc.text('Customer Signature', margin + 5, signatureY, { lineBreak: false, continued: false });
+
+    // Right: for Company Name (manually calculate X for right alignment)
+    const forCompanyLabel = `for ${data.company.name}`;
+    const forCompanyWidth = doc.widthOfString(forCompanyLabel);
+    const forCompanyX = pageWidth - margin - forCompanyWidth - 5;
+    doc.text(forCompanyLabel, forCompanyX, signatureY, { lineBreak: false, continued: false });
+  }
+
+  /**
+   * Generate Service Label and save to file
+   */
+  async generateServiceLabelFile(data: ServiceLabelData): Promise<string> {
+    try {
+      const labelBuffer = await this.generateServiceLabelPDF(data);
+
+      // Ensure labels directory exists
+      const labelsDir = path.join(this.uploadDir, 'labels');
+      if (!fs.existsSync(labelsDir)) {
+        fs.mkdirSync(labelsDir, { recursive: true });
+      }
+
+      // Generate filename
+      const ticketParts = data.ticketNumber.split('-');
+      const ticketShort = ticketParts[ticketParts.length - 1] || data.ticketNumber;
+      const filename = `label_${data.ticketNumber}_${Date.now()}.pdf`;
+      const filePath = path.join(labelsDir, filename);
+
+      // Write file
+      fs.writeFileSync(filePath, labelBuffer);
+
+      // Return URL
+      const pdfUrl = `${this.baseUrl}/uploads/labels/${filename}`;
+      console.log(`[PDF] Service label generated: ${pdfUrl}`);
+
+      return pdfUrl;
+    } catch (error: any) {
+      console.error('[PDF] Failed to generate service label:', error.message);
+      throw error;
+    }
   }
 }
 

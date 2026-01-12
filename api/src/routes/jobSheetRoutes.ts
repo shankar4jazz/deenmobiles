@@ -55,6 +55,65 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/services/:id/jobsheet/stream
+ * @desc    Stream job sheet PDF on-demand (no file saved) - for viewing
+ * @access  Private (All authenticated users)
+ * @query   format - 'A4' | 'A5' | 'A5-V2' | 'thermal' (default: 'A4')
+ * @query   copyType - 'customer' | 'office' (default: 'customer')
+ */
+router.get(
+  '/services/:id/jobsheet/stream',
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN
+  ),
+  validate(serviceIdValidation),
+  JobSheetController.streamJobSheetPDF
+);
+
+/**
+ * @route   GET /api/v1/services/:id/jobsheet/download
+ * @desc    Download job sheet PDF on-demand (no file saved) - for downloading
+ * @access  Private (All authenticated users)
+ * @query   format - 'A4' | 'A5' | 'A5-V2' | 'thermal' (default: 'A4')
+ * @query   copyType - 'customer' | 'office' (default: 'customer')
+ */
+router.get(
+  '/services/:id/jobsheet/download',
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN
+  ),
+  validate(serviceIdValidation),
+  JobSheetController.downloadJobSheetOnDemand
+);
+
+/**
+ * @route   POST /api/v1/services/:id/jobsheet/share
+ * @desc    Get shareable job sheet URL (for WhatsApp sharing) - saves to storage
+ * @access  Private (Receptionist, Manager, Admin)
+ * @body    format - 'A4' | 'A5' | 'A5-V2' | 'thermal' (default: 'A4')
+ * @body    copyType - 'customer' | 'office' (default: 'customer')
+ */
+router.post(
+  '/services/:id/jobsheet/share',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(serviceIdValidation),
+  JobSheetController.getShareableJobSheetURL
+);
+
+/**
  * @route   GET /api/v1/jobsheets
  * @desc    Get all job sheets with filters
  * @access  Private (All authenticated users with role-based filtering)

@@ -166,15 +166,64 @@ export const invoiceApi = {
     return response.data.data;
   },
 
-  // Download invoice PDF
+  // Download invoice PDF (streams on-demand, returns blob URL)
   downloadPDF: async (id: string, format: string = 'A4'): Promise<{ pdfUrl: string }> => {
-    const response = await api.get(`/invoices/${id}/pdf?format=${format}`);
-    return response.data.data;
+    const response = await api.get(
+      `/invoices/${id}/pdf?format=${format}`,
+      { responseType: 'blob' }
+    );
+    // Create a blob URL for the PDF
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const pdfUrl = URL.createObjectURL(blob);
+    return { pdfUrl };
   },
 
   // Regenerate invoice PDF
   regeneratePDF: async (id: string): Promise<Invoice> => {
     const response = await api.post(`/invoices/${id}/regenerate-pdf`);
+    return response.data.data;
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // SALES TAX INVOICE PDF (GST Compliant Format)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Stream Sales Tax Invoice PDF on-demand (no file saved) - for viewing
+  // Returns a blob URL that can be used to display the PDF
+  streamSalesTaxInvoicePDF: async (invoiceId: string): Promise<string> => {
+    const response = await api.get(
+      `/invoices/${invoiceId}/tax-invoice/stream`,
+      { responseType: 'blob' }
+    );
+    // Create a blob URL for the PDF
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    return URL.createObjectURL(blob);
+  },
+
+  // Download Sales Tax Invoice PDF on-demand (no file saved)
+  downloadSalesTaxInvoicePDF: async (invoiceId: string): Promise<void> => {
+    const response = await api.get(
+      `/invoices/${invoiceId}/tax-invoice/download`,
+      { responseType: 'blob' }
+    );
+    // Create a download link
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tax_invoice_${invoiceId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  // Get shareable Sales Tax Invoice URL (for WhatsApp sharing)
+  // This saves the PDF to storage and returns a shareable URL
+  getShareableSalesTaxInvoiceURL: async (
+    invoiceId: string
+  ): Promise<{ pdfUrl: string; invoiceNumber: string }> => {
+    const response = await api.post(`/invoices/${invoiceId}/tax-invoice/share`);
     return response.data.data;
   },
 };

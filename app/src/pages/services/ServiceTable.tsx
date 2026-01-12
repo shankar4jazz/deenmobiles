@@ -4,6 +4,8 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Service, serviceApi } from '@/services/serviceApi';
 import { technicianApi } from '@/services/technicianApi';
+import { invoiceApi } from '@/services/invoiceApi';
+import { jobSheetApi } from '@/services/jobSheetApi';
 import { technicianKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/authStore';
 import DataTable from '@/components/common/DataTable';
@@ -95,6 +97,60 @@ export default function ServiceTable({
     assignMutation.mutate({ serviceId, technicianId });
   };
 
+  const handleDownloadJobsheet = async (service: Service) => {
+    try {
+      if (service.jobSheet?.id) {
+        // Jobsheet exists, download directly
+        const response = await jobSheetApi.downloadPDF(service.jobSheet.id);
+        if (response.pdfUrl) {
+          window.open(response.pdfUrl, '_blank');
+        }
+      } else {
+        // Jobsheet doesn't exist, generate first
+        const jobSheet = await jobSheetApi.generateFromService(service.id);
+        if (jobSheet.pdfUrl) {
+          window.open(jobSheet.pdfUrl, '_blank');
+        }
+        queryClient.invalidateQueries({ queryKey: ['services'] });
+      }
+    } catch (error) {
+      toast.error('Failed to download jobsheet');
+    }
+  };
+
+  const handleDownloadInvoice = async (service: Service) => {
+    try {
+      if (service.invoice?.id) {
+        const response = await invoiceApi.downloadPDF(service.invoice.id, 'A4');
+        if (response.pdfUrl) {
+          window.open(response.pdfUrl, '_blank');
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to download invoice');
+    }
+  };
+
+  const handlePrintLabel = async (service: Service) => {
+    try {
+      const response = await serviceApi.downloadLabel(service.id);
+      if (response.pdfUrl) {
+        // Open PDF in new window and trigger print
+        const printWindow = window.open(response.pdfUrl, '_blank');
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.focus();
+            setTimeout(() => {
+              printWindow.print();
+            }, 500);
+          };
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to generate label');
+    }
+  };
+
   // Create columns with handlers
   const columns = useMemo(
     () =>
@@ -103,6 +159,9 @@ export default function ServiceTable({
         onEdit: handleEdit,
         onDelete: handleDelete,
         onAssign: handleAssign,
+        onDownloadJobsheet: handleDownloadJobsheet,
+        onDownloadInvoice: handleDownloadInvoice,
+        onPrintLabel: handlePrintLabel,
         technicians: techniciansData?.technicians || [],
         assigningServiceId,
         technicianSearch,

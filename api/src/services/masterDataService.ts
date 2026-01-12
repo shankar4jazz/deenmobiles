@@ -145,6 +145,32 @@ interface UpdateDamageConditionData {
   isActive?: boolean;
 }
 
+// ==================== Invoice Terms Interfaces ====================
+interface CreateInvoiceTermsData {
+  content: string;
+  sortOrder?: number;
+  companyId: string;
+}
+
+interface UpdateInvoiceTermsData {
+  content?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+// ==================== Estimation Terms Interfaces ====================
+interface CreateEstimationTermsData {
+  content: string;
+  sortOrder?: number;
+  companyId: string;
+}
+
+interface UpdateEstimationTermsData {
+  content?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
 // ==================== Filter Interfaces ====================
 interface MasterDataFilters {
   companyId: string;
@@ -2483,6 +2509,300 @@ export class MasterDataService {
       if (error instanceof AppError) throw error;
       Logger.error('Error deactivating accessory', { error, id });
       throw new AppError(500, 'Failed to deactivate accessory');
+    }
+  }
+
+  // ==================== INVOICE TERMS METHODS ====================
+
+  /**
+   * Get all invoice terms
+   */
+  static async getAllInvoiceTerms(filters: MasterDataFilters) {
+    try {
+      const {
+        companyId,
+        search,
+        isActive,
+        page = 1,
+        limit = 50,
+      } = filters;
+
+      const skip = (page - 1) * limit;
+
+      const where: any = {
+        companyId,
+      };
+
+      if (isActive !== undefined) {
+        where.isActive = isActive;
+      }
+
+      if (search) {
+        where.content = { contains: search, mode: 'insensitive' };
+      }
+
+      const [invoiceTerms, total] = await Promise.all([
+        prisma.invoiceTerms.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { sortOrder: 'asc' },
+        }),
+        prisma.invoiceTerms.count({ where }),
+      ]);
+
+      return {
+        data: invoiceTerms,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      Logger.error('Error fetching invoice terms', { error, filters });
+      throw new AppError(500, 'Failed to fetch invoice terms');
+    }
+  }
+
+  /**
+   * Create a new invoice term
+   */
+  static async createInvoiceTerms(data: CreateInvoiceTermsData) {
+    try {
+      // Get next sort order if not provided
+      let sortOrder = data.sortOrder;
+      if (sortOrder === undefined) {
+        const maxOrder = await prisma.invoiceTerms.findFirst({
+          where: { companyId: data.companyId },
+          orderBy: { sortOrder: 'desc' },
+          select: { sortOrder: true },
+        });
+        sortOrder = (maxOrder?.sortOrder ?? -1) + 1;
+      }
+
+      const invoiceTerm = await prisma.invoiceTerms.create({
+        data: {
+          content: data.content,
+          sortOrder,
+          companyId: data.companyId,
+        },
+      });
+
+      Logger.info('Invoice term created', { invoiceTermId: invoiceTerm.id, companyId: data.companyId });
+      return invoiceTerm;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error creating invoice term', { error, data });
+      throw new AppError(500, 'Failed to create invoice term');
+    }
+  }
+
+  /**
+   * Update an invoice term
+   */
+  static async updateInvoiceTerms(id: string, companyId: string, data: UpdateInvoiceTermsData) {
+    try {
+      // Check if term exists
+      const existing = await prisma.invoiceTerms.findFirst({
+        where: { id, companyId },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Invoice term not found');
+      }
+
+      const invoiceTerm = await prisma.invoiceTerms.update({
+        where: { id },
+        data: {
+          ...(data.content !== undefined && { content: data.content }),
+          ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
+          ...(data.isActive !== undefined && { isActive: data.isActive }),
+        },
+      });
+
+      Logger.info('Invoice term updated', { invoiceTermId: id });
+      return invoiceTerm;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error updating invoice term', { error, id, data });
+      throw new AppError(500, 'Failed to update invoice term');
+    }
+  }
+
+  /**
+   * Deactivate an invoice term (soft delete)
+   */
+  static async deactivateInvoiceTerms(id: string, companyId: string) {
+    try {
+      // Check if term exists
+      const existing = await prisma.invoiceTerms.findFirst({
+        where: { id, companyId },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Invoice term not found');
+      }
+
+      const invoiceTerm = await prisma.invoiceTerms.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      Logger.info('Invoice term deactivated', { invoiceTermId: id });
+      return invoiceTerm;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error deactivating invoice term', { error, id });
+      throw new AppError(500, 'Failed to deactivate invoice term');
+    }
+  }
+
+  // ==================== ESTIMATION TERMS METHODS ====================
+
+  /**
+   * Get all estimation terms
+   */
+  static async getAllEstimationTerms(filters: MasterDataFilters) {
+    try {
+      const {
+        companyId,
+        search,
+        isActive,
+        page = 1,
+        limit = 50,
+      } = filters;
+
+      const skip = (page - 1) * limit;
+
+      const where: any = {
+        companyId,
+      };
+
+      if (isActive !== undefined) {
+        where.isActive = isActive;
+      }
+
+      if (search) {
+        where.content = { contains: search, mode: 'insensitive' };
+      }
+
+      const [estimationTerms, total] = await Promise.all([
+        prisma.estimationTerms.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { sortOrder: 'asc' },
+        }),
+        prisma.estimationTerms.count({ where }),
+      ]);
+
+      return {
+        data: estimationTerms,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      Logger.error('Error fetching estimation terms', { error, filters });
+      throw new AppError(500, 'Failed to fetch estimation terms');
+    }
+  }
+
+  /**
+   * Create a new estimation term
+   */
+  static async createEstimationTerms(data: CreateEstimationTermsData) {
+    try {
+      // Get next sort order if not provided
+      let sortOrder = data.sortOrder;
+      if (sortOrder === undefined) {
+        const maxOrder = await prisma.estimationTerms.findFirst({
+          where: { companyId: data.companyId },
+          orderBy: { sortOrder: 'desc' },
+          select: { sortOrder: true },
+        });
+        sortOrder = (maxOrder?.sortOrder ?? -1) + 1;
+      }
+
+      const estimationTerm = await prisma.estimationTerms.create({
+        data: {
+          content: data.content,
+          sortOrder,
+          companyId: data.companyId,
+        },
+      });
+
+      Logger.info('Estimation term created', { estimationTermId: estimationTerm.id, companyId: data.companyId });
+      return estimationTerm;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error creating estimation term', { error, data });
+      throw new AppError(500, 'Failed to create estimation term');
+    }
+  }
+
+  /**
+   * Update an estimation term
+   */
+  static async updateEstimationTerms(id: string, companyId: string, data: UpdateEstimationTermsData) {
+    try {
+      // Check if term exists
+      const existing = await prisma.estimationTerms.findFirst({
+        where: { id, companyId },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Estimation term not found');
+      }
+
+      const estimationTerm = await prisma.estimationTerms.update({
+        where: { id },
+        data: {
+          ...(data.content !== undefined && { content: data.content }),
+          ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
+          ...(data.isActive !== undefined && { isActive: data.isActive }),
+        },
+      });
+
+      Logger.info('Estimation term updated', { estimationTermId: id });
+      return estimationTerm;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error updating estimation term', { error, id, data });
+      throw new AppError(500, 'Failed to update estimation term');
+    }
+  }
+
+  /**
+   * Deactivate an estimation term (soft delete)
+   */
+  static async deactivateEstimationTerms(id: string, companyId: string) {
+    try {
+      // Check if term exists
+      const existing = await prisma.estimationTerms.findFirst({
+        where: { id, companyId },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'Estimation term not found');
+      }
+
+      const estimationTerm = await prisma.estimationTerms.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      Logger.info('Estimation term deactivated', { estimationTermId: id });
+      return estimationTerm;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Error deactivating estimation term', { error, id });
+      throw new AppError(500, 'Failed to deactivate estimation term');
     }
   }
 }

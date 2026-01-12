@@ -11,6 +11,8 @@ import {
   DeviceCondition,
   DamageCondition,
   Accessory,
+  InvoiceTerms,
+  EstimationTerms,
   CreateItemCategoryDto,
   CreateItemUnitDto,
   CreateItemGSTRateDto,
@@ -22,6 +24,8 @@ import {
   CreateDeviceConditionDto,
   CreateDamageConditionDto,
   CreateAccessoryDto,
+  CreateInvoiceTermsDto,
+  CreateEstimationTermsDto,
   UpdateItemCategoryDto,
   UpdateItemUnitDto,
   UpdateItemGSTRateDto,
@@ -33,6 +37,8 @@ import {
   UpdateDeviceConditionDto,
   UpdateDamageConditionDto,
   UpdateAccessoryDto,
+  UpdateInvoiceTermsDto,
+  UpdateEstimationTermsDto,
   PaginatedResponse,
 } from '../types/masters';
 
@@ -598,6 +604,88 @@ export const accessoryApi = {
   },
 };
 
+// ==================== Invoice Terms API ====================
+export const invoiceTermsApi = {
+  /**
+   * Get all invoice terms with optional filters
+   */
+  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<InvoiceTerms>> => {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.isActive !== undefined) params.append('isActive', String(filters.isActive));
+    if (filters?.page) params.append('page', String(filters.page));
+    if (filters?.limit) params.append('limit', String(filters.limit));
+
+    const response = await api.get(`/master-data/invoice-terms?${params.toString()}`);
+    return response.data.data;
+  },
+
+  /**
+   * Create a new invoice term
+   */
+  create: async (data: CreateInvoiceTermsDto): Promise<InvoiceTerms> => {
+    const response = await api.post('/master-data/invoice-terms', data);
+    return response.data.data;
+  },
+
+  /**
+   * Update an invoice term
+   */
+  update: async (id: string, data: UpdateInvoiceTermsDto): Promise<InvoiceTerms> => {
+    const response = await api.put(`/master-data/invoice-terms/${id}`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Deactivate an invoice term
+   */
+  deactivate: async (id: string): Promise<InvoiceTerms> => {
+    const response = await api.delete(`/master-data/invoice-terms/${id}`);
+    return response.data.data;
+  },
+};
+
+// ==================== Estimation Terms API ====================
+export const estimationTermsApi = {
+  /**
+   * Get all estimation terms with optional filters
+   */
+  getAll: async (filters?: MasterDataFilters): Promise<PaginatedResponse<EstimationTerms>> => {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.isActive !== undefined) params.append('isActive', String(filters.isActive));
+    if (filters?.page) params.append('page', String(filters.page));
+    if (filters?.limit) params.append('limit', String(filters.limit));
+
+    const response = await api.get(`/master-data/estimation-terms?${params.toString()}`);
+    return response.data.data;
+  },
+
+  /**
+   * Create a new estimation term
+   */
+  create: async (data: CreateEstimationTermsDto): Promise<EstimationTerms> => {
+    const response = await api.post('/master-data/estimation-terms', data);
+    return response.data.data;
+  },
+
+  /**
+   * Update an estimation term
+   */
+  update: async (id: string, data: UpdateEstimationTermsDto): Promise<EstimationTerms> => {
+    const response = await api.put(`/master-data/estimation-terms/${id}`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Deactivate an estimation term
+   */
+  deactivate: async (id: string): Promise<EstimationTerms> => {
+    const response = await api.delete(`/master-data/estimation-terms/${id}`);
+    return response.data.data;
+  },
+};
+
 // Combined export for convenience
 export const masterDataApi = {
   categories: categoryApi,
@@ -612,6 +700,8 @@ export const masterDataApi = {
   damageConditions: damageConditionApi,
   serviceIssues: damageConditionApi, // Alias for backward compatibility
   accessories: accessoryApi,
+  invoiceTerms: invoiceTermsApi,
+  estimationTerms: estimationTermsApi,
   // Convenience methods for direct access
   getAllCategories: categoryApi.getAll,
   getAllUnits: unitApi.getAll,
@@ -624,4 +714,6 @@ export const masterDataApi = {
   getAllDeviceConditions: deviceConditionApi.getAll,
   getAllDamageConditions: damageConditionApi.getAll,
   getAllAccessories: accessoryApi.getAll,
+  getAllInvoiceTerms: invoiceTermsApi.getAll,
+  getAllEstimationTerms: estimationTermsApi.getAll,
 };

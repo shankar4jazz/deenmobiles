@@ -10,6 +10,8 @@ export interface Company {
   gstin: string | null;
   stateCode: string | null;
   jobSheetInstructions: string | null;
+  invoiceTermsText: string | null;
+  estimationTermsText: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -23,6 +25,8 @@ export interface UpdateCompanyData {
   gstin?: string;
   stateCode?: string;
   jobSheetInstructions?: string;
+  invoiceTermsText?: string;
+  estimationTermsText?: string;
 }
 
 export const companyApi = {

@@ -69,8 +69,15 @@ export default function InvoiceList() {
   };
 
   const handleDownloadPDF = async (invoice: Invoice) => {
-    if (invoice.pdfUrl) {
-      window.open(invoice.pdfUrl, '_blank');
+    try {
+      // Call API to generate PDF on-demand (no file stored)
+      const response = await invoiceApi.downloadPDF(invoice.id, 'A4');
+      if (response.pdfUrl) {
+        window.open(response.pdfUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error('Failed to download PDF');
     }
   };
 
@@ -126,15 +133,19 @@ export default function InvoiceList() {
       id: 'download-all',
       label: 'Download PDFs',
       icon: <Download className="h-4 w-4" />,
-      onClick: (selectedRows: Invoice[]) => {
-        selectedRows.forEach((invoice) => {
-          if (invoice.pdfUrl) {
-            window.open(invoice.pdfUrl, '_blank');
+      onClick: async (selectedRows: Invoice[]) => {
+        // Download PDFs on-demand for each selected invoice
+        for (const invoice of selectedRows) {
+          try {
+            const response = await invoiceApi.downloadPDF(invoice.id, 'A4');
+            if (response.pdfUrl) {
+              window.open(response.pdfUrl, '_blank');
+            }
+          } catch (error) {
+            console.error(`Error downloading PDF for ${invoice.invoiceNumber}:`, error);
           }
-        });
+        }
       },
-      isDisabled: (selectedRows: Invoice[]) =>
-        selectedRows.every((invoice) => !invoice.pdfUrl),
     },
     {
       id: 'delete',

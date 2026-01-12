@@ -593,4 +593,84 @@ router.delete(
   MasterDataController.deactivateAccessory
 );
 
+// ==================== INVOICE TERMS ROUTES ====================
+
+/**
+ * @route   GET /api/v1/master-data/invoice-terms
+ * @desc    Get all invoice terms
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.get('/invoice-terms', authorize(...authorizedRoles), MasterDataController.getAllInvoiceTerms);
+
+/**
+ * @route   POST /api/v1/master-data/invoice-terms
+ * @desc    Create a new invoice term
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.post('/invoice-terms', authorize(...authorizedRoles), MasterDataController.createInvoiceTerms);
+
+/**
+ * @route   PUT /api/v1/master-data/invoice-terms/:id
+ * @desc    Update invoice term
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.put(
+  '/invoice-terms/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.updateInvoiceTerms
+);
+
+/**
+ * @route   DELETE /api/v1/master-data/invoice-terms/:id
+ * @desc    Deactivate invoice term (soft delete)
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.delete(
+  '/invoice-terms/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.deactivateInvoiceTerms
+);
+
+// ==================== ESTIMATION TERMS ROUTES ====================
+
+/**
+ * @route   GET /api/v1/master-data/estimation-terms
+ * @desc    Get all estimation terms
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.get('/estimation-terms', authorize(...authorizedRoles), MasterDataController.getAllEstimationTerms);
+
+/**
+ * @route   POST /api/v1/master-data/estimation-terms
+ * @desc    Create a new estimation term
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.post('/estimation-terms', authorize(...authorizedRoles), MasterDataController.createEstimationTerms);
+
+/**
+ * @route   PUT /api/v1/master-data/estimation-terms/:id
+ * @desc    Update estimation term
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.put(
+  '/estimation-terms/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.updateEstimationTerms
+);
+
+/**
+ * @route   DELETE /api/v1/master-data/estimation-terms/:id
+ * @desc    Deactivate estimation term (soft delete)
+ * @access  Private (Admin, Branch Admin, Manager)
+ */
+router.delete(
+  '/estimation-terms/:id',
+  authorize(...authorizedRoles),
+  validate(idValidation),
+  MasterDataController.deactivateEstimationTerms
+);
+
 export default router;

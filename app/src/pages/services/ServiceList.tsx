@@ -12,7 +12,9 @@ import DeliveryModal from '@/components/services/DeliveryModal';
 import ServiceTable from './ServiceTable';
 import StatsBar from './StatsBar';
 import TableFilters from './TableFilters';
-import { Plus, Eye, Calendar, User, Smartphone, Search, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, LayoutGrid, Table2, MoreVertical } from 'lucide-react';
+import { Plus, Eye, Calendar, User, Smartphone, Search, Edit2, Trash2, ChevronDown, X, Check, RefreshCw, LayoutGrid, Table2, MoreVertical, Download, FileText, Tag } from 'lucide-react';
+import { invoiceApi } from '@/services/invoiceApi';
+import { jobSheetApi } from '@/services/jobSheetApi';
 
 const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
@@ -182,6 +184,62 @@ export default function ServiceList() {
     assignMutation.mutate({ serviceId, technicianId });
   };
 
+  const handleDownloadInvoice = async (e: React.MouseEvent, invoiceId: string) => {
+    e.stopPropagation();
+    try {
+      const response = await invoiceApi.downloadPDF(invoiceId, 'A4');
+      if (response.pdfUrl) {
+        window.open(response.pdfUrl, '_blank');
+      }
+    } catch (error) {
+      toast.error('Failed to download invoice');
+    }
+  };
+
+  const handleDownloadJobsheet = async (e: React.MouseEvent, serviceId: string, jobSheetId?: string) => {
+    e.stopPropagation();
+    try {
+      if (jobSheetId) {
+        // Jobsheet exists, download directly
+        const response = await jobSheetApi.downloadPDF(jobSheetId);
+        if (response.pdfUrl) {
+          window.open(response.pdfUrl, '_blank');
+        }
+      } else {
+        // Jobsheet doesn't exist, generate first
+        const jobSheet = await jobSheetApi.generateFromService(serviceId);
+        if (jobSheet.pdfUrl) {
+          window.open(jobSheet.pdfUrl, '_blank');
+        }
+        // Refresh the services list to update the jobsheet data
+        queryClient.invalidateQueries({ queryKey: ['services'] });
+      }
+    } catch (error) {
+      toast.error('Failed to download jobsheet');
+    }
+  };
+
+  const handlePrintLabel = async (e: React.MouseEvent, serviceId: string) => {
+    e.stopPropagation();
+    try {
+      const response = await serviceApi.downloadLabel(serviceId);
+      if (response.pdfUrl) {
+        // Open PDF in new window and trigger print
+        const printWindow = window.open(response.pdfUrl, '_blank');
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.focus();
+            setTimeout(() => {
+              printWindow.print();
+            }, 500);
+          };
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to generate label');
+    }
+  };
+
   // Handle card click for filtering
   const handleCardClick = (status: ServiceStatus | 'UNASSIGNED' | 'UNDELIVERED' | 'COMPLETED_ALL' | 'REPEATED' | 'ALL') => {
     const newParams = new URLSearchParams();
@@ -259,22 +317,20 @@ export default function ServiceList() {
           <div className="flex items-center border border-gray-200 rounded-lg p-1 bg-gray-50">
             <button
               onClick={() => setViewMode('card')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'card'
-                  ? 'bg-white text-purple-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`p-2 rounded-md transition-colors ${viewMode === 'card'
+                ? 'bg-white text-purple-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
               title="Card View"
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-white text-purple-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`p-2 rounded-md transition-colors ${viewMode === 'table'
+                ? 'bg-white text-purple-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
               title="Table View"
             >
               <Table2 className="w-4 h-4" />
@@ -570,6 +626,38 @@ export default function ServiceList() {
                                   </button>
                                   <button
                                     onClick={(e) => {
+                                      handleDownloadJobsheet(e, service.id, service.jobSheet?.id);
+                                      setActionMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <FileText className="w-4 h-4 text-blue-600" />
+                                    Jobsheet
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      handlePrintLabel(e, service.id);
+                                      setActionMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <Tag className="w-4 h-4 text-cyan-600" />
+                                    Print Label
+                                  </button>
+                                  {service.invoice && (
+                                    <button
+                                      onClick={(e) => {
+                                        handleDownloadInvoice(e, service.invoice!.id);
+                                        setActionMenuId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                    >
+                                      <Download className="w-4 h-4 text-green-600" />
+                                      Invoice
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
                                       handleDelete(e, service.id, service.ticketNumber);
                                       setActionMenuId(null);
                                     }}
@@ -769,6 +857,38 @@ export default function ServiceList() {
                               <Edit2 className="w-4 h-4 text-orange-600" />
                               Edit
                             </button>
+                            <button
+                              onClick={(e) => {
+                                handleDownloadJobsheet(e, service.id, service.jobSheet?.id);
+                                setActionMenuId(null);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <FileText className="w-4 h-4 text-blue-600" />
+                              Jobsheet
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                handlePrintLabel(e, service.id);
+                                setActionMenuId(null);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Tag className="w-4 h-4 text-cyan-600" />
+                              Print Label
+                            </button>
+                            {service.invoice && (
+                              <button
+                                onClick={(e) => {
+                                  handleDownloadInvoice(e, service.invoice!.id);
+                                  setActionMenuId(null);
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Download className="w-4 h-4 text-green-600" />
+                                Invoice
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 handleDelete(e, service.id, service.ticketNumber);

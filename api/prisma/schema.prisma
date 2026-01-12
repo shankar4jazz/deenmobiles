@@ -17,6 +17,8 @@ model Company {
   gstin               String?                    // Company GSTIN for GST reporting
   stateCode           String?                    // 2-digit state code for place of supply
   jobSheetInstructions String?                   @db.Text  // Job sheet instructions (supports any language)
+  invoiceTermsText    String?                    @db.Text  // Invoice terms & conditions (supports any language)
+  estimationTermsText String?                    @db.Text  // Estimation terms & conditions (supports any language)
   isActive            Boolean                    @default(true)
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
@@ -65,6 +67,8 @@ model Company {
   cashSettlements             CashSettlement[]
   warrantyRecords             WarrantyRecord[]
   salesReturns                SalesReturn[]
+  invoiceTerms                InvoiceTerms[]
+  estimationTerms             EstimationTerms[]
 
   @@map("companies")
 }
@@ -1058,6 +1062,40 @@ model DamageCondition {
   @@index([companyId])
   @@index([isActive])
   @@map("damage_conditions")
+}
+
+// Invoice Terms & Conditions - Company-scoped terms for invoices
+model InvoiceTerms {
+  id          String   @id @default(uuid())
+  content     String   @db.VarChar(500)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("invoice_terms")
+}
+
+// Estimation Terms & Conditions - Company-scoped terms for estimations
+model EstimationTerms {
+  id          String   @id @default(uuid())
+  content     String   @db.VarChar(500)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("estimation_terms")
 }
 
 // Accessory Master Data - Global accessories list

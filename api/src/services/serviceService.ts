@@ -559,6 +559,20 @@ export class ServiceService {
               partsUsed: true,
             },
           },
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              pdfUrl: true,
+            },
+          },
+          jobSheet: {
+            select: {
+              id: true,
+              jobSheetNumber: true,
+              pdfUrl: true,
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',

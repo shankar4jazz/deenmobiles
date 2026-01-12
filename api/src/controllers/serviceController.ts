@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { ServiceService } from '../services/serviceService';
+import pdfGenerationService from '../services/pdfGenerationService';
 import { ApiResponse } from '../utils/response';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AppError } from '../middleware/errorHandler';
@@ -622,5 +623,34 @@ export class ServiceController {
     );
 
     return ApiResponse.success(res, result, 'Fault added successfully');
+  });
+
+  /**
+   * GET /api/v1/services/:id/label
+   * Generate and download service label PDF (22x35mm)
+   */
+  static generateLabel = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    // Get service details
+    const service = await ServiceService.getServiceById(id, companyId);
+
+    if (!service) {
+      throw new AppError(404, 'Service not found');
+    }
+
+    // Extract fault names
+    const faults = service.faults?.map((f: any) => f.fault?.name || 'Unknown') || [];
+
+    // Generate label PDF
+    const pdfUrl = await pdfGenerationService.generateServiceLabelFile({
+      ticketNumber: service.ticketNumber,
+      deviceModel: service.deviceModel,
+      devicePassword: service.devicePassword || undefined,
+      faults: faults,
+    });
+
+    return ApiResponse.success(res, { pdfUrl }, 'Label generated successfully');
   });
 }

@@ -126,6 +126,16 @@ export interface Service {
     deviceImages: number;
     partsUsed: number;
   };
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    pdfUrl?: string;
+  };
+  jobSheet?: {
+    id: string;
+    jobSheetNumber: string;
+    pdfUrl?: string;
+  };
 }
 
 export interface ServiceImage {
@@ -764,6 +774,14 @@ export const serviceApi = {
       faultId,
       price,
     });
+    return response.data.data;
+  },
+
+  /**
+   * Generate and download service label PDF (22x35mm)
+   */
+  downloadLabel: async (serviceId: string): Promise<{ pdfUrl: string }> => {
+    const response = await api.get(`/services/${serviceId}/label`);
     return response.data.data;
   },
 };

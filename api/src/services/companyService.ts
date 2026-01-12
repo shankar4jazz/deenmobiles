@@ -11,6 +11,8 @@ interface UpdateCompanyData {
   stateCode?: string;
   logo?: string;
   jobSheetInstructions?: string;
+  invoiceTermsText?: string;
+  estimationTermsText?: string;
 }
 
 export class CompanyService {
@@ -30,6 +32,8 @@ export class CompanyService {
         gstin: true,
         stateCode: true,
         jobSheetInstructions: true,
+        invoiceTermsText: true,
+        estimationTermsText: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -86,6 +90,8 @@ export class CompanyService {
         gstin: true,
         stateCode: true,
         jobSheetInstructions: true,
+        invoiceTermsText: true,
+        estimationTermsText: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -134,6 +140,8 @@ export class CompanyService {
         gstin: true,
         stateCode: true,
         jobSheetInstructions: true,
+        invoiceTermsText: true,
+        estimationTermsText: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -180,6 +188,8 @@ export class CompanyService {
         gstin: true,
         stateCode: true,
         jobSheetInstructions: true,
+        invoiceTermsText: true,
+        estimationTermsText: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,

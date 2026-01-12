@@ -188,12 +188,14 @@ export class InvoiceController {
 
   /**
    * GET /api/v1/invoices/:id/pdf?format=A4|A5|thermal-2|thermal-3
-   * Download invoice PDF
+   * Download invoice PDF - All formats stream on-demand (no file saved)
+   * A4: Uses new Sales Tax Invoice format
+   * A5/thermal: Uses existing compact format
    */
   static downloadInvoicePDF = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const companyId = req.user!.companyId;
     const format = (req.query.format as string) || 'A4';
+    const companyId = req.user!.companyId;
 
     // Validate format
     const validFormats = ['A4', 'A5', 'thermal-2', 'thermal-3'];
@@ -201,14 +203,28 @@ export class InvoiceController {
       return ApiResponse.badRequest(res, 'Invalid format. Valid formats are: A4, A5, thermal-2, thermal-3');
     }
 
-    // Generate PDF with specified format
-    const result = await InvoiceService.regenerateInvoicePDF(id, companyId, format);
+    let buffer: Buffer;
+    let invoiceNumber: string;
 
-    return ApiResponse.success(
-      res,
-      { pdfUrl: result.pdfUrl },
-      'PDF generated successfully'
-    );
+    // For A4 format: Use new Sales Tax Invoice format
+    if (format === 'A4') {
+      const result = await InvoiceService.streamSalesTaxInvoicePDF(id);
+      buffer = result.buffer;
+      invoiceNumber = result.invoiceNumber;
+    } else {
+      // For other formats (A5, thermal): Use existing format with streaming
+      const result = await InvoiceService.streamInvoicePDF(id, companyId, format);
+      buffer = result.buffer;
+      invoiceNumber = result.invoiceNumber;
+    }
+
+    // Set headers for PDF streaming
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="invoice_${invoiceNumber}_${format}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Stream the buffer directly to response (no file saved)
+    return res.send(buffer);
   });
 
   /**
@@ -222,6 +238,59 @@ export class InvoiceController {
     const invoice = await InvoiceService.regenerateInvoicePDF(id, companyId);
 
     return ApiResponse.success(res, invoice, 'Invoice PDF regenerated successfully');
+  });
+
+  /**
+   * GET /api/v1/invoices/:id/tax-invoice/stream
+   * Stream Sales Tax Invoice PDF on-demand (no file saved) - for viewing
+   */
+  static streamSalesTaxInvoicePDF = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const { buffer, invoiceNumber } = await InvoiceService.streamSalesTaxInvoicePDF(id);
+
+    // Set headers for PDF streaming
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="tax_invoice_${invoiceNumber}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Stream the buffer directly to response
+    return res.send(buffer);
+  });
+
+  /**
+   * GET /api/v1/invoices/:id/tax-invoice/download
+   * Download Sales Tax Invoice PDF on-demand (no file saved)
+   */
+  static downloadSalesTaxInvoicePDF = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const { buffer, invoiceNumber } = await InvoiceService.streamSalesTaxInvoicePDF(id);
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="tax_invoice_${invoiceNumber}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Stream the buffer directly to response
+    return res.send(buffer);
+  });
+
+  /**
+   * POST /api/v1/invoices/:id/tax-invoice/share
+   * Get shareable Sales Tax Invoice URL (for WhatsApp sharing)
+   * Generates PDF and saves to storage (regenerates with latest data)
+   */
+  static getShareableSalesTaxInvoiceURL = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const result = await InvoiceService.getShareableSalesTaxInvoiceURL(id);
+
+    return ApiResponse.success(
+      res,
+      result,
+      'Shareable Sales Tax Invoice URL generated successfully'
+    );
   });
 }
 

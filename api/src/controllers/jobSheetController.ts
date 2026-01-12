@@ -102,7 +102,7 @@ export class JobSheetController {
 
   /**
    * GET /api/v1/jobsheets/:id/pdf
-   * Download job sheet PDF
+   * Download job sheet PDF (legacy - returns URL)
    */
   static downloadJobSheetPDF = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
@@ -118,6 +118,85 @@ export class JobSheetController {
       res,
       { pdfUrl: jobSheet.pdfUrl },
       'PDF URL retrieved successfully'
+    );
+  });
+
+  /**
+   * GET /api/v1/services/:id/jobsheet/stream
+   * Stream job sheet PDF on-demand (no file saved)
+   * Used for View/Download operations
+   * @query format - Optional format: 'A4' | 'A5' | 'A5-V2' | 'thermal' (default: 'A4')
+   * @query copyType - Optional copy type: 'customer' | 'office' (default: 'customer')
+   */
+  static streamJobSheetPDF = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id: serviceId } = req.params;
+    const format = (req.query.format as string) || 'A4';
+    const copyType = (req.query.copyType as 'customer' | 'office') || 'customer';
+
+    const { buffer, jobSheetNumber } = await JobSheetService.streamJobSheetPDF(
+      serviceId,
+      format,
+      copyType
+    );
+
+    // Set headers for PDF streaming
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="jobsheet_${jobSheetNumber}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Stream the buffer directly to response
+    return res.send(buffer);
+  });
+
+  /**
+   * GET /api/v1/services/:id/jobsheet/download
+   * Download job sheet PDF on-demand (no file saved)
+   * @query format - Optional format: 'A4' | 'A5' | 'A5-V2' | 'thermal' (default: 'A4')
+   * @query copyType - Optional copy type: 'customer' | 'office' (default: 'customer')
+   */
+  static downloadJobSheetOnDemand = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id: serviceId } = req.params;
+    const format = (req.query.format as string) || 'A4';
+    const copyType = (req.query.copyType as 'customer' | 'office') || 'customer';
+
+    const { buffer, jobSheetNumber } = await JobSheetService.streamJobSheetPDF(
+      serviceId,
+      format,
+      copyType
+    );
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="jobsheet_${jobSheetNumber}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Stream the buffer directly to response
+    return res.send(buffer);
+  });
+
+  /**
+   * POST /api/v1/services/:id/jobsheet/share
+   * Get shareable job sheet URL (for WhatsApp sharing)
+   * Generates PDF and saves to storage (regenerates with latest data)
+   * @body format - Optional format: 'A4' | 'A5' | 'A5-V2' | 'thermal' (default: 'A4')
+   * @body copyType - Optional copy type: 'customer' | 'office' (default: 'customer')
+   */
+  static getShareableJobSheetURL = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id: serviceId } = req.params;
+    const { format = 'A4', copyType = 'customer' } = req.body;
+    const userId = req.user!.userId;
+
+    const result = await JobSheetService.getShareableJobSheetURL(
+      serviceId,
+      userId,
+      format,
+      copyType
+    );
+
+    return ApiResponse.success(
+      res,
+      result,
+      'Shareable job sheet URL generated successfully'
     );
   });
 }

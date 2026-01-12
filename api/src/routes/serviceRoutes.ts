@@ -635,6 +635,24 @@ router.post(
   ServiceController.addFaultToService
 );
 
+/**
+ * @route   GET /api/v1/services/:id/label
+ * @desc    Generate and download service label PDF (22x35mm)
+ * @access  Private (All authenticated users)
+ */
+router.get(
+  '/:id/label',
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN
+  ),
+  validate(serviceIdValidation),
+  ServiceController.generateLabel
+);
+
 export default router;
 
 // Route update

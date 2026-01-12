@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { Eye, Edit2, Trash2, User } from 'lucide-react';
+import { Eye, Edit2, Trash2, User, FileText, Download, Tag } from 'lucide-react';
 import { Service, ServiceStatus, DeliveryStatus } from '@/services/serviceApi';
 import { formatCurrency, formatDate } from '@/utils/tableUtils';
 import ActionMenu from '@/components/common/ActionMenu';
@@ -155,6 +155,9 @@ export function createServiceColumns(options: {
   onEdit: (service: Service) => void;
   onDelete: (service: Service) => void;
   onAssign: (serviceId: string, technicianId: string) => void;
+  onDownloadJobsheet: (service: Service) => void;
+  onDownloadInvoice: (service: Service) => void;
+  onPrintLabel: (service: Service) => void;
   technicians: Technician[];
   assigningServiceId: string | null;
   technicianSearch: string;
@@ -166,6 +169,9 @@ export function createServiceColumns(options: {
     onEdit,
     onDelete,
     onAssign,
+    onDownloadJobsheet,
+    onDownloadInvoice,
+    onPrintLabel,
     technicians,
     assigningServiceId,
     technicianSearch,
@@ -302,9 +308,8 @@ export function createServiceColumns(options: {
       header: 'Status',
       cell: ({ row }) => (
         <span
-          className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-            STATUS_COLORS[row.original.status] || 'bg-gray-100 text-gray-800'
-          }`}
+          className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[row.original.status] || 'bg-gray-100 text-gray-800'
+            }`}
         >
           {STATUS_LABELS[row.original.status] || row.original.status}
         </span>
@@ -350,32 +355,49 @@ export function createServiceColumns(options: {
     {
       id: 'actions',
       header: '',
-      cell: ({ row }) => (
-        <ActionMenu
-          items={[
-            {
-              label: 'View',
-              icon: <Eye className="h-4 w-4 text-purple-600" />,
-              onClick: () => onView(row.original),
+      cell: ({ row }) => {
+        const service = row.original;
+        const menuItems = [
+          {
+            label: 'View',
+            icon: <Eye className="h-4 w-4 text-purple-600" />,
+            onClick: () => onView(service),
+          },
+          {
+            label: 'Edit',
+            icon: <Edit2 className="h-4 w-4 text-orange-600" />,
+            onClick: () => onEdit(service),
+          },
+          {
+            label: 'Jobsheet',
+            icon: <FileText className="h-4 w-4 text-blue-600" />,
+            onClick: () => onDownloadJobsheet(service),
+          },
+          {
+            label: 'Print Label',
+            icon: <Tag className="h-4 w-4 text-cyan-600" />,
+            onClick: () => onPrintLabel(service),
+          },
+          // Only show Download Invoice if invoice exists
+          ...(service.invoice ? [{
+            label: 'Invoice',
+            icon: <Download className="h-4 w-4 text-green-600" />,
+            onClick: () => onDownloadInvoice(service),
+          }] : []),
+          {
+            label: 'Delete',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: () => {
+              if (confirm('Are you sure you want to delete this service?')) {
+                onDelete(service);
+              }
             },
-            {
-              label: 'Edit',
-              icon: <Edit2 className="h-4 w-4 text-blue-600" />,
-              onClick: () => onEdit(row.original),
-            },
-            {
-              label: 'Delete',
-              icon: <Trash2 className="h-4 w-4" />,
-              onClick: () => {
-                if (confirm('Are you sure you want to delete this service?')) {
-                  onDelete(row.original);
-                }
-              },
-              className: 'text-red-600 hover:bg-red-50',
-            },
-          ]}
-        />
-      ),
+            className: 'text-red-600 hover:bg-red-50',
+          },
+        ];
+
+        return <ActionMenu items={menuItems} />;
+      },
       enableSorting: false,
       enableHiding: false,
       size: 50,
