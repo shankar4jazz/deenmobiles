@@ -199,21 +199,13 @@ export default function ServiceList() {
   const handleDownloadJobsheet = async (e: React.MouseEvent, serviceId: string, jobSheetId?: string) => {
     e.stopPropagation();
     try {
-      if (jobSheetId) {
-        // Jobsheet exists, download directly
-        const response = await jobSheetApi.downloadPDF(jobSheetId);
-        if (response.pdfUrl) {
-          window.open(response.pdfUrl, '_blank');
-        }
-      } else {
-        // Jobsheet doesn't exist, generate first
-        const jobSheet = await jobSheetApi.generateFromService(serviceId);
-        if (jobSheet.pdfUrl) {
-          window.open(jobSheet.pdfUrl, '_blank');
-        }
-        // Refresh the services list to update the jobsheet data
-        queryClient.invalidateQueries({ queryKey: ['services'] });
+      // Always generate fresh jobsheet with current service data
+      const jobSheet = await jobSheetApi.generateFromService(serviceId);
+      if (jobSheet.pdfUrl) {
+        window.open(jobSheet.pdfUrl, '_blank');
       }
+      // Refresh the services list to update the jobsheet data
+      queryClient.invalidateQueries({ queryKey: ['services'] });
     } catch (error) {
       toast.error('Failed to download jobsheet');
     }

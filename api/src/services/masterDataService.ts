@@ -2359,9 +2359,13 @@ export class MasterDataService {
           totalPages: Math.ceil(total / limit),
         },
       };
-    } catch (error) {
-      Logger.error('Error fetching accessories', { error, filters });
-      throw new AppError(500, 'Failed to fetch accessories');
+    } catch (error: any) {
+      Logger.error('Error fetching accessories', {
+        message: error.message,
+        stack: error.stack,
+        filters
+      });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to fetch accessories');
     }
   }
 

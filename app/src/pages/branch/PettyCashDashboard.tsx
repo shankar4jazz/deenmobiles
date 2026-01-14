@@ -171,7 +171,7 @@ export default function PettyCashDashboard() {
         <h3 className="text-base font-bold text-gray-900 mb-3">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Link
-            to="/branch/petty-cash?tab=request"
+            to="/petty-cash?tab=request"
             className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all"
           >
             <div className="p-2 bg-purple-100 rounded-lg">
@@ -184,7 +184,7 @@ export default function PettyCashDashboard() {
           </Link>
 
           <Link
-            to="/branch/petty-cash?tab=transfers"
+            to="/petty-cash?tab=transfers"
             className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
           >
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -197,7 +197,7 @@ export default function PettyCashDashboard() {
           </Link>
 
           <Link
-            to="/branch/petty-cash?tab=requests"
+            to="/petty-cash?tab=requests"
             className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 hover:border-green-300 hover:shadow-md transition-all"
           >
             <div className="p-2 bg-green-100 rounded-lg">
@@ -219,7 +219,7 @@ export default function PettyCashDashboard() {
             <p className="text-sm text-gray-600 mt-1">Last 5 transfers received</p>
           </div>
           <Link
-            to="/branch/petty-cash?tab=transfers"
+            to="/petty-cash?tab=transfers"
             className="flex items-center gap-1 text-purple-600 hover:text-purple-700 text-sm font-medium"
           >
             View All
@@ -286,7 +286,7 @@ export default function PettyCashDashboard() {
             <p className="text-sm text-gray-600 mt-1">Last 5 petty cash requests</p>
           </div>
           <Link
-            to="/branch/petty-cash?tab=requests"
+            to="/petty-cash?tab=requests"
             className="flex items-center gap-1 text-purple-600 hover:text-purple-700 text-sm font-medium"
           >
             View All

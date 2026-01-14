@@ -99,20 +99,12 @@ export default function ServiceTable({
 
   const handleDownloadJobsheet = async (service: Service) => {
     try {
-      if (service.jobSheet?.id) {
-        // Jobsheet exists, download directly
-        const response = await jobSheetApi.downloadPDF(service.jobSheet.id);
-        if (response.pdfUrl) {
-          window.open(response.pdfUrl, '_blank');
-        }
-      } else {
-        // Jobsheet doesn't exist, generate first
-        const jobSheet = await jobSheetApi.generateFromService(service.id);
-        if (jobSheet.pdfUrl) {
-          window.open(jobSheet.pdfUrl, '_blank');
-        }
-        queryClient.invalidateQueries({ queryKey: ['services'] });
+      // Always generate fresh jobsheet with current service data
+      const jobSheet = await jobSheetApi.generateFromService(service.id);
+      if (jobSheet.pdfUrl) {
+        window.open(jobSheet.pdfUrl, '_blank');
       }
+      queryClient.invalidateQueries({ queryKey: ['services'] });
     } catch (error) {
       toast.error('Failed to download jobsheet');
     }

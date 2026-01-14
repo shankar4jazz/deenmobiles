@@ -208,7 +208,7 @@ router.post(
 
 /**
  * @route   GET /api/v1/estimates/:id/pdf
- * @desc    Get estimate PDF URL
+ * @desc    Stream estimate PDF on-demand (no file saved)
  * @access  Private (All authenticated users)
  */
 router.get(
@@ -222,6 +222,41 @@ router.get(
   ),
   validate(estimateIdValidation),
   EstimateController.getEstimatePDF
+);
+
+/**
+ * @route   GET /api/v1/estimates/:id/download
+ * @desc    Download estimate PDF on-demand (no file saved)
+ * @access  Private (All authenticated users)
+ */
+router.get(
+  '/:id/download',
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.RECEPTIONIST,
+    UserRole.TECHNICIAN
+  ),
+  validate(estimateIdValidation),
+  EstimateController.downloadEstimatePDF
+);
+
+/**
+ * @route   POST /api/v1/estimates/:id/share
+ * @desc    Get shareable estimate URL (for WhatsApp sharing)
+ * @access  Private (Receptionist, Manager, Admin)
+ */
+router.post(
+  '/:id/share',
+  authorize(
+    UserRole.RECEPTIONIST,
+    UserRole.MANAGER,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN
+  ),
+  validate(estimateIdValidation),
+  EstimateController.getShareableEstimateURL
 );
 
 export default router;

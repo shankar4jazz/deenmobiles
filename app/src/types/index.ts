@@ -35,9 +35,10 @@ export enum PaymentMethod {
 
 export interface User {
   id: string;
-  email: string;
+  email?: string;
   name: string;
   role: UserRole;
+  roleId?: string;
   companyId: string;
   branchId?: string;
   createdAt: string;
@@ -415,12 +416,12 @@ export interface Employee extends User {
 }
 
 export interface EmployeeFormData {
-  email: string;
+  email?: string;
   username?: string;
-  password: string;
+  password?: string;
   name: string;
   phone?: string;
-  profileImage?: File;
+  profileImage?: string | File;
   role: UserRole;
   roleId?: string;
   customRoleId?: string;

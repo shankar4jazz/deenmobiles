@@ -58,6 +58,7 @@ export interface EstimateItem {
 export interface CreateEstimateData {
   customerId: string;
   serviceId?: string;
+  branchId?: string;
   items: {
     description: string;
     quantity: number;

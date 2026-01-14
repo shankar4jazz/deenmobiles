@@ -17,6 +17,7 @@ export interface Service {
   estimatedCost: number;
   actualCost?: number;
   labourCharge?: number;
+  discount?: number;
   advancePayment: number;
   status: ServiceStatus;
   deliveryStatus?: DeliveryStatus;
@@ -163,6 +164,7 @@ export interface ServicePart {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  isExtraSpare?: boolean;
   createdAt: string;
   // Customer approval fields
   isApproved: boolean;

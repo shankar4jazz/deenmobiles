@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
     children: [
       {
         name: 'Create Service',
-        path: '/services/new',
+        path: '/services/create',
         icon: Plus,
       },
       {
@@ -205,11 +205,10 @@ export default function BranchSidebar() {
         <div key={item.name}>
           <button
             onClick={() => toggleMenu(item.name)}
-            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all ${
-              childActive
+            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all ${childActive
                 ? 'bg-purple-700 text-white'
                 : 'text-purple-100 hover:bg-purple-700 hover:text-white'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
               <item.icon className="h-5 w-5" />
@@ -228,10 +227,9 @@ export default function BranchSidebar() {
                   key={child.path}
                   to={child.path!}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
-                      isActive
-                        ? 'bg-white text-purple-900 shadow-lg'
-                        : 'text-purple-100 hover:bg-purple-700 hover:text-white'
+                    `flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${isActive
+                      ? 'bg-white text-purple-900 shadow-lg'
+                      : 'text-purple-100 hover:bg-purple-700 hover:text-white'
                     }`
                   }
                 >
@@ -250,10 +248,9 @@ export default function BranchSidebar() {
         key={item.path}
         to={item.path!}
         className={({ isActive }) =>
-          `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-            isActive
-              ? 'bg-white text-purple-900 shadow-lg'
-              : 'text-purple-100 hover:bg-purple-700 hover:text-white'
+          `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive
+            ? 'bg-white text-purple-900 shadow-lg'
+            : 'text-purple-100 hover:bg-purple-700 hover:text-white'
           }`
         }
       >

@@ -34,7 +34,6 @@ export default function InvoiceDetail() {
   const queryClient = useQueryClient();
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [transactionId, setTransactionId] = useState('');
@@ -96,20 +95,13 @@ export default function InvoiceDetail() {
     },
   });
 
-  const handleDownloadPDF = async (format: 'A4' | 'A5' | 'thermal-2' | 'thermal-3') => {
+  const handleDownload = async () => {
     if (invoice?.id) {
-      try {
-        // Call API to generate PDF with format parameter
-        const response = await invoiceApi.downloadPDF(invoice.id, format);
-        // Open the returned static URL
-        if (response.pdfUrl) {
-          window.open(response.pdfUrl, '_blank');
-        }
-        setShowDownloadDropdown(false);
-      } catch (error) {
-        console.error('Error downloading PDF:', error);
-        alert('Failed to download PDF. Please try again.');
-      }
+      toast.promise(invoiceApi.downloadSalesTaxInvoicePDF(invoice.id), {
+        loading: 'Generating Sales Tax Invoice (A4)...',
+        success: 'Download started successfully',
+        error: 'Failed to generate PDF. Please try again.',
+      });
     }
   };
 
@@ -208,52 +200,17 @@ export default function InvoiceDetail() {
             <Trash2 className="w-4 h-4" />
             Delete
           </button>
-          <div className="relative">
-            <button
-              onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
-              className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Download
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            {showDownloadDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                <button
-                  onClick={() => handleDownloadPDF('A4')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
-                >
-                  <FileText className="w-4 h-4" />
-                  A4 PDF
-                </button>
-                <button
-                  onClick={() => handleDownloadPDF('A5')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  A5 PDF
-                </button>
-                <button
-                  onClick={() => handleDownloadPDF('thermal-2')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  Thermal 2"
-                </button>
-                <button
-                  onClick={() => handleDownloadPDF('thermal-3')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 rounded-b-lg"
-                >
-                  <FileText className="w-4 h-4" />
-                  Thermal 3"
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={handleDownload}
+            className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2"
+            title="Download Sales Tax Invoice (A4)"
+          >
+            <Download className="w-4 h-4" />
+            Download PDF
+          </button>
           <span
-            className={`px-4 py-2 text-sm font-semibold rounded-full ${
-              PAYMENT_STATUS_COLORS[invoice.paymentStatus]
-            }`}
+            className={`px-4 py-2 text-sm font-semibold rounded-full ${PAYMENT_STATUS_COLORS[invoice.paymentStatus]
+              }`}
           >
             {invoice.paymentStatus}
           </span>

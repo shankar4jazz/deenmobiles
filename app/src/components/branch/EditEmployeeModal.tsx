@@ -5,6 +5,7 @@ import { employeeApi } from '@/services/employeeApi';
 import { roleApi } from '@/services/roleApi';
 import { EmployeeFormData, UserRole } from '@/types';
 import { X, UserCog, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { showToast } from '@/lib/toast';
 
 // Map role names to UserRole enum values
 const mapRoleNameToEnum = (roleName: string): UserRole => {
@@ -64,6 +65,12 @@ export default function EditEmployeeModal({
     branchId: undefined,
     isActive: true,
   });
+
+  // Refs for focusing
+  const nameRef = useRef<HTMLInputElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const roleRef = useRef<HTMLSelectElement>(null);
 
   // Fetch employee data
   const { data: employee, isLoading: isLoadingEmployee } = useQuery({
@@ -135,7 +142,7 @@ export default function EditEmployeeModal({
 
   useEffect(() => {
     const checkUsername = async () => {
-      const username = formData.username.trim();
+      const username = (formData.username || '').trim();
 
       // Don't check if username is empty or too short
       if (!username || username.length < 3) {
@@ -191,7 +198,7 @@ export default function EditEmployeeModal({
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
       onClose();
       resetForm();
-      alert('Employee updated successfully');
+      showToast.success('Employee updated successfully');
     },
     onError: (error: any) => {
       const responseData = error.response?.data;
@@ -201,8 +208,11 @@ export default function EditEmployeeModal({
         const errorMessages = responseData.errors.map((err: any) => err.message);
         setValidationErrors(errorMessages);
         setError('Please fix the following validation errors:');
+        showToast.error(errorMessages[0] || 'Validation failed');
       } else {
-        setError(responseData?.message || 'Failed to update employee');
+        const msg = responseData?.message || 'Failed to update employee';
+        setError(msg);
+        showToast.error(msg);
         setValidationErrors([]);
       }
     },
@@ -237,13 +247,45 @@ export default function EditEmployeeModal({
     setError('');
     setValidationErrors([]);
 
+    // Manual Validation
+    if (!formData.name.trim()) {
+      showToast.fieldRequired('Full Name');
+      nameRef.current?.focus();
+      return;
+    }
+
+    if (!formData.username.trim()) {
+      showToast.fieldRequired('Username');
+      usernameRef.current?.focus();
+      return;
+    }
+
+    if (usernameStatus === 'taken') {
+      showToast.error('Username is already taken');
+      usernameRef.current?.focus();
+      return;
+    }
+
+    // Password strength check (only if provided during edit)
+    if (formData.password && (!passwordValidation.minLength || !passwordValidation.hasUppercase || !passwordValidation.hasLowercase || !passwordValidation.hasNumber)) {
+      showToast.error('Password does not meet requirements');
+      passwordRef.current?.focus();
+      return;
+    }
+
+    if (!selectedRoleId) {
+      showToast.fieldRequired('Role');
+      roleRef.current?.focus();
+      return;
+    }
+
     // Prepare form data, excluding empty optional fields
     const submitData: any = {
       ...formData,
-      email: formData.email.trim() || undefined,
-      phone: formData.phone.trim() || undefined,
+      email: (formData.email || '').trim() || undefined,
+      phone: (formData.phone || '').trim() || undefined,
       // Only include password if it's provided (not empty)
-      password: formData.password.trim() || undefined,
+      password: (formData.password || '').trim() || undefined,
     };
 
     // Handle profile image:
@@ -345,11 +387,12 @@ export default function EditEmployeeModal({
                   Full Name *
                 </label>
                 <input
+                  ref={nameRef}
                   type="text"
-                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter full name"
                 />
               </div>
 
@@ -373,26 +416,25 @@ export default function EditEmployeeModal({
                   Username *
                 </label>
                 <input
+                  ref={usernameRef}
                   type="text"
-                  required
                   value={formData.username}
                   onChange={(e) =>
                     setFormData({ ...formData, username: e.target.value })
                   }
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    usernameStatus === 'taken'
-                      ? 'border-red-500'
-                      : usernameStatus === 'available'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${usernameStatus === 'taken'
+                    ? 'border-red-500'
+                    : usernameStatus === 'available'
                       ? 'border-green-500'
                       : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Unique username for login"
                 />
                 <div className="mt-1 space-y-1">
                   {usernameStatus === 'checking' && (
                     <p className="text-xs text-blue-600">Checking availability...</p>
                   )}
-                  {usernameStatus === 'available' && formData.username.length >= 3 && (
+                  {usernameStatus === 'available' && (formData.username || '').length >= 3 && (
                     <p className="text-xs text-green-600">✓ Username is available</p>
                   )}
                   {usernameStatus === 'taken' && (
@@ -411,6 +453,7 @@ export default function EditEmployeeModal({
                 </label>
                 <div className="relative">
                   <input
+                    ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => handlePasswordChange(e.target.value)}
@@ -500,7 +543,7 @@ export default function EditEmployeeModal({
                   Role *
                 </label>
                 <select
-                  required
+                  ref={roleRef}
                   value={selectedRoleId}
                   onChange={(e) => {
                     const roleId = e.target.value;

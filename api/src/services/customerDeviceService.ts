@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import { AppError } from '../utils/errors';
-
-const prisma = new PrismaClient();
+import prisma from '../config/database';
+import { AppError } from '../middleware/errorHandler';
+import { Logger } from '../utils/logger';
 
 export interface CustomerDeviceFilters {
   page?: number;
@@ -40,100 +39,105 @@ export default class CustomerDeviceService {
     companyId: string,
     filters: CustomerDeviceFilters = {}
   ) {
-    const {
-      page = 1,
-      limit = 50,
-      search,
-      isActive,
-      brandId,
-      modelId,
-    } = filters;
+    try {
+      const {
+        page = 1,
+        limit = 50,
+        search,
+        isActive,
+        brandId,
+        modelId,
+      } = filters;
 
-    const skip = (page - 1) * limit;
+      const skip = (page - 1) * limit;
 
-    const where: any = {
-      customerId,
-      companyId,
-    };
+      const where: any = {
+        customerId,
+        companyId,
+      };
 
-    if (isActive !== undefined) {
-      where.isActive = isActive;
-    }
+      if (isActive !== undefined) {
+        where.isActive = isActive;
+      }
 
-    if (brandId) {
-      where.brandId = brandId;
-    }
+      if (brandId) {
+        where.brandId = brandId;
+      }
 
-    if (modelId) {
-      where.modelId = modelId;
-    }
+      if (modelId) {
+        where.modelId = modelId;
+      }
 
-    if (search) {
-      where.OR = [
-        { imei: { contains: search, mode: 'insensitive' } },
-        { color: { contains: search, mode: 'insensitive' } },
-        { brand: { name: { contains: search, mode: 'insensitive' } } },
-        { model: { name: { contains: search, mode: 'insensitive' } } },
-      ];
-    }
+      if (search) {
+        where.OR = [
+          { imei: { contains: search, mode: 'insensitive' } },
+          { color: { contains: search, mode: 'insensitive' } },
+          { brand: { name: { contains: search, mode: 'insensitive' } } },
+          { model: { name: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
 
-    const [devices, total] = await Promise.all([
-      prisma.customerDevice.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          brand: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
+      const [devices, total] = await Promise.all([
+        prisma.customerDevice.findMany({
+          where,
+          skip,
+          take: limit,
+          include: {
+            brand: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+            model: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+              },
+            },
+            images: {
+              select: {
+                id: true,
+                imageUrl: true,
+                caption: true,
+                createdAt: true,
+              },
+            },
+            _count: {
+              select: {
+                services: true,
+              },
             },
           },
-          model: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
+          orderBy: {
+            createdAt: 'desc',
           },
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              phone: true,
-            },
-          },
-          images: {
-            select: {
-              id: true,
-              imageUrl: true,
-              caption: true,
-              createdAt: true,
-            },
-          },
-          _count: {
-            select: {
-              services: true,
-            },
-          },
+        }),
+        prisma.customerDevice.count({ where }),
+      ]);
+
+      return {
+        devices,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      }),
-      prisma.customerDevice.count({ where }),
-    ]);
-
-    return {
-      devices,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+      };
+    } catch (error) {
+      Logger.error('Error fetching customer devices', { error, customerId, filters });
+      throw error instanceof AppError ? error : new AppError(500, 'Failed to fetch customer devices');
+    }
   }
 
   /**

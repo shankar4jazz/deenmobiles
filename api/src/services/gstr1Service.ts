@@ -203,7 +203,7 @@ export class GSTR1Service {
         totalAmount: { gte: B2C_LARGE_THRESHOLD },
         OR: [
           { customer: { gstin: null } },
-          { customer: null },
+          { customerId: null },
         ],
       },
       include: {
@@ -263,7 +263,7 @@ export class GSTR1Service {
         },
         OR: [
           { customer: { gstin: null } },
-          { customer: null },
+          { customerId: null },
         ],
       },
       include: {

@@ -5,6 +5,7 @@ import { employeeApi } from '@/services/employeeApi';
 import { roleApi } from '@/services/roleApi';
 import { EmployeeFormData, UserRole } from '@/types';
 import { X, UserCog, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { showToast } from '@/lib/toast';
 
 // Map role names to UserRole enum values
 const mapRoleNameToEnum = (roleName: string): UserRole => {
@@ -65,6 +66,12 @@ export default function AddEmployeeModal({
     isActive: true,
   });
 
+  // Refs for focusing
+  const nameRef = useRef<HTMLInputElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const roleRef = useRef<HTMLSelectElement>(null);
+
   // Password validation function
   const validatePassword = (password: string) => {
     setPasswordValidation({
@@ -86,7 +93,7 @@ export default function AddEmployeeModal({
 
   useEffect(() => {
     const checkUsername = async () => {
-      const username = formData.username.trim();
+      const username = (formData.username || '').trim();
 
       // Don't check if username is empty or too short
       if (!username || username.length < 3) {
@@ -137,7 +144,7 @@ export default function AddEmployeeModal({
       queryClient.invalidateQueries({ queryKey: ['branchEmployees'] });
       onClose();
       resetForm();
-      alert('Employee created successfully');
+      showToast.success('Employee created successfully');
     },
     onError: (error: any) => {
       const responseData = error.response?.data;
@@ -147,8 +154,11 @@ export default function AddEmployeeModal({
         const errorMessages = responseData.errors.map((err: any) => err.message);
         setValidationErrors(errorMessages);
         setError('Please fix the following validation errors:');
+        showToast.error(errorMessages[0] || 'Validation failed');
       } else {
-        setError(responseData?.message || 'Failed to create employee');
+        const msg = responseData?.message || 'Failed to create employee';
+        setError(msg);
+        showToast.error(msg);
         setValidationErrors([]);
       }
     },
@@ -183,11 +193,49 @@ export default function AddEmployeeModal({
     setError('');
     setValidationErrors([]);
 
+    // Manual Validation
+    if (!formData.name.trim()) {
+      showToast.fieldRequired('Full Name');
+      nameRef.current?.focus();
+      return;
+    }
+
+    if (!formData.username.trim()) {
+      showToast.fieldRequired('Username');
+      usernameRef.current?.focus();
+      return;
+    }
+
+    if (usernameStatus === 'taken') {
+      showToast.error('Username is already taken');
+      usernameRef.current?.focus();
+      return;
+    }
+
+    if (!formData.password) {
+      showToast.fieldRequired('Password');
+      passwordRef.current?.focus();
+      return;
+    }
+
+    // Password strength check
+    if (!passwordValidation.minLength || !passwordValidation.hasUppercase || !passwordValidation.hasLowercase || !passwordValidation.hasNumber) {
+      showToast.error('Password does not meet requirements');
+      passwordRef.current?.focus();
+      return;
+    }
+
+    if (!selectedRoleId) {
+      showToast.fieldRequired('Role');
+      roleRef.current?.focus();
+      return;
+    }
+
     // Prepare form data, excluding empty optional fields
     const submitData = {
       ...formData,
-      email: formData.email.trim() || undefined,
-      phone: formData.phone.trim() || undefined,
+      email: (formData.email || '').trim() || undefined,
+      phone: (formData.phone || '').trim() || undefined,
     };
 
     await createMutation.mutateAsync(submitData);
@@ -261,11 +309,12 @@ export default function AddEmployeeModal({
                   Full Name *
                 </label>
                 <input
+                  ref={nameRef}
                   type="text"
-                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter full name"
                 />
               </div>
 
@@ -289,26 +338,25 @@ export default function AddEmployeeModal({
                   Username *
                 </label>
                 <input
+                  ref={usernameRef}
                   type="text"
-                  required
                   value={formData.username}
                   onChange={(e) =>
                     setFormData({ ...formData, username: e.target.value })
                   }
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    usernameStatus === 'taken'
-                      ? 'border-red-500'
-                      : usernameStatus === 'available'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${usernameStatus === 'taken'
+                    ? 'border-red-500'
+                    : usernameStatus === 'available'
                       ? 'border-green-500'
                       : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Unique username for login"
                 />
                 <div className="mt-1 space-y-1">
                   {usernameStatus === 'checking' && (
                     <p className="text-xs text-blue-600">Checking availability...</p>
                   )}
-                  {usernameStatus === 'available' && formData.username.length >= 3 && (
+                  {usernameStatus === 'available' && (formData.username || '').length >= 3 && (
                     <p className="text-xs text-green-600">✓ Username is available</p>
                   )}
                   {usernameStatus === 'taken' && (
@@ -327,8 +375,8 @@ export default function AddEmployeeModal({
                 </label>
                 <div className="relative">
                   <input
+                    ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
-                    required
                     value={formData.password}
                     onChange={(e) => handlePasswordChange(e.target.value)}
                     className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -417,7 +465,7 @@ export default function AddEmployeeModal({
                   Role *
                 </label>
                 <select
-                  required
+                  ref={roleRef}
                   value={selectedRoleId}
                   onChange={(e) => {
                     const roleId = e.target.value;

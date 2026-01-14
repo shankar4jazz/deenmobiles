@@ -98,16 +98,15 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
     if (!service) return null;
 
     const estimatePrice = service.estimatedCost || 0;
-    const extraSpareTotal = (service.sparePartsUsed || []).reduce(
-      (sum, part) => sum + (part.sellingPrice || 0) * (part.quantity || 1),
-      0
-    );
+    const extraSpareTotal = (service.partsUsed || [])
+      .filter((part) => part.isExtraSpare)
+      .reduce((sum: number, part) => sum + (part.totalPrice || 0), 0);
     const totalAmount = estimatePrice + extraSpareTotal;
     const existingDiscount = service.discount || 0;
     const newDiscount = parseFloat(additionalDiscount) || 0;
     const totalDiscount = existingDiscount + newDiscount;
     const finalAmount = totalAmount - totalDiscount;
-    const advancePaid = (service.paymentEntries || []).reduce((sum, p) => sum + p.amount, 0);
+    const advancePaid = (service.paymentEntries || []).reduce((sum: number, p) => sum + p.amount, 0);
     const balanceDue = finalAmount - advancePaid;
 
     return { estimatePrice, extraSpareTotal, totalAmount, existingDiscount, newDiscount, totalDiscount, finalAmount, advancePaid, balanceDue };
@@ -194,70 +193,125 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
 
       return serviceApi.addBulkPaymentEntries(service.id, data);
     },
-    onSuccess: (updatedService) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       queryClient.invalidateQueries({ queryKey: ['service', service?.id] });
       toast.success(markAsDelivered ? 'Payment collected & delivered' : 'Payment collected');
 
-      const newDiscount = parseFloat(additionalDiscount) || 0;
-
-      // Update local service state to reflect delivery - keep modal open for invoice
-      if (markAsDelivered && service) {
-        setService({
-          ...service,
-          deliveryStatus: DeliveryStatus.DELIVERED,
-          discount: (service.discount || 0) + newDiscount,
-          paymentEntries: [
-            ...(service.paymentEntries || []),
-            ...Object.values(paymentEntries)
-              .filter((entry) => parseFloat(entry.amount) > 0)
-              .map((entry) => ({
-                id: '',
-                amount: parseFloat(entry.amount),
-                paymentMethodId: entry.paymentMethodId,
-                paymentMethod: { id: entry.paymentMethodId, name: entry.paymentMethodName },
-                createdAt: new Date().toISOString(),
-              })),
-          ],
-        });
-        // Reset payment entries and discount after successful payment
-        if (paymentMethodsData?.data) {
-          const reset: Record<string, PaymentMethodEntry> = {};
-          paymentMethodsData.data.forEach((method) => {
-            reset[method.id] = {
-              paymentMethodId: method.id,
-              paymentMethodName: method.name,
-              amount: '',
-            };
-          });
-          setPaymentEntries(reset);
-        }
-        setAdditionalDiscount('');
+      // Update local service state with the fresh data from server
+      if (data.service) {
+        setService(data.service);
       }
+
+      // Reset payment entries and discount after successful payment
+      if (paymentMethodsData?.data) {
+        const reset: Record<string, PaymentMethodEntry> = {};
+        paymentMethodsData.data.forEach((method) => {
+          reset[method.id] = {
+            paymentMethodId: method.id,
+            paymentMethodName: method.name,
+            amount: '',
+          };
+        });
+        setPaymentEntries(reset);
+      }
+      setAdditionalDiscount('');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to collect payment');
     },
   });
 
+  // Invoice preview/print handler
+  const handlePrintInvoice = async (invoiceId?: string) => {
+    const id = invoiceId || service?.invoice?.id;
+    if (!id) return;
+
+    toast.promise(invoiceApi.downloadPDF(id, 'A4'), {
+      loading: 'Preparing A4 Invoice...',
+      success: (data) => {
+        window.open(data.pdfUrl, '_blank');
+        return 'Invoice ready for printing';
+      },
+      error: 'Failed to generate PDF invoice',
+    });
+  };
+
   // Invoice mutation
   const invoiceMutation = useMutation({
     mutationFn: () => {
       if (!service) throw new Error('No service selected');
-      return invoiceApi.generateInvoice(service.id);
+      return invoiceApi.generateFromService(service.id);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast.success('Invoice generated successfully');
-      // Open invoice in new tab if PDF URL available
-      if (data.pdfUrl) {
-        window.open(data.pdfUrl, '_blank');
+
+      // Update local service with the new invoice
+      if (service) {
+        setService({
+          ...service,
+          invoice: {
+            id: data.id,
+            invoiceNumber: data.invoiceNumber,
+            pdfUrl: data.pdfUrl,
+          },
+        });
       }
+
+      // Automatically open the invoice for printing
+      handlePrintInvoice(data.id);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to generate invoice');
     },
   });
+
+  const handleGenerateInvoice = async () => {
+    if (!service) return;
+
+    // 1. Handle Additional Discount if entered
+    const extraDiscountValue = parseFloat(additionalDiscount) || 0;
+    if (extraDiscountValue > 0) {
+      try {
+        const currentDiscount = service.discount || 0;
+        const totalDiscount = currentDiscount + extraDiscountValue;
+
+        await serviceApi.updateDiscount(service.id, totalDiscount);
+
+        // Update local state and clear additional discount
+        setService(prev => prev ? { ...prev, discount: totalDiscount } : null);
+        setAdditionalDiscount('');
+        toast.success(`Applied additional discount of ₹${extraDiscountValue}`);
+      } catch (error) {
+        toast.error('Failed to update discount');
+        return;
+      }
+    }
+
+    // 2. Check if status needs updating to READY
+    const needsStatusUpdate = service.status !== ServiceStatus.READY;
+
+    if (needsStatusUpdate) {
+      const updatePromise = serviceApi.updateServiceStatus(
+        service.id,
+        ServiceStatus.READY,
+        'Auto-updated to READY during invoice generation'
+      );
+
+      toast.promise(updatePromise, {
+        loading: 'Updating service status to READY...',
+        success: () => {
+          setService(prev => prev ? { ...prev, status: ServiceStatus.READY } : null);
+          invoiceMutation.mutate();
+          return 'Status updated to READY';
+        },
+        error: (err) => err.response?.data?.message || 'Failed to update status',
+      });
+    } else {
+      invoiceMutation.mutate();
+    }
+  };
 
   const handleClose = () => {
     setSearchQuery('');
@@ -438,7 +492,7 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                           key={fault.id}
                           className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full"
                         >
-                          {fault.name}
+                          {fault.fault?.name || 'Unknown Fault'}
                         </span>
                       ))}
                     </div>
@@ -463,25 +517,25 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                           {paymentMethodsData?.data
                             .filter((method) => ['Cash', 'UPI', 'Card'].includes(method.name))
                             .map((method) => (
-                            <div key={method.id} className="text-center">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">{method.name}</label>
-                              <div className="relative">
-                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
-                                  ₹
-                                </span>
-                                <input
-                                  type="number"
-                                  step="1"
-                                  min="0"
-                                  value={paymentEntries[method.id]?.amount || ''}
-                                  onChange={(e) => updatePaymentEntry(method.id, e.target.value)}
-                                  disabled={isAlreadyDelivered || pricingSummary.balanceDue <= 0}
-                                  className="w-full pl-5 pr-2 py-2 border border-gray-300 rounded-lg text-sm text-right focus:ring-1 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
-                                  placeholder="0"
-                                />
+                              <div key={method.id} className="text-center">
+                                <label className="block text-xs font-medium text-gray-600 mb-1">{method.name}</label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                    ₹
+                                  </span>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    value={paymentEntries[method.id]?.amount || ''}
+                                    onChange={(e) => updatePaymentEntry(method.id, e.target.value)}
+                                    disabled={isAlreadyDelivered || pricingSummary.balanceDue <= 0}
+                                    className="w-full pl-5 pr-2 py-2 border border-gray-300 rounded-lg text-sm text-right focus:ring-1 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+                                    placeholder="0"
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                           {/* Discount Input */}
                           <div className="text-center">
                             <label className="block text-xs font-medium text-red-600 mb-1">Discount</label>
@@ -512,9 +566,8 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                           <div className="flex items-center justify-between mt-1">
                             <span className="text-sm text-gray-500">Remaining</span>
                             <span
-                              className={`font-medium ${
-                                remainingBalance <= 0 ? 'text-green-600' : 'text-orange-600'
-                              }`}
+                              className={`font-medium ${remainingBalance <= 0 ? 'text-green-600' : 'text-orange-600'
+                                }`}
                             >
                               {remainingBalance <= 0 && totalEntered > 0 ? (
                                 <span className="flex items-center gap-1">
@@ -570,9 +623,8 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                       <div className="flex justify-between border-t pt-2">
                         <span className="font-bold">Balance Due</span>
                         <span
-                          className={`font-bold text-lg ${
-                            pricingSummary.balanceDue > 0 ? 'text-red-600' : 'text-green-600'
-                          }`}
+                          className={`font-bold text-lg ${pricingSummary.balanceDue > 0 ? 'text-red-600' : 'text-green-600'
+                            }`}
                         >
                           ₹{formatCurrency(pricingSummary.balanceDue)}
                         </span>
@@ -632,16 +684,27 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
         {service && (
           <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200 flex-shrink-0">
             <button
-              onClick={() => invoiceMutation.mutate()}
+              onClick={() => {
+                if (service.invoice) {
+                  handlePrintInvoice();
+                } else {
+                  handleGenerateInvoice();
+                }
+              }}
               disabled={invoiceMutation.isPending}
-              className="px-4 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+              className={`px-4 py-2 border rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 ${service.invoice
+                ? 'text-green-600 border-green-300 hover:bg-green-50'
+                : 'text-purple-600 border-purple-300 hover:bg-purple-50'
+                }`}
             >
               {invoiceMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+              ) : service.invoice ? (
                 <Receipt className="h-4 w-4" />
+              ) : (
+                <FileText className="h-4 w-4" />
               )}
-              Generate Invoice
+              {service.invoice ? 'Print Invoice' : 'Generate Invoice'}
             </button>
 
             <div className="flex items-center gap-3">
@@ -665,8 +728,8 @@ export default function DeliveryModal({ isOpen, onClose }: DeliveryModalProps) {
                   {totalEntered > 0 && markAsDelivered
                     ? 'Collect & Deliver'
                     : markAsDelivered
-                    ? 'Mark Delivered'
-                    : 'Collect Payment'}
+                      ? 'Mark Delivered'
+                      : 'Collect Payment'}
                 </button>
               )}
             </div>

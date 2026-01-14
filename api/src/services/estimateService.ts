@@ -132,7 +132,7 @@ export class EstimateService {
             subtotal,
             taxAmount,
             totalAmount,
-            validUntil,
+            validUntil: validUntil ? new Date(validUntil) : null,
             notes,
             companyId,
             branchId,
@@ -391,7 +391,7 @@ export class EstimateService {
             subtotal,
             taxAmount,
             totalAmount,
-            validUntil,
+            validUntil: validUntil ? new Date(validUntil) : undefined,
             notes,
           },
         });
@@ -763,6 +763,101 @@ export class EstimateService {
       return { pdfUrl };
     } catch (error) {
       Logger.error('Error regenerating estimate PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stream Estimate PDF on-demand (no file saved)
+   * Used for View/Download operations
+   */
+  static async streamEstimatePDF(
+    estimateId: string,
+    companyId: string,
+    format: string = 'A4'
+  ): Promise<{ buffer: Buffer; estimateNumber: string }> {
+    try {
+      const estimate = await this.getEstimateById(estimateId, companyId);
+
+      // Get company and branch details
+      const [company, branch] = await Promise.all([
+        prisma.company.findUnique({
+          where: { id: companyId },
+          select: {
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+            logo: true,
+          },
+        }),
+        prisma.branch.findUnique({
+          where: { id: estimate.branchId },
+          select: {
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+          },
+        }),
+      ]);
+
+      if (!company || !branch) {
+        throw new AppError(404, 'Company or branch not found');
+      }
+
+      // Prepare data for PDF generation
+      const pdfData = {
+        estimateNumber: estimate.estimateNumber,
+        estimateDate: estimate.createdAt,
+        validUntil: estimate.validUntil,
+        customer: estimate.customer,
+        service: estimate.service,
+        items: estimate.items,
+        subtotal: estimate.subtotal,
+        taxAmount: estimate.taxAmount,
+        totalAmount: estimate.totalAmount,
+        notes: estimate.notes,
+        company,
+        branch,
+      };
+
+      // Generate PDF buffer (no file saved)
+      const buffer = await pdfGenerationService.generateEstimatePDFBuffer(pdfData, format);
+
+      Logger.info(`Estimate ${estimate.estimateNumber} streamed on-demand (${format})`);
+      return { buffer, estimateNumber: estimate.estimateNumber };
+    } catch (error) {
+      Logger.error('Error streaming estimate PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get shareable Estimate URL (for WhatsApp sharing)
+   * Generates PDF and saves to storage
+   */
+  static async getShareableEstimateURL(
+    estimateId: string,
+    companyId: string,
+    format: string = 'A4'
+  ): Promise<{ pdfUrl: string; estimateNumber: string }> {
+    try {
+      // This uses the existing regenerate method which saves to file
+      const result = await this.regenerateEstimatePDF(estimateId, companyId, format);
+
+      const estimate = await prisma.estimate.findUnique({
+        where: { id: estimateId },
+        select: { estimateNumber: true },
+      });
+
+      Logger.info(`Estimate ${estimate?.estimateNumber} generated for sharing`);
+      return {
+        pdfUrl: result.pdfUrl,
+        estimateNumber: estimate?.estimateNumber || '',
+      };
+    } catch (error) {
+      Logger.error('Error generating shareable estimate URL:', error);
       throw error;
     }
   }

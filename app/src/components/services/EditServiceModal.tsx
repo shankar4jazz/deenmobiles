@@ -4,8 +4,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { serviceApi, UpdateServiceData } from '@/services/serviceApi';
-import { X, Loader2 } from 'lucide-react';
+import { serviceApi, UpdateServiceData, ServiceStatus } from '@/services/serviceApi';
+import { X, Loader2, RefreshCw } from 'lucide-react';
 import { CustomerDevice, Customer } from '@/types';
 import { Fault, Accessory } from '@/types/masters';
 
@@ -30,6 +30,9 @@ const editServiceSchema = z.object({
   estimatedCost: z.number().min(0, 'Estimated cost cannot be negative').optional(),
   actualCost: z.number().min(0, 'Actual cost cannot be negative').optional(),
   advancePayment: z.number().min(0, 'Advance payment cannot be negative').optional(),
+  status: z.nativeEnum(ServiceStatus),
+  statusNotes: z.string().optional(),
+  notServiceableReason: z.string().optional(),
 });
 
 type EditServiceFormData = z.infer<typeof editServiceSchema>;
@@ -98,6 +101,9 @@ export default function EditServiceModal({
         estimatedCost: service.estimatedCost || 0,
         actualCost: service.actualCost || 0,
         advancePayment: service.advancePayment || 0,
+        status: service.status,
+        statusNotes: '',
+        notServiceableReason: service.notServiceableReason || '',
       });
 
       // Set selected faults for display
@@ -156,7 +162,27 @@ export default function EditServiceModal({
       accessoryIds: data.accessoryIds && data.accessoryIds.length > 0 ? data.accessoryIds : [],
     };
 
-    updateServiceMutation.mutate(submitData);
+    try {
+      // Update main service details
+      await updateServiceMutation.mutateAsync(submitData);
+
+      // If status has changed, update status separately to trigger history/logic
+      if (data.status !== service?.status) {
+        await serviceApi.updateServiceStatus(
+          serviceId,
+          data.status,
+          data.statusNotes || undefined,
+          data.status === ServiceStatus.NOT_READY ? data.notServiceableReason : undefined
+        );
+      }
+
+      toast.success('Service updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['service', serviceId] });
+      onClose();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update service');
+    }
   };
 
   if (!isOpen) return null;
@@ -164,56 +190,130 @@ export default function EditServiceModal({
   const customerId = service?.customerId;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-black/50 transition-opacity"
-          onClick={onClose}
-        />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50 transition-opacity"
+        onClick={onClose}
+      />
 
-        {/* Modal */}
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Edit Service</h2>
-              {service && (
-                <p className="text-sm text-gray-500 mt-0.5">
-                  {service.ticketNumber} - {service.customer?.name}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* Modal Container */}
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header - Fixed at Top */}
+        <div className="bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Edit Service</h2>
+            {service && (
+              <p className="text-sm text-gray-500 mt-0.5">
+                {service.ticketNumber} - {service.customer?.name}
+              </p>
+            )}
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          {/* Content */}
-          <div className="p-6">
-            {isLoadingService ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-              </div>
-            ) : !service ? (
-              <div className="text-center py-12 text-gray-500">
-                Service not found
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                {/* Customer Info (Read-only) */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="text-sm text-gray-500 mb-1">Customer</div>
-                  <div className="font-medium text-gray-900">{service.customer?.name}</div>
-                  <div className="text-sm text-gray-500">{service.customer?.phone}</div>
+        {/* Scrollable Form Body */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoadingService ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+            </div>
+          ) : !service ? (
+            <div className="text-center py-12 text-gray-500">
+              Service not found
+            </div>
+          ) : (
+            <form id="edit-service-form" onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
+              {/* Status Section */}
+              <section className="bg-purple-50 p-4 rounded-xl border border-purple-100 space-y-4">
+                <h3 className="text-sm font-semibold text-purple-900 flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  Service Status
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormRow label="Current Status" error={errors.status?.message} required>
+                    <Controller
+                      name="status"
+                      control={control}
+                      render={({ field }) => (
+                        <select
+                          {...field}
+                          className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                        >
+                          {Object.values(ServiceStatus).map((status) => (
+                            <option key={status} value={status}>
+                              {status.replace(/_/g, ' ')}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    />
+                  </FormRow>
+
+                  {watch('status') === ServiceStatus.NOT_READY && (
+                    <FormRow label="Reason for Not Serviceable" error={errors.notServiceableReason?.message} required>
+                      <Controller
+                        name="notServiceableReason"
+                        control={control}
+                        render={({ field }) => (
+                          <textarea
+                            {...field}
+                            rows={2}
+                            placeholder="Why can't this device be serviced?"
+                            className="w-full px-3 py-2 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                          />
+                        )}
+                      />
+                    </FormRow>
+                  )}
                 </div>
 
-                {/* Row 1: Device, Service Category */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormRow label="Device" required error={errors.customerDeviceId?.message}>
+                <FormRow label="Status Change Notes (Internal)" error={errors.statusNotes?.message}>
+                  <Controller
+                    name="statusNotes"
+                    control={control}
+                    render={({ field }) => (
+                      <textarea
+                        {...field}
+                        rows={2}
+                        placeholder="Optional notes about this status change..."
+                        className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    )}
+                  />
+                </FormRow>
+              </section>
+
+              {/* Customer Info (Read-only Summary) */}
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                    <span className="text-lg font-bold">
+                      {service.customer?.name?.[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">{service.customer?.name}</div>
+                    <div className="text-sm text-purple-600 font-medium">{service.customer?.phone}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-500 uppercase font-semibold">Current Status</div>
+                  <div className="text-sm font-bold text-gray-700">{service.status}</div>
+                </div>
+              </div>
+
+              {/* Section 1: Core Service Details */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Core Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormRow label="Device Model" required error={errors.customerDeviceId?.message}>
                     <SearchableDeviceSelect
                       value={watch('customerDeviceId')}
                       onChange={handleDeviceChange}
@@ -224,7 +324,7 @@ export default function EditServiceModal({
                     />
                   </FormRow>
 
-                  <FormRow label="Fault(s)" required error={errors.faultIds?.message}>
+                  <FormRow label="Fault(s) to Fix" required error={errors.faultIds?.message}>
                     <Controller
                       control={control}
                       name="faultIds"
@@ -240,42 +340,39 @@ export default function EditServiceModal({
                   </FormRow>
                 </div>
 
-                {/* Row 2: Device Condition, Issue */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormRow label="Device Condition">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormRow label="Device Condition" required>
                     <Controller
                       control={control}
                       name="deviceConditionId"
                       render={({ field }) => (
-                        <div className="flex items-center gap-2">
+                        <div className="flex p-1 bg-gray-100 rounded-lg w-fit">
                           <button
                             type="button"
                             onClick={() => field.onChange('on')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                              field.value === 'on'
-                                ? 'bg-purple-600 text-white border-purple-600'
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
+                            className={`px-6 py-1.5 text-sm font-semibold rounded-md transition-all ${field.value === 'on'
+                              ? 'bg-white text-purple-600 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700'
+                              }`}
                           >
-                            On
+                            Powered On
                           </button>
                           <button
                             type="button"
                             onClick={() => field.onChange('off')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                              field.value === 'off'
-                                ? 'bg-purple-600 text-white border-purple-600'
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
+                            className={`px-6 py-1.5 text-sm font-semibold rounded-md transition-all ${field.value === 'off'
+                              ? 'bg-white text-red-600 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700'
+                              }`}
                           >
-                            Off
+                            Powered Off
                           </button>
                         </div>
                       )}
                     />
                   </FormRow>
 
-                  <FormRow label="Damage Condition" required error={errors.damageCondition?.message}>
+                  <FormRow label="Physical Condition (Damage)" required error={errors.damageCondition?.message}>
                     <Controller
                       control={control}
                       name="damageCondition"
@@ -283,19 +380,21 @@ export default function EditServiceModal({
                         <textarea
                           {...field}
                           rows={2}
-                          placeholder="Describe the damage condition..."
-                          className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none ${
-                            errors.damageCondition ? 'border-red-500' : 'border-gray-300'
-                          }`}
+                          placeholder="e.g. Broken screen, Scratches on back..."
+                          className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none transition-shadow ${errors.damageCondition ? 'border-red-500' : 'border-gray-200'
+                            }`}
                         />
                       )}
                     />
                   </FormRow>
                 </div>
+              </div>
 
-                {/* Row 3: Password, Pattern, Accessories */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormRow label="Password/PIN">
+              {/* Section 2: Security & Accessories */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Security & Accessories</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <FormRow label="PIN / Password">
                     <Controller
                       control={control}
                       name="devicePassword"
@@ -303,8 +402,8 @@ export default function EditServiceModal({
                         <input
                           {...field}
                           type="text"
-                          placeholder="Device unlock code..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          placeholder="Unlock code"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       )}
                     />
@@ -336,143 +435,137 @@ export default function EditServiceModal({
                             field.onChange(ids);
                             setSelectedAccessories(accessories);
                           }}
-                          placeholder="Select accessories..."
+                          placeholder="Charger, SIM Tray..."
                         />
                       )}
                     />
                   </FormRow>
                 </div>
+              </div>
 
-                {/* Row 4: Intake Notes */}
-                <FormRow label="Intake Notes">
-                  <Controller
-                    control={control}
-                    name="intakeNotes"
-                    render={({ field }) => (
-                      <textarea
-                        {...field}
-                        rows={2}
-                        placeholder="Notes about device condition at intake..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
-                      />
-                    )}
-                  />
-                </FormRow>
+              {/* Section 3: Technical Notes */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Technical Notes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormRow label="Intake Notes">
+                    <Controller
+                      control={control}
+                      name="intakeNotes"
+                      render={({ field }) => (
+                        <textarea
+                          {...field}
+                          rows={3}
+                          placeholder="Initial observations..."
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        />
+                      )}
+                    />
+                  </FormRow>
 
-                {/* Row 5: Diagnosis */}
-                <FormRow label="Diagnosis">
-                  <Controller
-                    control={control}
-                    name="diagnosis"
-                    render={({ field }) => (
-                      <textarea
-                        {...field}
-                        rows={2}
-                        placeholder="Technician diagnosis..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
-                      />
-                    )}
-                  />
-                </FormRow>
+                  <FormRow label="Diagnosis">
+                    <Controller
+                      control={control}
+                      name="diagnosis"
+                      render={({ field }) => (
+                        <textarea
+                          {...field}
+                          rows={3}
+                          placeholder="Detailed technician diagnosis..."
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        />
+                      )}
+                    />
+                  </FormRow>
+                </div>
+              </div>
 
-                {/* Row 6: Pricing */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormRow label="Estimated Cost" error={errors.estimatedCost?.message}>
+              {/* Section 4: Billing Details */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Billing Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <FormRow label="Estimated Total" error={errors.estimatedCost?.message}>
                     <Controller
                       control={control}
                       name="estimatedCost"
                       render={({ field }) => (
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-                            ₹
-                          </span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
                           <input
                             type="number"
-                            step="1"
-                            min="0"
                             value={field.value || ''}
                             onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                            placeholder="0"
-                            className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                              errors.estimatedCost ? 'border-red-500' : 'border-gray-300'
-                            }`}
+                            className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-purple-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
                       )}
                     />
                   </FormRow>
 
-                  <FormRow label="Actual Cost" error={errors.actualCost?.message}>
+                  <FormRow label="Actual Final Cost" error={errors.actualCost?.message}>
                     <Controller
                       control={control}
                       name="actualCost"
                       render={({ field }) => (
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-                            ₹
-                          </span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
                           <input
                             type="number"
-                            step="1"
-                            min="0"
                             value={field.value || ''}
                             onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                            placeholder="0"
-                            className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                              errors.actualCost ? 'border-red-500' : 'border-gray-300'
-                            }`}
+                            className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-green-600 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                           />
                         </div>
                       )}
                     />
                   </FormRow>
 
-                  <FormRow label="Advance Payment" error={errors.advancePayment?.message}>
+                  <FormRow label="Advance Received" error={errors.advancePayment?.message}>
                     <Controller
                       control={control}
                       name="advancePayment"
                       render={({ field }) => (
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-                            ₹
-                          </span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₹</span>
                           <input
                             type="number"
-                            step="1"
-                            min="0"
                             value={field.value || ''}
                             onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                            placeholder="0"
-                            className={`w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                              errors.advancePayment ? 'border-red-500' : 'border-gray-300'
-                            }`}
+                            className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-blue-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
                       )}
                     />
                   </FormRow>
                 </div>
+              </div>
+            </form>
+          )}
+        </div>
 
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={updateServiceMutation.isPending}
-                    className="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-purple-400"
-                  >
-                    {updateServiceMutation.isPending ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
+        {/* Footer - Fixed at Bottom */}
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3 border-t">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            form="edit-service-form"
+            type="submit"
+            disabled={updateServiceMutation.isPending}
+            className="px-8 py-2 text-sm font-bold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-purple-400 shadow-lg shadow-purple-200 transition-all flex items-center gap-2"
+          >
+            {updateServiceMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save All Changes'
             )}
-          </div>
+          </button>
         </div>
       </div>
     </div>

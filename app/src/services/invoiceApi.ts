@@ -54,18 +54,28 @@ export interface InvoicePayment {
   };
 }
 
+export interface CreateInvoiceItemData {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  // Inventory item fields (if itemId exists = inventory item)
+  itemId?: string;
+  itemCode?: string;
+  branchInventoryId?: string;
+  hsnCode?: string;
+  gstRate?: number;
+}
+
 export interface CreateInvoiceData {
   serviceId?: string; // For service-linked invoices
   customerId?: string; // For standalone invoices
   branchId?: string; // For standalone invoices
-  items?: Array<{ // For standalone invoices
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    amount: number;
-  }>;
+  items?: CreateInvoiceItemData[]; // For standalone invoices
   totalAmount?: number;
   paidAmount?: number;
+  paymentMethodId?: string;
+  themeId?: string;
   notes?: string;
 }
 

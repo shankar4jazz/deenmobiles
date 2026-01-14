@@ -826,6 +826,7 @@ model Supplier {
   address           String?
   city              String?
   state             String?
+  country           String?
   pincode           String?
   gstNumber         String?
   panNumber         String?

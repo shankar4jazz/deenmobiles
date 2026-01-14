@@ -73,6 +73,35 @@ export function InvoicePreviewModal({
     }
   }, [isOpen]);
 
+  // State for blob URL preview
+  const [blobPdfUrl, setBlobPdfUrl] = useState<string | null>(null);
+
+  // Fetch PDF as blob for preview when invoice changes
+  useEffect(() => {
+    async function fetchPdfBlob() {
+      if (invoice?.id) {
+        try {
+          const { pdfUrl } = await invoiceApi.downloadPDF(invoice.id, 'A4');
+          setBlobPdfUrl(pdfUrl);
+          setIframeError(false);
+        } catch (error) {
+          console.error('Failed to fetch invoice PDF blob:', error);
+          setIframeError(true);
+        }
+      } else {
+        setBlobPdfUrl(null);
+      }
+    }
+    fetchPdfBlob();
+
+    // Cleanup blob URL on unmount or invoice change
+    return () => {
+      if (blobPdfUrl) {
+        URL.revokeObjectURL(blobPdfUrl);
+      }
+    };
+  }, [invoice?.id, pdfVersion]);
+
   const generateMutation = useMutation({
     mutationFn: () => invoiceApi.generateFromService(serviceId),
     onSuccess: (data) => {
@@ -106,29 +135,48 @@ export function InvoicePreviewModal({
     generateMutation.mutate();
   };
 
-  const handlePrint = () => {
-    if (invoice?.pdfUrl) {
-      window.open(getPdfUrl(invoice.pdfUrl, pdfVersion), '_blank');
-    }
+  const handlePrint = async () => {
+    if (!invoice?.id) return;
+
+    toast.promise(invoiceApi.downloadPDF(invoice.id, 'A4'), {
+      loading: 'Preparing for print...',
+      success: (data) => {
+        window.open(data.pdfUrl, '_blank');
+        return 'Ready to print';
+      },
+      error: 'Failed to prepare PDF',
+    });
   };
 
-  const handleDownload = () => {
-    if (invoice?.pdfUrl) {
-      window.open(getPdfUrl(invoice.pdfUrl, pdfVersion), '_blank');
-    }
+  const handleDownload = async () => {
+    if (!invoice?.id) return;
+
+    toast.promise(invoiceApi.downloadSalesTaxInvoicePDF(invoice.id), {
+      loading: 'Downloading A4 Invoice...',
+      success: 'Download started',
+      error: 'Failed to download PDF',
+    });
   };
 
-  const handleOpenInNewTab = () => {
-    if (invoice?.pdfUrl) {
-      window.open(getPdfUrl(invoice.pdfUrl, pdfVersion), '_blank');
-    }
+  const handleOpenInNewTab = async () => {
+    if (!invoice?.id) return;
+
+    const { pdfUrl } = await invoiceApi.downloadPDF(invoice.id, 'A4');
+    window.open(pdfUrl, '_blank');
   };
 
-  const handleWhatsAppShare = () => {
-    if (invoice) {
-      const pdfLink = getPdfUrl(invoice.pdfUrl, pdfVersion);
-      const message = `Invoice: ${invoice.invoiceNumber}\nTicket: ${invoice.service?.ticketNumber || ''}\nAmount: ₹${invoice.totalAmount}\nBalance: ₹${invoice.balanceAmount}\n\nView/Download: ${pdfLink}`;
+  const handleWhatsAppShare = async () => {
+    if (!invoice) return;
+
+    try {
+      toast.loading('Preparing shareable link...');
+      const { pdfUrl } = await invoiceApi.getShareableSalesTaxInvoiceURL(invoice.id);
+      const message = `Invoice: ${invoice.invoiceNumber}\nTicket: ${invoice.service?.ticketNumber || ''}\nAmount: ₹${invoice.totalAmount}\nBalance: ₹${invoice.balanceAmount}\n\nView/Download: ${pdfUrl}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+      toast.dismiss();
+    } catch (error) {
+      toast.error('Failed to generate sharing link');
+      toast.dismiss();
     }
   };
 
@@ -267,13 +315,13 @@ export function InvoicePreviewModal({
                 Retry
               </button>
             </div>
-          ) : invoice?.pdfUrl ? (
+          ) : blobPdfUrl ? (
             <div className="h-full flex flex-col items-center justify-center">
               {iframeError ? (
                 <div className="flex flex-col items-center justify-center bg-gray-50 border border-gray-200 rounded-lg p-8 w-full max-w-md">
                   <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
                   <p className="text-lg font-medium text-gray-900 mb-2">Invoice Ready!</p>
-                  <p className="text-sm text-gray-500 mb-1">#{invoice.invoiceNumber}</p>
+                  <p className="text-sm text-gray-500 mb-1">#{invoice?.invoiceNumber}</p>
                   <p className="text-xs text-gray-400 mb-6 text-center">
                     PDF preview is not available in this browser.<br />
                     Click below to open in a new tab.
@@ -289,24 +337,14 @@ export function InvoicePreviewModal({
               ) : (
                 <iframe
                   key={pdfVersion}
-                  src={getPdfUrl(invoice.pdfUrl, pdfVersion)}
-                  title={`Invoice ${invoice.invoiceNumber}`}
+                  src={blobPdfUrl}
+                  title={`Invoice ${invoice?.invoiceNumber}`}
                   onError={() => setIframeError(true)}
-                  onLoad={(e) => {
-                    try {
-                      const iframe = e.target as HTMLIFrameElement;
-                      if (iframe.contentDocument?.body?.innerHTML === '') {
-                        setIframeError(true);
-                      }
-                    } catch {
-                      // CORS error means content loaded from different origin - this is OK
-                    }
-                  }}
                   className="w-full h-[500px] border border-gray-200 rounded-lg"
                 />
               )}
             </div>
-          ) : (
+          ) : invoice ? (
             <div className="h-96 flex flex-col items-center justify-center text-gray-500">
               <AlertCircle className="w-10 h-10 mb-4" />
               <p className="text-sm">No preview available</p>
@@ -318,7 +356,7 @@ export function InvoicePreviewModal({
                 Generate Invoice
               </button>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Footer Actions */}
@@ -326,7 +364,7 @@ export function InvoicePreviewModal({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              disabled={!invoice?.pdfUrl || isLoading || isRegenerating}
+              disabled={!invoice?.id || isLoading || isRegenerating}
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Printer className="w-4 h-4" />
@@ -334,7 +372,7 @@ export function InvoicePreviewModal({
             </button>
             <button
               onClick={handleDownload}
-              disabled={!invoice?.pdfUrl || isLoading || isRegenerating}
+              disabled={!invoice?.id || isLoading || isRegenerating}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Download className="w-4 h-4" />
@@ -342,7 +380,7 @@ export function InvoicePreviewModal({
             </button>
             <button
               onClick={handleWhatsAppShare}
-              disabled={!invoice?.pdfUrl || isLoading || isRegenerating}
+              disabled={!invoice?.id || isLoading || isRegenerating}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <MessageCircle className="w-4 h-4" />

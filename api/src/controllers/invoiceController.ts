@@ -29,14 +29,30 @@ export class InvoiceController {
    * Create standalone invoice
    */
   static createInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { serviceId, totalAmount, paidAmount } = req.body;
+    const {
+      serviceId,
+      customerId,
+      branchId,
+      items,
+      totalAmount,
+      paidAmount,
+      paymentMethodId,
+      themeId,
+      notes
+    } = req.body;
     const userId = req.user!.userId;
     const companyId = req.user!.companyId;
 
     const invoice = await InvoiceService.createInvoice({
       serviceId,
+      customerId,
+      branchId,
+      items,
       totalAmount,
       paidAmount,
+      paymentMethodId,
+      themeId,
+      notes,
       userId,
       companyId,
     });

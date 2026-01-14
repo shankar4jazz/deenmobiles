@@ -11,10 +11,10 @@ export class EstimateController {
    * Create new estimate
    */
   static createEstimate = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { customerId, serviceId, items, subtotal, taxAmount, totalAmount, validUntil, notes } = req.body;
+    const { customerId, serviceId, items, subtotal, taxAmount, totalAmount, validUntil, notes, branchId: bodyBranchId } = req.body;
     const userId = req.user!.userId;
     const companyId = req.user!.companyId;
-    const branchId = req.user!.branchId;
+    const branchId = bodyBranchId || req.user!.branchId || '';
 
     const estimate = await EstimateService.createEstimate({
       customerId,
@@ -27,7 +27,7 @@ export class EstimateController {
       notes,
       createdBy: userId,
       companyId,
-      branchId: branchId || '',
+      branchId,
     });
 
     return ApiResponse.created(res, estimate, 'Estimate created successfully');
@@ -218,7 +218,8 @@ export class EstimateController {
 
   /**
    * GET /api/v1/estimates/:id/pdf?format=A4|A5|thermal-2|thermal-3
-   * Get estimate PDF URL
+   * Stream estimate PDF on-demand (no file saved)
+   * Used for View operations
    */
   static getEstimatePDF = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
@@ -231,13 +232,62 @@ export class EstimateController {
       return ApiResponse.badRequest(res, 'Invalid format. Valid formats are: A4, A5, thermal-2, thermal-3');
     }
 
-    // Generate PDF with specified format
-    const result = await EstimateService.regenerateEstimatePDF(id, companyId, format);
+    // Stream PDF on-demand (no file saved)
+    const { buffer, estimateNumber } = await EstimateService.streamEstimatePDF(id, companyId, format);
+
+    // Set headers for PDF streaming
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="estimate_${estimateNumber}_${format}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Stream the buffer directly to response
+    return res.send(buffer);
+  });
+
+  /**
+   * GET /api/v1/estimates/:id/download?format=A4|A5|thermal-2|thermal-3
+   * Download estimate PDF on-demand (no file saved)
+   */
+  static downloadEstimatePDF = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const format = (req.query.format as string) || 'A4';
+
+    // Validate format
+    const validFormats = ['A4', 'A5', 'thermal-2', 'thermal-3'];
+    if (!validFormats.includes(format)) {
+      return ApiResponse.badRequest(res, 'Invalid format. Valid formats are: A4, A5, thermal-2, thermal-3');
+    }
+
+    // Stream PDF on-demand (no file saved)
+    const { buffer, estimateNumber } = await EstimateService.streamEstimatePDF(id, companyId, format);
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="estimate_${estimateNumber}_${format}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Stream the buffer directly to response
+    return res.send(buffer);
+  });
+
+  /**
+   * POST /api/v1/estimates/:id/share
+   * Get shareable estimate URL (for WhatsApp sharing)
+   * Generates PDF and saves to storage
+   * @body format - Optional format: 'A4' | 'A5' | 'thermal-2' | 'thermal-3' (default: 'A4')
+   */
+  static getShareableEstimateURL = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+    const { format = 'A4' } = req.body;
+
+    const result = await EstimateService.getShareableEstimateURL(id, companyId, format);
 
     return ApiResponse.success(
       res,
-      { pdfUrl: result.pdfUrl },
-      'PDF generated successfully'
+      result,
+      'Shareable estimate URL generated successfully'
     );
   });
 }

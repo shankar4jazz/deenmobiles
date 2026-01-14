@@ -305,7 +305,7 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
               {/* Phone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
+                  Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -314,11 +314,10 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                   onChange={handleInputChange}
                   placeholder="10 digits"
                   maxLength={10}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    validationErrors.phone
-                      ? 'border-red-500'
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${validationErrors.phone
+                    ? 'border-red-500'
+                    : 'border-gray-300'
+                    }`}
                 />
                 {validationErrors.phone && (
                   <p className="text-xs text-red-600 mt-1">
@@ -361,11 +360,10 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                   onChange={handleInputChange}
                   placeholder="15 characters"
                   maxLength={15}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    validationErrors.gstNumber
-                      ? 'border-red-500'
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${validationErrors.gstNumber
+                    ? 'border-red-500'
+                    : 'border-gray-300'
+                    }`}
                 />
                 {validationErrors.gstNumber && (
                   <p className="text-xs text-red-600 mt-1">
@@ -386,11 +384,10 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                   onChange={handleInputChange}
                   placeholder="10 characters"
                   maxLength={10}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    validationErrors.panNumber
-                      ? 'border-red-500'
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${validationErrors.panNumber
+                    ? 'border-red-500'
+                    : 'border-gray-300'
+                    }`}
                 />
                 {validationErrors.panNumber && (
                   <p className="text-xs text-red-600 mt-1">
@@ -462,11 +459,10 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                     onChange={handleInputChange}
                     placeholder="6 digits"
                     maxLength={6}
-                    className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      validationErrors.pincode
-                        ? 'border-red-500'
-                        : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${validationErrors.pincode
+                      ? 'border-red-500'
+                      : 'border-gray-300'
+                      }`}
                   />
                   {validationErrors.pincode && (
                     <p className="text-xs text-red-600 mt-1">
@@ -538,11 +534,10 @@ const AddSupplierModal: React.FC<AddSupplierModalProps> = ({
                   onChange={handleInputChange}
                   placeholder="e.g., SBIN0001234"
                   maxLength={11}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    validationErrors.ifscCode
-                      ? 'border-red-500'
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${validationErrors.ifscCode
+                    ? 'border-red-500'
+                    : 'border-gray-300'
+                    }`}
                 />
                 {validationErrors.ifscCode && (
                   <p className="text-xs text-red-600 mt-1">

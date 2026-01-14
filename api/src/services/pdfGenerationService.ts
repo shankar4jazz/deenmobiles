@@ -247,6 +247,8 @@ interface SalesTaxInvoiceData {
   };
   items: SalesTaxInvoiceItem[];
   // Tax calculation
+  subtotalBeforeDiscount?: number;
+  discountAmount?: number;
   grossAmount: number;
   roundOff: number;
   netAmount: number;
@@ -912,12 +914,12 @@ export class PDFGenerationService {
     doc.save();
     doc.rotate(-45, { origin: [pageWidth / 2, pageHeight / 2] });
     doc.fontSize(50)
-       .fillColor('#ef4444')
-       .opacity(0.12)
-       .text('REPEATED SERVICE', 0, pageHeight / 2 - 25, {
-         width: pageWidth * 1.5,
-         align: 'center'
-       });
+      .fillColor('#ef4444')
+      .opacity(0.12)
+      .text('REPEATED SERVICE', 0, pageHeight / 2 - 25, {
+        width: pageWidth * 1.5,
+        align: 'center'
+      });
     doc.restore();
     doc.opacity(1); // Reset opacity for subsequent content
   }
@@ -2317,50 +2319,53 @@ export class PDFGenerationService {
 
     // Address - Branch address with proper readability
     const address = data.branch.address || data.company.address || '';
-    doc.fontSize(8).font('Helvetica').fillColor(textDark)
+    doc.fontSize(9).font('Helvetica').fillColor(textDark)
       .text(address, centerX, yPos + 44, { width: centerWidth, align: 'center', lineGap: 1.5 });
 
-    // Phone numbers on right - Single line with comma, responsive to new line
-    const phoneX = pageWidth - margin - 90;
+    // Phone numbers on right - Stacked professionally
+    const phoneX = pageWidth - margin - 100;
     const branchPhone = data.branch.phone || data.company.phone || '';
     const phoneNumbers = branchPhone.split(',').map(p => p.trim()).filter(p => p);
+    if (!phoneNumbers.includes('9894171877')) phoneNumbers.push('9894171877');
 
-    // Draw phone icon using SVG path data (from ic_phone.svg)
-    // Original SVG viewBox: 0 0 24 24, scale to 10pt icon
-    const iconSize = 10;
-    const scale = iconSize / 24;
-    const iconX = phoneX;
-    const iconY = yPos + 14;
+    // Helper to format phone (remove +91 prefix)
+    const formatMob = (num: string) => {
+      let cleaned = num.replace(/\s+/g, '');
+      if (cleaned.startsWith('+91')) cleaned = cleaned.substring(3);
+      else if (cleaned.startsWith('91') && cleaned.length > 10) cleaned = cleaned.substring(2);
+      return cleaned;
+    };
 
-    doc.save();
-    doc.translate(iconX, iconY);
-    doc.scale(scale);
+    // Phone icon - using PNG image
+    const iconSize = 12;
+    const phoneIconPath = path.join(__dirname, '../../public/uploads/logos/phone-call.png');
+    try {
+      if (fs.existsSync(phoneIconPath)) {
+        // Vertical centering for icon relative to phone stack
+        const totalTextHeight = (phoneNumbers.length * 13) - 2; // Approximate height of text block
+        const iconY = yPos + 16 + (totalTextHeight / 2) - (iconSize / 2);
+        doc.image(phoneIconPath, phoneX, iconY, { width: iconSize, height: iconSize });
+      }
+    } catch (e: any) {
+      console.error(`[Phone Icon] Failed to load: ${e.message}`);
+    }
 
-    // SVG path from ic_phone.svg - phone icon outline
-    doc.path('M14.05 6C15.0268 6.19057 15.9244 6.66826 16.6281 7.37194C17.3318 8.07561 17.8095 8.97326 18 9.95M14.05 2C16.0793 2.22544 17.9716 3.13417 19.4163 4.57701C20.8609 6.01984 21.7721 7.91101 22 9.94M18.5 21C9.93959 21 3 14.0604 3 5.5C3 5.11378 3.01413 4.73086 3.04189 4.35173C3.07375 3.91662 3.08968 3.69907 3.2037 3.50103C3.29814 3.33701 3.4655 3.18146 3.63598 3.09925C3.84181 3 4.08188 3 4.56201 3H7.37932C7.78308 3 7.98496 3 8.15802 3.06645C8.31089 3.12515 8.44701 3.22049 8.55442 3.3441C8.67601 3.48403 8.745 3.67376 8.88299 4.05321L10.0491 7.26005C10.2096 7.70153 10.2899 7.92227 10.2763 8.1317C10.2643 8.31637 10.2012 8.49408 10.0942 8.64506C9.97286 8.81628 9.77145 8.93713 9.36863 9.17882L8 10C9.2019 12.6489 11.3501 14.7999 14 16L14.8212 14.6314C15.0629 14.2285 15.1837 14.0271 15.3549 13.9058C15.5059 13.7988 15.6836 13.7357 15.8683 13.7237C16.0777 13.7101 16.2985 13.7904 16.74 13.9509L19.9468 15.117C20.3262 15.255 20.516 15.324 20.6559 15.4456C20.7795 15.553 20.8749 15.6891 20.9335 15.842C21 16.015 21 16.2169 21 16.6207V19.438C21 19.9181 21 20.1582 20.9007 20.364C20.8185 20.5345 20.663 20.7019 20.499 20.7963C20.3009 20.9103 20.0834 20.9262 19.6483 20.9581C19.2691 20.9859 18.8862 21 18.5 21Z')
-       .lineWidth(2 / scale) // Adjust stroke width for scaling
-       .strokeColor(textDark)
-       .stroke();
+    // Phone numbers - Stacked with increased size
+    const phoneTextX = phoneX + iconSize + 4;
+    const phoneTextWidth = 85;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(textDark);
 
-    doc.restore();
-
-    // Phone numbers - responsive (comma separated, wraps to new line if needed)
-    const phoneTextX = phoneX + iconSize + 3;
-    const phoneTextWidth = 77;
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark);
-
-    // Display numbers with comma, allow natural line wrap
-    const phoneDisplayText = phoneNumbers.join(', ');
-    doc.text(phoneDisplayText, phoneTextX, yPos + 16, {
-      width: phoneTextWidth,
-      align: 'left',
-      lineGap: 3
+    phoneNumbers.forEach((num, idx) => {
+      doc.text(formatMob(num), phoneTextX, yPos + 16 + (idx * 13), {
+        width: phoneTextWidth,
+        align: 'left'
+      });
     });
 
     // ===== JOB SHEET TITLE - BLACK BOLD TEXT =====
     yPos = jobSheetTitleY;
     doc.fontSize(12).font('Helvetica-Bold').fillColor(textDark)
-      .text('J O B   S H E E T', margin, yPos + 2, { width: contentWidth, align: 'center' });
+      .text('J O B  S H E E T', margin, yPos + 2, { width: contentWidth, align: 'center' });
 
     // ===== TWO COLUMN: JOB INFO + QR CODE (BORDERED BOX) =====
     yPos = jobInfoY;
@@ -2381,37 +2386,37 @@ export class PDFGenerationService {
     const colonX = margin + 80;
     const valueX = margin + 90;
 
-    const jobNumber = data.jobSheetNumber.replace(/[^0-9]/g, '') || data.jobSheetNumber;
+    const jobNumber = data.service.ticketNumber;
     const bookingDate = format(new Date(data.service.createdAt), 'dd/MM/yyyy hh:mm a');
     const bookedBy = data.createdBy?.name || '-';
 
     // Service Job No - Inside bordered cell
     let leftY = yPos + 5;
-    doc.fontSize(10).font('Helvetica-Bold').fillColor(textDark);
-    doc.text('Service Job No  :', labelX, leftY);
-    doc.fontSize(16).font('Helvetica-Bold').text(jobNumber, valueX + 10, leftY - 2);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(textDark);
+    doc.text('Service Job No:', labelX, leftY + 1);
+    doc.fontSize(14).font('Helvetica-Bold').text(jobNumber, valueX + 4, leftY - 1); // Value is bold
 
     // Other job details below the bordered cell
     leftY = yPos + serviceJobNoRowHeight + 6;
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark); // Default to regular for keys
     doc.text('Booking Date', labelX, leftY);
     doc.text(':', colonX, leftY);
-    doc.font('Helvetica').text(bookingDate, valueX, leftY);
+    doc.font('Helvetica-Bold').text(bookingDate, valueX, leftY); // Value is bold
     leftY += 14;
 
     doc.font('Helvetica-Bold').text('Cust. Name', labelX, leftY);
     doc.text(':', colonX, leftY);
-    doc.font('Helvetica').text(data.customer.name, valueX, leftY);
+    doc.font('Helvetica-Bold').text(data.customer.name, valueX, leftY);
     leftY += 14;
 
     doc.font('Helvetica-Bold').text('Mobile No.', labelX, leftY);
     doc.text(':', colonX, leftY);
-    doc.font('Helvetica').text(data.customer.phone, valueX, leftY);
+    doc.font('Helvetica-Bold').text(data.customer.phone, valueX, leftY);
     leftY += 14;
 
     doc.font('Helvetica-Bold').text('Booked By', labelX, leftY);
     doc.text(':', colonX, leftY);
-    doc.font('Helvetica').text(bookedBy, valueX, leftY);
+    doc.font('Helvetica-Bold').text(bookedBy, valueX, leftY);
 
     // Right column - QR Code section
     // "Tracking QR Code" - GREEN background, WHITE text, BOLD
@@ -2442,81 +2447,81 @@ export class PDFGenerationService {
     const deviceDetailsSectionY = yPos;
     const deviceDetailsSectionHeight = deviceDetailsHeight; // 60mm fixed
 
+    const rowGap = 18; // Increased line spacing for better clarity (requested 18pt)
+
     // Detail positioning
     const detailLabelX = margin + 8;
     const detailColonX = margin + 100;
     const detailValueX = margin + 110;
     const detailValueWidth = contentWidth - 120;
 
-    // Calculate faults text height
+    // Faults text for single line display
     const faultsText = data.faults?.map(f => f.name).join(' + ') || '-';
-    doc.fontSize(9).font('Helvetica');
-    const faultsHeight = Math.min(doc.heightOfString(faultsText, { width: detailValueWidth }), 24);
 
-    // Draw border around Device Details section (60mm height)
+    // Draw border around Device Details section (60mm fixed height)
     doc.rect(margin, deviceDetailsSectionY, contentWidth, deviceDetailsSectionHeight).lineWidth(1).stroke(borderColor);
 
     // DEVICE DETAILS Title - RED TEXT + UNDERLINE (inside border)
     yPos = deviceDetailsSectionY + 6;
-    doc.fontSize(10).font('Helvetica-Bold').fillColor(colorRed)
-      .text('D E V I C E   D E T A I L S', margin, yPos, { width: contentWidth, align: 'center' });
-    yPos += 12;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(colorRed)
+      .text('D E V I C E  D E T A I L S', margin, yPos, { width: contentWidth, align: 'center' });
+    yPos += 13;
 
     // Red underline
-    const titleWidth = doc.widthOfString('D E V I C E   D E T A I L S');
+    const titleWidth = doc.widthOfString('D E V I C E  D E T A I L S');
     const underlineX = margin + (contentWidth - titleWidth) / 2;
-    doc.moveTo(underlineX, yPos).lineTo(underlineX + titleWidth, yPos).lineWidth(1).stroke(colorRed);
-    yPos += 8;
+    doc.moveTo(underlineX, yPos).lineTo(underlineX + titleWidth, yPos).lineWidth(1.2).stroke(colorRed);
+    yPos += 10;
 
-    // Device Details (model + IMEI) - Improved font sizes
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark)
+    // Device Details (model on line 1, IMEI on line 2 as per attachment)
+    doc.fontSize(10).font('Helvetica').fillColor(textDark)
       .text('Device Details', detailLabelX, yPos);
     doc.text(':', detailColonX, yPos);
-    doc.font('Helvetica-Bold').text(data.service.deviceModel, detailValueX, yPos);
-    yPos += 12;
-    if (data.service.deviceIMEI) {
-      doc.fontSize(8).font('Helvetica').text(data.service.deviceIMEI, detailValueX, yPos);
-      yPos += 11;
-    }
+    doc.font('Helvetica-Bold').text(data.service.deviceModel.toUpperCase(), detailValueX, yPos, { width: detailValueWidth, ellipsis: true });
 
-    // Faults
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(textDark)
-      .text('Faults', detailLabelX, yPos);
+    if (data.service.deviceIMEI) {
+      yPos += 13;
+      doc.font('Helvetica').text(data.service.deviceIMEI, detailValueX, yPos, { width: detailValueWidth });
+    }
+    yPos += rowGap;
+
+    // Faults - single line with ellipsis
+    doc.fontSize(10).font('Helvetica').text('Faults', detailLabelX, yPos);
     doc.text(':', detailColonX, yPos);
-    doc.font('Helvetica-Bold').text(faultsText, detailValueX, yPos, { width: detailValueWidth, height: 24, ellipsis: true });
-    yPos += Math.max(faultsHeight, 12) + 2;
+    doc.font('Helvetica-Bold').text(faultsText, detailValueX, yPos, { width: detailValueWidth, height: 12, ellipsis: true });
+    yPos += rowGap;
 
     // Device Condition
     const deviceCondition = data.service.deviceCondition?.toUpperCase() || '-';
-    doc.font('Helvetica-Bold').text('Device Condition', detailLabelX, yPos);
+    doc.font('Helvetica').text('Device Condition', detailLabelX, yPos);
     doc.text(':', detailColonX, yPos);
-    doc.font('Helvetica').text(deviceCondition, detailValueX, yPos);
-    yPos += 12;
+    doc.font('Helvetica-Bold').text(deviceCondition, detailValueX, yPos);
+    yPos += rowGap;
 
     // Damage Condition
     const damageText = data.damageConditions?.map(d => d.name).join(', ') || '-';
-    doc.font('Helvetica-Bold').text('Damage Condition', detailLabelX, yPos);
+    doc.font('Helvetica').text('Damage Condition', detailLabelX, yPos);
     doc.text(':', detailColonX, yPos);
-    doc.font('Helvetica').text(damageText, detailValueX, yPos, { width: detailValueWidth });
-    yPos += 12;
+    doc.font('Helvetica').text(damageText, detailValueX, yPos, { width: detailValueWidth, ellipsis: true });
+    yPos += rowGap;
 
     // Accessories
     const accessoriesText = data.accessories?.map(a => a.name).join(', ') || '-';
-    doc.font('Helvetica-Bold').text('Accessories', detailLabelX, yPos);
+    doc.font('Helvetica').text('Accessories', detailLabelX, yPos);
     doc.text(':', detailColonX, yPos);
-    doc.font('Helvetica').text(accessoriesText, detailValueX, yPos, { width: detailValueWidth });
-    yPos += 12;
+    doc.font('Helvetica').text(accessoriesText, detailValueX, yPos, { width: detailValueWidth, ellipsis: true });
+    yPos += rowGap;
 
     // Service Notes
     const serviceNotes = data.service.intakeNotes || '-';
-    doc.font('Helvetica-Bold').text('Service Notes', detailLabelX, yPos);
+    doc.font('Helvetica').text('Service Notes', detailLabelX, yPos);
     doc.text(':', detailColonX, yPos);
-    doc.font('Helvetica').text(serviceNotes, detailValueX, yPos, { width: detailValueWidth });
-    yPos += 12;
+    doc.font('Helvetica').text(serviceNotes, detailValueX, yPos, { width: detailValueWidth, ellipsis: true });
+    yPos += rowGap;
 
     // Data loss Approval - ONLY show if data is present (dataWarrantyAccepted is true)
     if (data.service.dataWarrantyAccepted === true) {
-      doc.font('Helvetica-Bold').text('Data loss Approval', detailLabelX, yPos);
+      doc.font('Helvetica').text('Data loss Approval', detailLabelX, yPos);
       doc.text(':', detailColonX, yPos);
       doc.font('Helvetica').text('Approved', detailValueX, yPos);
     }
@@ -2580,9 +2585,9 @@ export class PDFGenerationService {
     const costLineY = yPos + 22;
     doc.moveTo(costColX + 1, costLineY).lineTo(costColX + costColWidth - 1, costLineY).lineWidth(1).stroke(borderColor);
 
-    // "For Delivery use only" - below border
-    doc.fontSize(8).font('Helvetica').fillColor(textMuted)
-      .text('For Delivery use only', costColX + 8, costLineY + 6);
+    // "For Delivery use only" - centered within cell
+    doc.fontSize(10).font('Helvetica').fillColor(textMuted)
+      .text('For Delivery use only', costColX, costLineY + 10, { width: costColWidth, align: 'center' });
 
     // Delivery cell - 40mm height, NO BOX (empty space for delivery signature)
     // Just leave the space empty - no rectangle drawn
@@ -2605,8 +2610,8 @@ export class PDFGenerationService {
     const authorisedSignWidth = doc.widthOfString(authorisedSignText);
     doc.text(authorisedSignText, rightCellCenterX - (authorisedSignWidth / 2), signatureY + signatureRowHeight - 12);
 
-    // ===== FOOTER - WITH PADDING TOP FOR PROFESSIONAL GAP =====
-    const footerPaddingTop = 8; // Professional gap between signature row and footer
+    // ===== FOOTER =====
+    const footerPaddingTop = 1; // No padding for single page fit
     doc.fontSize(10).font('Helvetica-Bold').fillColor(colorGreen)
       .text(`Thank you for your trust with ${data.company.name}!`, margin, footerY + footerPaddingTop, { width: contentWidth, align: 'center' });
   }
@@ -2627,12 +2632,12 @@ export class PDFGenerationService {
       doc.save();
       doc.rotate(-45, { origin: [pageWidth / 2, pageHeight / 2] });
       doc.fontSize(is2Inch ? 14 : 18)
-         .fillColor('#ef4444')
-         .opacity(0.15)
-         .text('REPEATED', 0, pageHeight / 2 - 10, {
-           width: pageWidth * 1.5,
-           align: 'center'
-         });
+        .fillColor('#ef4444')
+        .opacity(0.15)
+        .text('REPEATED', 0, pageHeight / 2 - 10, {
+          width: pageWidth * 1.5,
+          align: 'center'
+        });
       doc.restore();
       doc.opacity(1);
     }
@@ -2813,12 +2818,12 @@ export class PDFGenerationService {
       doc.save();
       doc.rotate(-45, { origin: [pageWidth / 2, pageHeight / 2] });
       doc.fontSize(is2Inch ? 14 : 18)
-         .fillColor('#ef4444')
-         .opacity(0.15)
-         .text('REPEATED', 0, pageHeight / 2 - 10, {
-           width: pageWidth * 1.5,
-           align: 'center'
-         });
+        .fillColor('#ef4444')
+        .opacity(0.15)
+        .text('REPEATED', 0, pageHeight / 2 - 10, {
+          width: pageWidth * 1.5,
+          align: 'center'
+        });
       doc.restore();
       doc.opacity(1);
     }
@@ -3821,9 +3826,9 @@ export class PDFGenerationService {
     // Copy badge
     const copyLabel = (data.copyType || 'original').toUpperCase() + ' COPY';
     const badgeWidth = is2Inch ? 50 : 70;
-    doc.rect(centerX - badgeWidth/2, yPos, badgeWidth, is2Inch ? 10 : 12).stroke(textDark);
+    doc.rect(centerX - badgeWidth / 2, yPos, badgeWidth, is2Inch ? 10 : 12).stroke(textDark);
     doc.fontSize(is2Inch ? 4 : 5).font(this.getCurrencyFont(true))
-      .text(copyLabel, centerX - badgeWidth/2, yPos + 2, { width: badgeWidth, align: 'center' });
+      .text(copyLabel, centerX - badgeWidth / 2, yPos + 2, { width: badgeWidth, align: 'center' });
     yPos += is2Inch ? 14 : 18;
 
     // Divider
@@ -3968,7 +3973,7 @@ export class PDFGenerationService {
    */
   private numberToWords(num: number): string {
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-                  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
     const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
     const convertLessThanThousand = (n: number): string => {
@@ -4495,7 +4500,7 @@ export class PDFGenerationService {
     doc.fontSize(8).font('Helvetica-Bold').text('Terms & Conditions:', 50, 680);
     doc.fontSize(7).font('Helvetica').text(
       'Payment is due upon receipt. Warranty: 30 days for parts and service. ' +
-        'This invoice is computer-generated and requires no signature.',
+      'This invoice is computer-generated and requires no signature.',
       50,
       690,
       { width: 500 }
@@ -4574,6 +4579,60 @@ export class PDFGenerationService {
         });
 
         stream.on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Generate Estimate PDF Buffer (no file saved - for streaming)
+   */
+  async generateEstimatePDFBuffer(data: EstimateData, format: string = 'A4'): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Configure page size based on format
+        let docOptions: any = {};
+        switch (format.toLowerCase()) {
+          case 'a5':
+            docOptions = { size: 'A5', margin: 30 };
+            break;
+          case 'thermal-2':
+            docOptions = { size: [144, 720], margin: 5 };
+            break;
+          case 'thermal-3':
+            docOptions = { size: [216, 720], margin: 10 };
+            break;
+          case 'a4':
+          default:
+            docOptions = { size: 'A4', margin: 50 };
+            break;
+        }
+
+        const doc = new PDFDocument(docOptions);
+        const chunks: Buffer[] = [];
+
+        // Collect chunks in memory
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Header
+        this.addEstimateHeader(doc, data);
+
+        // Customer Info
+        this.addEstimateCustomerInfo(doc, data);
+
+        // Items Table
+        this.addEstimateItemsTable(doc, data);
+
+        // Total Summary
+        this.addEstimateTotalSummary(doc, data);
+
+        // Footer
+        this.addEstimateFooter(doc, data);
+
+        doc.end();
       } catch (error) {
         reject(error);
       }
@@ -4799,8 +4858,8 @@ export class PDFGenerationService {
     doc.fontSize(8).font('Helvetica-Bold').text('Terms & Conditions:', 50, 680);
     doc.fontSize(7).font('Helvetica').text(
       'This is an estimate only. Actual costs may vary. ' +
-        'Estimate is valid for the specified period. ' +
-        'Final invoice will be generated upon service completion.',
+      'Estimate is valid for the specified period. ' +
+      'Final invoice will be generated upon service completion.',
       50,
       690,
       { width: 500 }
@@ -5333,6 +5392,20 @@ export class PDFGenerationService {
     let summaryY = yPos + 8;
 
     doc.fontSize(9).font(regularFont).fillColor(textDark);
+
+    // Subtotal before discount
+    if (data.subtotalBeforeDiscount && data.discountAmount && data.discountAmount > 0) {
+      doc.text('Subtotal', summaryX, summaryY);
+      doc.text(':', summaryX + 80, summaryY);
+      doc.text((data.subtotalBeforeDiscount || 0).toFixed(2), summaryX + 90, summaryY, { width: 80, align: 'right' });
+      summaryY += 14;
+
+      doc.text('Discount', summaryX, summaryY);
+      doc.text(':', summaryX + 80, summaryY);
+      doc.text(`- ${(data.discountAmount || 0).toFixed(2)}`, summaryX + 90, summaryY, { width: 80, align: 'right' });
+      summaryY += 14;
+    }
+
     doc.text('Gross Amount', summaryX, summaryY);
     doc.text(':', summaryX + 80, summaryY);
     doc.text(data.grossAmount.toFixed(2), summaryX + 90, summaryY, { width: 80, align: 'right' });

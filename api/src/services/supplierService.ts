@@ -13,6 +13,7 @@ interface CreateSupplierData {
   address?: string;
   city?: string;
   state?: string;
+  country?: string;
   pincode?: string;
   gstNumber?: string;
   panNumber?: string;
@@ -34,6 +35,7 @@ interface UpdateSupplierData {
   address?: string;
   city?: string;
   state?: string;
+  country?: string;
   pincode?: string;
   gstNumber?: string;
   panNumber?: string;

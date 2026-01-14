@@ -142,6 +142,7 @@ export default function CreateEstimate() {
     const estimateData = {
       customerId: formData.customerId,
       serviceId: formData.serviceId || undefined,
+      branchId: user.activeBranch.id,
       items: items.map((item) => ({
         description: item.description,
         quantity: item.quantity,

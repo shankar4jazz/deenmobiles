@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { faultApi } from '@/services/masterDataApi';
 import { Fault } from '@/types/masters';
@@ -29,7 +29,6 @@ export function FaultTagInput({
 }: FaultTagInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFaults, setSelectedFaults] = useState<Fault[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,21 +91,32 @@ export function FaultTagInput({
     return faults.reduce((sum, fault) => sum + Number(fault.defaultPrice || 0), 0);
   }, [isWarrantyRepair, matchingFaultIds]);
 
-  // Update selected faults when value or allFaults change
-  useEffect(() => {
-    if (allFaults.length > 0) {
-      const selected = allFaults.filter((fault) => value.includes(fault.id));
-      setSelectedFaults(selected);
+  // Stabilize all available faults (search results + frequent faults)
+  const allAvailableFaults = useMemo(() => {
+    const list = [...(frequentFaultsData?.data || [])];
+    if (searchData?.data) {
+      searchData.data.forEach(sf => {
+        if (!list.find(f => f.id === sf.id)) list.push(sf);
+      });
     }
-  }, [value, allFaults]);
+    return list;
+  }, [frequentFaultsData?.data, searchData?.data]);
 
-  // Recalculate and notify parent when warranty status changes
+  // Derived selected faults - NO STATE update needed
+  const selectedFaults = useMemo(() => {
+    if (!value || !allAvailableFaults.length) return [];
+    return value.map(id => allAvailableFaults.find((f: Fault) => f.id === id)).filter(Boolean) as Fault[];
+  }, [value, allAvailableFaults]);
+
+  // Handle price calculation and notification
+  const currentTotalPrice = useMemo(() => calculateTotalPrice(selectedFaults), [selectedFaults, calculateTotalPrice]);
+
+  // Sync total price to parent ONLY if it changed and is different from what parent might expect
+  // We avoid calling onChange in useEffect if possible, but if we must, we check for differences
   useEffect(() => {
     if (selectedFaults.length > 0) {
-      const newTotalPrice = calculateTotalPrice(selectedFaults);
-      onChange(value, selectedFaults, newTotalPrice);
+      // Logic to notify parent only if needed or on specific deps
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWarrantyRepair, matchingFaultIds]);
 
   // Close dropdown when clicking outside
@@ -213,23 +223,21 @@ export function FaultTagInput({
     <div ref={dropdownRef} className={`relative ${className}`}>
       {/* Selected Faults Tags */}
       <div
-        className={`w-full px-2 py-1.5 border rounded-lg bg-white min-h-[42px] flex flex-wrap items-center gap-1.5 transition-colors ${
-          disabled
-            ? 'bg-gray-100 cursor-not-allowed border-gray-200'
-            : 'cursor-text hover:border-gray-400 border-gray-300'
-        } ${error ? 'border-red-500' : ''} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
+        className={`w-full px-2 py-1.5 border rounded-lg bg-white min-h-[42px] flex flex-wrap items-center gap-1.5 transition-colors ${disabled
+          ? 'bg-gray-100 cursor-not-allowed border-gray-200'
+          : 'cursor-text hover:border-gray-400 border-gray-300'
+          } ${error ? 'border-red-500' : ''} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
         onClick={() => inputRef.current?.focus()}
       >
-        {selectedFaults.map((fault) => {
+        {selectedFaults.map((fault: Fault) => {
           const isWarrantyCovered = isWarrantyRepair && matchingFaultIds.includes(fault.id);
           return (
             <span
               key={fault.id}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
-                isWarrantyCovered
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-blue-100 text-blue-800'
-              }`}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${isWarrantyCovered
+                ? 'bg-green-100 text-green-800'
+                : 'bg-blue-100 text-blue-800'
+                }`}
             >
               <Wrench className="w-3 h-3" />
               {fault.name}
@@ -248,9 +256,8 @@ export function FaultTagInput({
                     e.stopPropagation();
                     removeFault(fault.id);
                   }}
-                  className={`ml-0.5 rounded-full p-0.5 transition-colors ${
-                    isWarrantyCovered ? 'hover:bg-green-200' : 'hover:bg-blue-200'
-                  }`}
+                  className={`ml-0.5 rounded-full p-0.5 transition-colors ${isWarrantyCovered ? 'hover:bg-green-200' : 'hover:bg-blue-200'
+                    }`}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -282,26 +289,26 @@ export function FaultTagInput({
           {isWarrantyRepair && matchingFaultIds.length > 0 ? (
             <div className="space-y-0.5">
               {/* Show covered faults total */}
-              {selectedFaults.filter(f => matchingFaultIds.includes(f.id)).length > 0 && (
+              {selectedFaults.filter((f: Fault) => matchingFaultIds.includes(f.id)).length > 0 && (
                 <div className="flex items-center gap-1 text-green-600">
-                  <span>Covered ({selectedFaults.filter(f => matchingFaultIds.includes(f.id)).length}):</span>
+                  <span>Covered ({selectedFaults.filter((f: Fault) => matchingFaultIds.includes(f.id)).length}):</span>
                   <span className="line-through text-gray-400">
                     ₹{selectedFaults
-                      .filter(f => matchingFaultIds.includes(f.id))
-                      .reduce((sum, f) => sum + Number(f.defaultPrice || 0), 0)
+                      .filter((f: Fault) => matchingFaultIds.includes(f.id))
+                      .reduce((sum: number, f: Fault) => sum + Number(f.defaultPrice || 0), 0)
                       .toLocaleString('en-IN')}
                   </span>
                   <span className="font-semibold">FREE</span>
                 </div>
               )}
               {/* Show new faults total */}
-              {selectedFaults.filter(f => !matchingFaultIds.includes(f.id)).length > 0 && (
+              {selectedFaults.filter((f: Fault) => !matchingFaultIds.includes(f.id)).length > 0 && (
                 <div className="flex items-center gap-1">
-                  <span>New faults ({selectedFaults.filter(f => !matchingFaultIds.includes(f.id)).length}):</span>
+                  <span>New faults ({selectedFaults.filter((f: Fault) => !matchingFaultIds.includes(f.id)).length}):</span>
                   <span className="font-semibold text-blue-600">
                     ₹{selectedFaults
-                      .filter(f => !matchingFaultIds.includes(f.id))
-                      .reduce((sum, f) => sum + Number(f.defaultPrice || 0), 0)
+                      .filter((f: Fault) => !matchingFaultIds.includes(f.id))
+                      .reduce((sum: number, f: Fault) => sum + Number(f.defaultPrice || 0), 0)
                       .toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -355,9 +362,8 @@ export function FaultTagInput({
                       key={fault.id}
                       type="button"
                       onClick={() => addFault(fault)}
-                      className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors text-sm flex items-center justify-between ${
-                        highlightedIndex === index ? 'bg-blue-50' : ''
-                      }`}
+                      className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors text-sm flex items-center justify-between ${highlightedIndex === index ? 'bg-blue-50' : ''
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <Wrench className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -377,9 +383,8 @@ export function FaultTagInput({
                       type="button"
                       onClick={handleCreateFault}
                       disabled={createMutation.isPending}
-                      className={`w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors text-sm flex items-center gap-2 border-t border-gray-100 ${
-                        highlightedIndex === filteredFaults.length ? 'bg-blue-50' : ''
-                      }`}
+                      className={`w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors text-sm flex items-center gap-2 border-t border-gray-100 ${highlightedIndex === filteredFaults.length ? 'bg-blue-50' : ''
+                        }`}
                     >
                       <Plus className="w-4 h-4 text-blue-600 flex-shrink-0" />
                       <span className="text-blue-600 font-medium">

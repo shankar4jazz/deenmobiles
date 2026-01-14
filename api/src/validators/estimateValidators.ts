@@ -18,6 +18,12 @@ export const createEstimateValidation: ValidationChain[] = [
     .isUUID()
     .withMessage('Invalid service ID format'),
 
+  body('branchId')
+    .optional()
+    .trim()
+    .isUUID()
+    .withMessage('Invalid branch ID format'),
+
   body('items')
     .isArray({ min: 1 })
     .withMessage('At least one item is required'),

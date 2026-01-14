@@ -3,7 +3,8 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { itemsApi } from '@/services/itemsApi';
 import { categoryApi, unitApi, gstRateApi, brandApi, modelApi } from '@/services/masterDataApi';
 import { X, Upload, Download, AlertCircle, CheckCircle, FileText } from 'lucide-react';
-import { ItemFormData } from '@/types';
+import { toast } from 'sonner';
+import { ItemFormData, TaxType } from '@/types';
 import * as XLSX from 'xlsx';
 
 interface ImportItemsModalProps {
@@ -89,7 +90,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
         '95000',
         '85171200',
         '18',
-        'INCLUSIVE'
+        'CGST_SGST'
       ],
       [
         'Samsung Galaxy S24',
@@ -105,7 +106,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
         '88000',
         '85171200',
         '18',
-        'INCLUSIVE'
+        'CGST_SGST'
       ],
     ];
 
@@ -154,7 +155,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
         95000,
         '85171200',
         18,
-        'INCLUSIVE'
+        'CGST_SGST'
       ],
       [
         'Samsung Galaxy S24',
@@ -170,7 +171,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
         88000,
         '85171200',
         18,
-        'INCLUSIVE'
+        'CGST_SGST'
       ],
     ];
 
@@ -252,9 +253,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
         salesPrice: values[10] ? parseFloat(values[10]) : undefined,
         hsnCode: values[11] || undefined,
         gstRateId: gstRateId || undefined,
-        taxType: values[13] === 'INCLUSIVE' || values[13] === 'EXCLUSIVE'
-          ? values[13] as 'INCLUSIVE' | 'EXCLUSIVE'
-          : undefined,
+        taxType: values[13] === 'IGST' ? TaxType.IGST : TaxType.CGST_SGST,
       };
 
       if (brandName && !brandId) {
@@ -342,9 +341,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
               salesPrice: row[10] ? parseFloat(row[10].toString()) : undefined,
               hsnCode: row[11]?.toString() || undefined,
               gstRateId: gstRateId || undefined,
-              taxType: row[13] === 'INCLUSIVE' || row[13] === 'EXCLUSIVE'
-                ? row[13] as 'INCLUSIVE' | 'EXCLUSIVE'
-                : undefined,
+              taxType: row[13]?.toString() === 'IGST' ? TaxType.IGST : TaxType.CGST_SGST,
             };
 
             if (brandName && !brandId) {
@@ -379,7 +376,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
     const isExcel = selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls');
 
     if (!isCSV && !isExcel) {
-      alert('Please upload a CSV or Excel file');
+      toast.error('Please upload a CSV or Excel file');
       return;
     }
 
@@ -403,7 +400,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
       }
     } catch (error) {
       console.error('Error parsing file:', error);
-      alert('Error parsing file. Please check the file format.');
+      toast.error('Error parsing file. Please check the file format.');
       setIsProcessing(false);
     }
   };
@@ -412,7 +409,7 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
     const validItems = parsedItems.filter(item => item.errors.length === 0);
 
     if (validItems.length === 0) {
-      alert('No valid items to import');
+      toast.error('No valid items to import');
       return;
     }
 
@@ -426,7 +423,11 @@ export default function ImportItemsModal({ isOpen, onClose }: ImportItemsModalPr
     const successCount = results.filter(r => r.status === 'fulfilled').length;
     const failedCount = results.filter(r => r.status === 'rejected').length;
 
-    alert(`Import completed!\nSuccess: ${successCount}\nFailed: ${failedCount}`);
+    if (failedCount > 0) {
+      toast.info(`Import completed with mixed results. Success: ${successCount}, Failed: ${failedCount}`);
+    } else {
+      toast.success(`Successfully imported ${successCount} items`);
+    }
 
     if (successCount > 0) {
       onClose();

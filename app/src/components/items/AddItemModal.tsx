@@ -4,29 +4,15 @@ import { itemsApi } from '@/services/itemsApi';
 import { categoryApi, unitApi, gstRateApi, brandApi, modelApi } from '@/services/masterDataApi';
 import { WARRANTY_TYPE_OPTIONS, getWarrantyDaysFromType } from '@/services/warrantyApi';
 import { X, Package, Loader2, Shield } from 'lucide-react';
+import { toast } from 'sonner';
+import { ItemFormData, TaxType } from '@/types';
 
 interface AddItemModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface ItemFormData {
-  itemName: string;
-  barcode?: string;
-  description?: string;
-  modelVariant?: string;
-  brandId?: string;
-  modelId?: string;
-  categoryId?: string;
-  unitId?: string;
-  purchasePrice?: number;
-  salesPrice?: number;
-  hsnCode?: string;
-  gstRateId?: string;
-  taxType?: 'CGST_SGST' | 'IGST';
-  warrantyType?: string;
-  warrantyDays?: number;
-}
+
 
 const formatCurrency = (value?: number) => {
   if (!value) return '₹0.00';
@@ -49,7 +35,6 @@ export default function AddItemModal({
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState<ItemFormData>({
-    itemCode: '',
     itemName: '',
     barcode: '',
     description: '',
@@ -57,9 +42,10 @@ export default function AddItemModal({
     purchasePrice: undefined,
     salesPrice: undefined,
     hsnCode: '',
-    taxType: 'CGST_SGST',
+    taxType: TaxType.CGST_SGST,
     warrantyType: 'NONE',
     warrantyDays: 0,
+    isActive: true,
   });
 
   // Fetch master data from API
@@ -97,11 +83,10 @@ export default function AddItemModal({
     mutationFn: itemsApi.createItem,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
-      alert('Item created successfully');
+      toast.success('Item created successfully');
       onClose();
       // Reset form
       setFormData({
-        itemCode: '',
         itemName: '',
         barcode: '',
         description: '',
@@ -109,13 +94,16 @@ export default function AddItemModal({
         purchasePrice: undefined,
         salesPrice: undefined,
         hsnCode: '',
-        taxType: 'CGST_SGST',
+        taxType: TaxType.CGST_SGST,
         warrantyType: 'NONE',
         warrantyDays: 0,
+        isActive: true,
       });
     },
     onError: (error: any) => {
-      setError(error.response?.data?.message || 'Failed to create item');
+      const message = error.response?.data?.message || 'Failed to create item';
+      setError(message);
+      toast.error(message);
     },
   });
 
@@ -402,9 +390,9 @@ export default function AddItemModal({
                     <input
                       type="radio"
                       name="taxType"
-                      value="CGST_SGST"
-                      checked={formData.taxType === 'CGST_SGST'}
-                      onChange={(e) => setFormData({ ...formData, taxType: e.target.value as any })}
+                      value={TaxType.CGST_SGST}
+                      checked={formData.taxType === TaxType.CGST_SGST}
+                      onChange={(e) => setFormData({ ...formData, taxType: e.target.value as TaxType })}
                       className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">CGST + SGST (Intra-state)</span>
@@ -413,9 +401,9 @@ export default function AddItemModal({
                     <input
                       type="radio"
                       name="taxType"
-                      value="IGST"
-                      checked={formData.taxType === 'IGST'}
-                      onChange={(e) => setFormData({ ...formData, taxType: e.target.value as any })}
+                      value={TaxType.IGST}
+                      checked={formData.taxType === TaxType.IGST}
+                      onChange={(e) => setFormData({ ...formData, taxType: e.target.value as TaxType })}
                       className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">IGST (Inter-state)</span>

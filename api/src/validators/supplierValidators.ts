@@ -26,7 +26,7 @@ const ifscCodeRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
  */
 export const createSupplierValidation: ValidationChain[] = [
   body('supplierCode')
-    .optional()
+    .optional({ values: 'falsy' })
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Supplier code must be between 2 and 50 characters'),
@@ -82,6 +82,12 @@ export const createSupplierValidation: ValidationChain[] = [
     .isLength({ max: 100 })
     .withMessage('State name must not exceed 100 characters'),
 
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Country name must not exceed 100 characters'),
+
   body('pincode')
     .optional()
     .trim()
@@ -130,7 +136,7 @@ export const createSupplierValidation: ValidationChain[] = [
  */
 export const updateSupplierValidation: ValidationChain[] = [
   body('supplierCode')
-    .optional()
+    .optional({ values: 'falsy' })
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Supplier code must be between 2 and 50 characters'),
@@ -183,6 +189,12 @@ export const updateSupplierValidation: ValidationChain[] = [
     .trim()
     .isLength({ max: 100 })
     .withMessage('State name must not exceed 100 characters'),
+
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Country name must not exceed 100 characters'),
 
   body('pincode')
     .optional()

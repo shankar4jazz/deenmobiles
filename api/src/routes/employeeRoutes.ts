@@ -22,7 +22,7 @@ router.use(authenticate);
  */
 router.get(
   '/check-username',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   EmployeeController.checkUsernameAvailability
 );
 
@@ -33,7 +33,7 @@ router.get(
  */
 router.get(
   '/by-role',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   EmployeeController.getEmployeesByRole
 );
 
@@ -44,7 +44,7 @@ router.get(
  */
 router.post(
   '/',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   uploadProfileImage,
   processProfileImageUpload('employees'),
   validate(createEmployeeValidation),
@@ -58,7 +58,7 @@ router.post(
  */
 router.get(
   '/',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   EmployeeController.getAllEmployees
 );
 
@@ -69,7 +69,7 @@ router.get(
  */
 router.get(
   '/:id',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   validate(employeeIdValidation),
   EmployeeController.getEmployeeById
 );
@@ -81,7 +81,7 @@ router.get(
  */
 router.put(
   '/:id',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   uploadProfileImage,
   processProfileImageUpload('employees'),
   validate(updateEmployeeValidation),
@@ -107,7 +107,7 @@ router.delete(
  */
 router.post(
   '/:id/add-to-branch',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   EmployeeController.addEmployeeToBranch
 );
 
@@ -118,7 +118,7 @@ router.post(
  */
 router.put(
   '/:id/transfer',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   EmployeeController.transferEmployee
 );
 
@@ -129,7 +129,7 @@ router.put(
  */
 router.delete(
   '/:id/remove-from-branch',
-  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER),
+  authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.BRANCH_ADMIN),
   EmployeeController.removeEmployeeFromBranch
 );
 

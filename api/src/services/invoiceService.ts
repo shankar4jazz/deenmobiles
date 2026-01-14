@@ -18,17 +18,23 @@ interface CreateInvoiceData {
   items?: InvoiceItemData[];
   totalAmount?: number;
   paidAmount?: number;
+  paymentMethodId?: string; // Added for standalone payments
   notes?: string;
+  themeId?: string; // Added for PDF theme
   userId: string;
   companyId: string;
 }
 
 interface InvoiceItemData {
-  itemId?: string;  // Optional - links to Item catalog for warranty tracking
+  itemId?: string;           // Optional - links to Item catalog for warranty tracking
+  itemCode?: string;         // Optional - item code for reference
+  branchInventoryId?: string; // Optional - for stock deduction
   description: string;
   quantity: number;
   unitPrice: number;
   amount: number;
+  hsnCode?: string;          // Optional - HSN/SAC code for GST
+  gstRate?: number;          // Optional - GST percentage
 }
 
 interface RecordPaymentData {
@@ -162,9 +168,14 @@ export class InvoiceService {
 
       // Calculate amounts
       let totalAmount: number;
-      let paidAmount: number;
-      let balanceAmount: number;
       let paymentStatus: PaymentStatus;
+      let paidAmount: number = service.advancePayment || 0;
+      let discount: number = Number(service.discount || 0);
+
+      // Extra spare parts total (charged even for warranty)
+      const extraSpareTotal = service.partsUsed
+        .filter((p: any) => p.isExtraSpare && p.isApproved)
+        .reduce((sum: number, p: any) => sum + Number(p.totalPrice || 0), 0);
 
       if (isWarrantyRepair) {
         // Warranty repair - calculate based on matching vs new faults
@@ -175,38 +186,27 @@ export class InvoiceService {
           .filter((sf: any) => !matchingFaultIds.includes(sf.faultId))
           .reduce((sum: number, sf: any) => sum + Number(sf.fault?.defaultPrice || 0), 0);
 
-        // Extra spare parts total (charged even for warranty)
-        const extraSpareTotal = service.partsUsed
-          .filter((p: any) => p.isExtraSpare && p.isApproved)
-          .reduce((sum: number, p: any) => sum + Number(p.totalPrice || 0), 0);
-
         // Total = new faults + extra spare parts (matching faults are FREE)
-        totalAmount = newFaultsTotal + extraSpareTotal;
-        paidAmount = service.advancePayment;
-        balanceAmount = totalAmount - paidAmount;
-
-        // Determine payment status
-        if (balanceAmount <= 0) {
-          paymentStatus = PaymentStatus.PAID;
-        } else if (paidAmount > 0) {
-          paymentStatus = PaymentStatus.PARTIAL;
-        } else {
-          paymentStatus = PaymentStatus.PENDING;
-        }
+        totalAmount = newFaultsTotal + extraSpareTotal - discount;
       } else {
         // Regular service - calculate normally
-        totalAmount = service.actualCost ?? service.estimatedCost;
-        paidAmount = service.advancePayment;
-        balanceAmount = totalAmount - paidAmount;
+        // total = (actual or estimated) + extra spares - discount
+        const baseAmount = service.actualCost ?? service.estimatedCost ?? 0;
+        totalAmount = baseAmount + extraSpareTotal - discount;
+      }
 
-        // Determine payment status
-        if (balanceAmount <= 0) {
-          paymentStatus = PaymentStatus.PAID;
-        } else if (paidAmount > 0) {
-          paymentStatus = PaymentStatus.PARTIAL;
-        } else {
-          paymentStatus = PaymentStatus.PENDING;
-        }
+      // Ensure totalAmount is at least 0
+      totalAmount = Math.max(0, totalAmount);
+
+      const balanceAmount = totalAmount - paidAmount;
+
+      // Determine payment status
+      if (balanceAmount <= 0) {
+        paymentStatus = PaymentStatus.PAID;
+      } else if (paidAmount > 0) {
+        paymentStatus = PaymentStatus.PARTIAL;
+      } else {
+        paymentStatus = PaymentStatus.PENDING;
       }
 
       // Generate invoice number using configurable format from settings
@@ -270,6 +270,7 @@ export class InvoiceService {
           transactionId: pe.transactionId || undefined,
           createdAt: pe.paymentDate,
         })),
+        discount,
         totalAmount,
         paidAmount,
         balanceAmount,
@@ -351,7 +352,9 @@ export class InvoiceService {
         items,
         totalAmount,
         paidAmount = 0,
+        paymentMethodId,
         notes,
+        themeId,
         userId,
         companyId,
       } = data;
@@ -453,6 +456,7 @@ export class InvoiceService {
             paymentStatus,
             companyId,
             notes,
+            themeId,
           },
           include: {
             service: {
@@ -487,7 +491,60 @@ export class InvoiceService {
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               amount: item.amount,
+              hsnCode: item.hsnCode || null,  // HSN/SAC code for GST
+              gstRate: item.gstRate || null,  // GST percentage
             })),
+          });
+
+          // Deduct stock for inventory items (only if branchInventoryId provided)
+          for (const item of items) {
+            if (item.branchInventoryId && item.quantity > 0) {
+              // Get current stock before update
+              const branchInventoryBefore = await tx.branchInventory.findUnique({
+                where: { id: item.branchInventoryId },
+                select: { stockQuantity: true },
+              });
+
+              const previousQty = Number(branchInventoryBefore?.stockQuantity || 0);
+              const newQty = previousQty - item.quantity;
+
+              // Update stock quantity
+              await tx.branchInventory.update({
+                where: { id: item.branchInventoryId },
+                data: {
+                  stockQuantity: { decrement: item.quantity },
+                },
+              });
+
+              // Create stock movement record
+              await tx.stockMovement.create({
+                data: {
+                  branchInventoryId: item.branchInventoryId,
+                  movementType: 'SALE',
+                  quantity: item.quantity,
+                  previousQty: previousQty,
+                  newQty: newQty,
+                  referenceType: 'INVOICE',
+                  referenceId: newInvoice.id,
+                  notes: `Stock sold via Invoice ${newInvoice.invoiceNumber}`,
+                  userId: userId,
+                  branchId: effectiveBranchId!,
+                  companyId: companyId,
+                },
+              });
+            }
+          }
+        }
+
+        // Create initial payment record if paidAmount > 0
+        if (paidAmount > 0) {
+          await tx.payment.create({
+            data: {
+              invoiceId: newInvoice.id,
+              amount: paidAmount,
+              paymentMethodId: paymentMethodId || null,
+              notes: 'Initial payment',
+            },
           });
         }
 
@@ -1201,6 +1258,11 @@ export class InvoiceService {
                   item: true,
                 },
               },
+              faults: {
+                include: {
+                  fault: true,
+                },
+              },
               branch: true,
             },
           },
@@ -1263,6 +1325,11 @@ export class InvoiceService {
                   item: true,
                 },
               },
+              faults: {
+                include: {
+                  fault: true,
+                },
+              },
               branch: true,
             },
           },
@@ -1319,46 +1386,96 @@ export class InvoiceService {
     // Determine if inter-state (IGST) or intra-state (CGST+SGST)
     const isInterState = branchStateCode !== customerStateCode;
 
-    // Build items from invoice items or service parts
     let items: any[] = [];
     let sno = 1;
 
+    // Build items from invoice items OR (service charges + parts)
     if (invoice.items && invoice.items.length > 0) {
-      // Use invoice items
-      items = invoice.items.map((item: any) => ({
-        sno: sno++,
-        productName: item.description,
-        hsnCode: item.hsnCode || item.item?.hsnCode || '',
-        quantity: item.quantity,
-        rate: Number(item.unitPrice) || 0,
-        amount: Number(item.amount) || 0,
-      }));
-    } else if (invoice.service?.partsUsed && invoice.service.partsUsed.length > 0) {
-      // Use service parts
-      items = invoice.service.partsUsed.map((part: any) => ({
-        sno: sno++,
-        productName: part.item?.itemName || part.part?.name || 'Service',
-        hsnCode: part.item?.hsnCode || part.part?.hsnCode || '85171300',
-        quantity: part.quantity,
-        rate: Number(part.unitPrice) || 0,
-        amount: Number(part.totalPrice) || 0,
-      }));
+      // 1. Use standalone invoice items if they exist
+      invoice.items.forEach((item: any) => {
+        items.push({
+          sno: sno++,
+          productName: item.description,
+          hsnCode: item.hsnCode || item.item?.hsnCode || '',
+          quantity: item.quantity,
+          rate: Number(item.unitPrice) || 0,
+          amount: Number(item.amount) || 0,
+        });
+      });
+    } else if (invoice.service) {
+      // 2. Build items from Service Details
+      const service = invoice.service;
+
+      // A. Add Service Charge (Labor/Repair)
+      // For warranty repairs, we only charge for non-warranty faults
+      const isWarrantyRepair = !!invoice.isWarrantyInvoice; // Tracked via this field now
+      const matchingFaultIds = service.matchingFaultIds || [];
+
+      let serviceCharge = 0;
+      let serviceDescription = '';
+
+      if (isWarrantyRepair) {
+        // sum of non-matching faults
+        serviceCharge = service.faults
+          .filter((sf: any) => !matchingFaultIds.includes(sf.faultId))
+          .reduce((sum: number, sf: any) => sum + Number(sf.fault?.defaultPrice || 0), 0);
+        serviceDescription = `WARRANTY REPAIR SERVICE - ${service.deviceModel}`;
+      } else {
+        serviceCharge = Number(service.actualCost ?? service.estimatedCost ?? 0);
+        serviceDescription = `REPAIR SERVICE - ${service.deviceModel}`;
+      }
+
+      if (serviceCharge > 0) {
+        items.push({
+          sno: sno++,
+          productName: serviceDescription,
+          hsnCode: '998719', // HSN for repair services
+          quantity: 1,
+          rate: serviceCharge,
+          amount: serviceCharge,
+        });
+      }
+
+      // B. Add Parts Used
+      if (service.partsUsed && service.partsUsed.length > 0) {
+        service.partsUsed.forEach((part: any) => {
+          // Extra spare parts are always charged.
+          // Non-extra parts are covered by warranty if it's a warranty repair.
+          const charge = (isWarrantyRepair && !part.isExtraSpare) ? 0 : Number(part.totalPrice || 0);
+
+          items.push({
+            sno: sno++,
+            productName: part.item?.itemName || part.part?.name || 'Spare Part',
+            hsnCode: part.item?.hsnCode || part.part?.hsnCode || '85171300',
+            quantity: part.quantity,
+            rate: Number(part.unitPrice) || 0,
+            amount: charge,
+            isWarrantyCovered: isWarrantyRepair && !part.isExtraSpare,
+          });
+        });
+      }
+
+      // C. Safe guard: If no charges found (everything warranty?), add a 0-rate service line
+      if (items.length === 0) {
+        items.push({
+          sno: sno++,
+          productName: `SERVICE - ${service.deviceModel}`,
+          hsnCode: '998719',
+          quantity: 1,
+          rate: 0,
+          amount: 0,
+        });
+      }
     }
 
-    // If no items, create a single service line item
-    if (items.length === 0) {
-      items = [{
-        sno: 1,
-        productName: invoice.service?.deviceModel ? `${invoice.service.deviceModel} SERVICE` : 'Service Charge',
-        hsnCode: '998719', // HSN for repair services
-        quantity: 1,
-        rate: Number(invoice.totalAmount) || 0,
-        amount: Number(invoice.totalAmount) || 0,
-      }];
-    }
+    // Get Discount
+    const discountAmount = Number(invoice.service?.discount || 0);
 
     // Calculate tax amounts
     const grossAmount = Number(invoice.totalAmount) || 0;
+    // Note: taxableAmount is derived from grossAmount after discount because totalAmount already has discount deducted.
+    // If the PDF template needs to show "Subtotal before discount", we calculate it here:
+    const subtotalBeforeDiscount = items.reduce((sum, item) => sum + item.amount, 0);
     const gstRate = 18; // Default GST rate
     const taxableAmount = grossAmount / (1 + gstRate / 100); // Reverse calculate taxable amount
     const totalTax = grossAmount - taxableAmount;
@@ -1406,6 +1523,8 @@ export class InvoiceService {
         stateCode: customerStateCode,
       },
       items,
+      subtotalBeforeDiscount,
+      discountAmount,
       grossAmount,
       roundOff,
       netAmount,

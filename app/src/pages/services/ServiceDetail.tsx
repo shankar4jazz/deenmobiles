@@ -424,9 +424,11 @@ export default function ServiceDetail() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <JobSheetButton serviceId={service.id} variant="secondary" />
-          {service.deliveryStatus === DeliveryStatus.DELIVERED && (
-            <InvoiceButton serviceId={service.id} variant="primary" />
-          )}
+          {(service.status === ServiceStatus.READY ||
+            service.status === ServiceStatus.NOT_READY ||
+            service.deliveryStatus === DeliveryStatus.DELIVERED) && (
+              <InvoiceButton serviceId={service.id} variant="primary" />
+            )}
           {service.isWarrantyRepair && (
             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
               Warranty
@@ -631,11 +633,10 @@ export default function ServiceDetail() {
                   return (
                     <span
                       key={f.fault?.id || f.faultId}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm ${
-                        isWarrantyCovered
-                          ? 'bg-green-50 border border-green-200'
-                          : 'bg-red-50 border border-red-200'
-                      }`}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm ${isWarrantyCovered
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-red-50 border border-red-200'
+                        }`}
                     >
                       <span className={`font-medium ${isWarrantyCovered ? 'text-green-700' : 'text-red-700'}`}>
                         {f.fault?.name || 'Unknown'}
@@ -780,13 +781,12 @@ export default function ServiceDetail() {
                   return (
                     <div
                       key={warranty.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${
-                        isClaimed
-                          ? 'bg-blue-50 border-blue-200'
-                          : isExpired
+                      className={`flex items-center justify-between p-3 rounded-lg border ${isClaimed
+                        ? 'bg-blue-50 border-blue-200'
+                        : isExpired
                           ? 'bg-gray-50 border-gray-200'
                           : 'bg-green-50 border-green-200'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         {isClaimed ? (
@@ -1257,38 +1257,38 @@ export default function ServiceDetail() {
                 )}
                 {/* Refund Button - only for managers/admins when there are payments */}
                 {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') &&
-                 pricingSummary.totalPaid > 0 &&
-                 !service.refundedAt && (
-                  <button
-                    onClick={() => setShowRefundModal(true)}
-                    className="w-full mt-2 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg border border-red-200 flex items-center justify-center gap-2 transition-colors"
-                  >
-                    Refund & Cancel
-                  </button>
-                )}
+                  pricingSummary.totalPaid > 0 &&
+                  !service.refundedAt && (
+                    <button
+                      onClick={() => setShowRefundModal(true)}
+                      className="w-full mt-2 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg border border-red-200 flex items-center justify-center gap-2 transition-colors"
+                    >
+                      Refund & Cancel
+                    </button>
+                  )}
               </>
             )}
 
             {/* Payment History - hide for NOT_SERVICEABLE */}
             {service.status !== ServiceStatus.NOT_READY &&
-             service.paymentEntries && service.paymentEntries.length > 0 && (
-              <div className="mt-3 pt-3 border-t">
-                <h4 className="text-xs font-medium text-gray-500 mb-2">Payment History</h4>
-                <div className="space-y-1.5 text-xs max-h-32 overflow-y-auto">
-                  {service.paymentEntries.map((entry) => (
-                    <div key={entry.id} className="flex justify-between items-center text-gray-600">
-                      <div>
-                        <span className="font-medium text-green-600">₹{entry.amount.toFixed(2)}</span>
-                        <span className="text-gray-400 ml-1">via {entry.paymentMethod?.name || 'N/A'}</span>
+              service.paymentEntries && service.paymentEntries.length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <h4 className="text-xs font-medium text-gray-500 mb-2">Payment History</h4>
+                  <div className="space-y-1.5 text-xs max-h-32 overflow-y-auto">
+                    {service.paymentEntries.map((entry) => (
+                      <div key={entry.id} className="flex justify-between items-center text-gray-600">
+                        <div>
+                          <span className="font-medium text-green-600">₹{entry.amount.toFixed(2)}</span>
+                          <span className="text-gray-400 ml-1">via {entry.paymentMethod?.name || 'N/A'}</span>
+                        </div>
+                        <span className="text-gray-400">
+                          {new Date(entry.paymentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </span>
                       </div>
-                      <span className="text-gray-400">
-                        {new Date(entry.paymentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Refund Info - show when service is refunded */}
             {service.refundedAt && (
@@ -1438,11 +1438,10 @@ export default function ServiceDetail() {
                     setCurrentImageIndex(index);
                     setZoomLevel(1);
                   }}
-                  className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                    index === currentImageIndex
-                      ? 'border-white opacity-100'
-                      : 'border-transparent opacity-60 hover:opacity-80'
-                  }`}
+                  className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${index === currentImageIndex
+                    ? 'border-white opacity-100'
+                    : 'border-transparent opacity-60 hover:opacity-80'
+                    }`}
                 >
                   <img
                     src={getImageUrl(image.imageUrl)}
