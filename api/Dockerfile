@@ -46,8 +46,11 @@ COPY --from=builder /app/dist ./dist
 # Copy fonts directory for rupee symbol support in PDFs
 COPY public/fonts ./public/fonts
 
-# Create uploads directory for runtime
-RUN mkdir -p public/uploads/logos public/uploads/invoices public/uploads/jobsheets
+# Copy logos directory (company logos for PDFs)
+COPY public/uploads/logos ./public/uploads/logos
+
+# Create uploads directories for runtime-generated files
+RUN mkdir -p public/uploads/invoices public/uploads/jobsheets public/uploads/estimates public/uploads/labels
 
 # Expose port
 EXPOSE 5000
