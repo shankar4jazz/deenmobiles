@@ -1,4 +1,13 @@
+# Keep public folder tracked (fonts, uploads structure)
+# Only ignore dynamically generated PDF/image files
+public/uploads/jobsheets/*
+public/uploads/invoices/*
+public/uploads/estimates/*
+public/uploads/labels/*
+!public/uploads/jobsheets/.gitkeep
+!public/uploads/invoices/.gitkeep
+!public/uploads/estimates/.gitkeep
+!public/uploads/labels/.gitkeep
 
-# Uploads
-public/uploads/**
-!public/uploads/.gitkeep
+# Keep logos folder fully tracked (company logos from admin settings)
+!public/uploads/logos/
